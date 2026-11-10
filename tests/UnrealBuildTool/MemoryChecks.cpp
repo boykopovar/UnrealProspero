@@ -1,4 +1,5 @@
 #include "AnyUnreal/Kernel/DirectAllocation.h"
+#include "HAL/PlatformMemory.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <cstddef>
@@ -7,6 +8,29 @@
 
 namespace
 {
+    void* APS5_VABI checkConcurrentPages(void* argument)
+    {
+        auto& passed = *static_cast<bool*>(argument);
+        try
+        {
+            for (int index = 0; index < 8; ++index)
+            {
+                constexpr auto size = AnyUnreal::Memory::PageAllocator::Alignment;
+                void* allocation = FPlatformMemory::BinnedAllocFromOS(size);
+                auto* bytes = static_cast<unsigned char*>(allocation);
+                bytes[0] = static_cast<unsigned char>(index);
+                if (!FPlatformMemory::PageProtect(allocation, size, true, false) || bytes[0] != index) return nullptr;
+                FPlatformMemory::BinnedFreeToOS(allocation, size);
+            }
+            passed = true;
+        }
+        catch (...)
+        {
+            passed = false;
+        }
+        return nullptr;
+    }
+
     bool checkProtection(void* address, int expected)
     {
         void* start = nullptr;
@@ -72,5 +96,42 @@ bool CheckMemory()
     catch (const std::invalid_argument&)
     {
     }
+    void* allocation = FPlatformMemory::BinnedAllocFromOS(page * 4);
+    if (reinterpret_cast<std::uintptr_t>(allocation) % AnyUnreal::Memory::PageAllocator::Alignment != 0) return false;
+    auto* bytes = static_cast<unsigned char*>(allocation);
+    bytes[page] = 71;
+    if (!FPlatformMemory::PageProtect(bytes + page, page, true, false)) return false;
+    if (!checkProtection(bytes + page, 1) || bytes[page] != 71) return false;
+    try
+    {
+        FPlatformMemory::BinnedFreeToOS(allocation, page);
+        return false;
+    }
+    catch (const std::invalid_argument&)
+    {
+    }
+    if (bytes[page] != 71) return false;
+    FPlatformMemory::BinnedFreeToOS(allocation, page * 4);
+    try
+    {
+        FPlatformMemory::BinnedFreeToOS(allocation, page * 4);
+        return false;
+    }
+    catch (const std::invalid_argument&)
+    {
+    }
+    try
+    {
+        FPlatformMemory::GetStats();
+        return false;
+    }
+    catch (const std::runtime_error&)
+    {
+    }
+    Pthread threads[4]{};
+    bool passed[4]{};
+    for (int index = 0; index < 4; ++index) AnyUnreal::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, checkConcurrentPages, &passed[index], "AnyUnrealPages"), "scePthreadCreate");
+    for (auto& thread : threads) AnyUnreal::Kernel::CheckResult(scePthreadJoin(thread, nullptr), "scePthreadJoin");
+    for (const bool result : passed) if (!result) return false;
     return true;
 }
