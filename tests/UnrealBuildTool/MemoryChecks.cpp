@@ -4,6 +4,7 @@
 #include "prx/libkernel/include/Api.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 
 namespace
@@ -31,6 +32,34 @@ namespace
         return nullptr;
     }
 
+    bool checkTrackerAllocator()
+    {
+        void* (*allocate)(std::size_t) = nullptr;
+        void (*free)(void*, std::size_t) = nullptr;
+        int32 alignment = 0;
+        if (!FPlatformMemory::GetLLMAllocFunctions(allocate, free, alignment)) return false;
+        if (!allocate || !free || alignment != AnyUnreal::Kernel::DirectAllocation::PageSize) return false;
+        struct Allocation
+        {
+            void* Address;
+            std::size_t Size;
+            void (*Free)(void*, std::size_t);
+            ~Allocation() noexcept(false) { Free(Address, Size); }
+        };
+        const auto size = static_cast<std::size_t>(alignment);
+        Allocation first{allocate(size * 3), size * 3, free};
+        Allocation second{allocate(size), size, free};
+        if (!first.Address || !second.Address || first.Address == second.Address) return false;
+        if (reinterpret_cast<std::uintptr_t>(first.Address) % size != 0 || reinterpret_cast<std::uintptr_t>(second.Address) % size != 0) return false;
+        std::memset(first.Address, 0x5a, first.Size);
+        std::memset(second.Address, 0xa5, second.Size);
+        const auto* firstBytes = static_cast<const unsigned char*>(first.Address);
+        const auto* secondBytes = static_cast<const unsigned char*>(second.Address);
+        for (std::size_t offset = 0; offset < first.Size; ++offset) if (firstBytes[offset] != 0x5a) return false;
+        for (std::size_t offset = 0; offset < second.Size; ++offset) if (secondBytes[offset] != 0xa5) return false;
+        return true;
+    }
+
     bool checkProtection(void* address, int expected)
     {
         void* start = nullptr;
@@ -44,6 +73,7 @@ namespace
 
 bool CheckMemory()
 {
+    if (!checkTrackerAllocator()) return false;
     using AnyUnreal::Kernel::DirectAllocation;
     constexpr auto page = DirectAllocation::PageSize;
     const std::size_t alignments[]{page, 65536, 2097152};
