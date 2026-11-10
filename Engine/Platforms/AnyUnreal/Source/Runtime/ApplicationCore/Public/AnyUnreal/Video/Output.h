@@ -22,9 +22,13 @@ namespace AnyUnreal::Video
         void UnregisterBuffers(int setIndex);
         void SubmitFlip(int bufferIndex, int mode, std::int64_t argument);
         VideoOutFlipStatus GetFlipStatus() const;
+        bool IsBufferReleased(int bufferIndex) const;
+        void MarkBufferPending(int bufferIndex);
+        void WaitForBufferRelease(int bufferIndex, std::uint64_t timeoutNanoseconds) const;
         void Close();
 
     private:
+        std::uint64_t& getBufferLabel(int bufferIndex) const;
         std::optional<int> handle;
     };
 }

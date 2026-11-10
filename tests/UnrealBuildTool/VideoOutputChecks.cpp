@@ -21,7 +21,7 @@ int main()
     using AnyUnreal::Video::Output;
     for (int iteration = 0; iteration != 3; ++iteration)
     {
-        AnyUnreal::Kernel::DirectAllocation pixels(262144, 65536);
+        AnyUnreal::Kernel::DirectAllocation pixels(262144, 65536, AnyUnreal::Kernel::DirectMemoryAccess::CpuGpu);
         Output output;
         const auto resolution = output.GetResolution();
         if (resolution.fullWidth == 0 || resolution.fullHeight == 0) return 61;
@@ -57,11 +57,33 @@ int main()
         }
         const std::array buffers{VideoOutBuffers{pixels.Data(), nullptr, {nullptr, nullptr}}};
         output.RegisterBuffers(1, 1, buffers, attribute, 0);
+        if (!output.IsBufferReleased(1)) return 68;
+        output.MarkBufferPending(1);
+        if (output.IsBufferReleased(1)) return 69;
+        try
+        {
+            output.MarkBufferPending(1);
+            return 70;
+        }
+        catch (const std::logic_error&)
+        {
+        }
+        try
+        {
+            output.WaitForBufferRelease(1, 0);
+            return 71;
+        }
+        catch (const std::runtime_error&)
+        {
+        }
         output.SubmitFlip(1, 1, 123);
         WaitForFlip(output, 123);
         if (output.GetFlipStatus().currentBuffer != 1) return 67;
+        if (output.IsBufferReleased(1)) return 72;
         output.SubmitFlip(-1, 1, 124);
         WaitForFlip(output, 124);
+        output.WaitForBufferRelease(1, 5000000000ull);
+        if (!output.IsBufferReleased(1)) return 73;
         output.UnregisterBuffers(1);
         output.RegisterBuffers(1, 1, buffers, attribute, 0);
         output.UnregisterBuffers(1);
