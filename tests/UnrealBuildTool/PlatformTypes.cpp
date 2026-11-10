@@ -1,4 +1,5 @@
 #include "CoreTypes.h"
+#include "AnyUnreal/File/FileHandle.h"
 #include "AnyUnreal/AnyUnrealEvent.h"
 #include "AnyUnreal/AnyUnrealPlatformProperties.h"
 #include "HAL/PlatformProperties.h"
@@ -67,3 +68,7 @@ static_assert(!std::is_abstract_v<FAnyUnrealEvent>);
 static_assert(!std::is_copy_constructible_v<FAnyUnrealEvent>);
 static_assert(!std::is_move_constructible_v<FAnyUnrealEvent>);
 static_assert(std::is_nothrow_destructible_v<FAnyUnrealEvent>);
+
+static_assert(std::is_base_of_v<IFileHandle, FAnyUnrealFileHandle>);
+static_assert(!std::is_abstract_v<FAnyUnrealFileHandle>);
+static_assert(!std::is_copy_constructible_v<FAnyUnrealFileHandle>);
