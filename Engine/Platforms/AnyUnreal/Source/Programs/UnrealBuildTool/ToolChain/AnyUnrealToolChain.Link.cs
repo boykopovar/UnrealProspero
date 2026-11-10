@@ -62,6 +62,13 @@ internal sealed partial class AnyUnrealToolChain
         action.PrerequisiteItems.Add(manifest);
         action.PrerequisiteItems.Add(FileItem.GetItemByPath(sdk.Executable));
         action.PrerequisiteItems.Add(FileItem.GetItemByPath(profile.RuntimeLibrary));
+        action.PrerequisiteItems.Add(FileItem.GetItemByPath(sdk.GetCxxConfiguration(target)));
+        if (target == Target.Windows) action.PrerequisiteItems.Add(FileItem.GetItemByPath(SdkInstallation.RequireFile(Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"))));
+        if (target == Target.Linux)
+        {
+            string startup = SdkInstallation.RequireDirectory(Path.Combine(sdk.Root, "share/AnyDevKit/startup"));
+            foreach (string file in Directory.EnumerateFiles(startup, "*", SearchOption.AllDirectories)) action.PrerequisiteItems.Add(FileItem.GetItemByPath(file));
+        }
         foreach (string import in imports) action.PrerequisiteItems.Add(FileItem.GetItemByPath(sdk.GetImportLibrary(target, import)));
         foreach (string file in Directory.EnumerateFiles(linkerSource, "*.cmake")) action.PrerequisiteItems.Add(FileItem.GetItemByPath(file));
         action.PrerequisiteItems.Add(FileItem.GetItemByPath(Path.Combine(linkerSource, "CMakeLists.txt")));

@@ -50,6 +50,14 @@ internal static class ToolchainChecks
         toolchain.LinkFiles(link, false, graph);
         graph.WaitOnWriteTasks();
         if (makefile.Actions.Count != 4) throw new InvalidOperationException("Unexpected UBT action count");
+        IExternalAction executableLink = makefile.Actions.Last();
+        string? startupInput = target switch
+        {
+            Target.Windows => Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"),
+            Target.Linux => Path.Combine(sdk.Root, "share/AnyDevKit/startup/LinuxStartup/src/Start.S"),
+            _ => null
+        };
+        if (startupInput != null && !executableLink.PrerequisiteItems.Contains(FileItem.GetItemByPath(startupInput))) throw new InvalidOperationException("SDK startup changes would not invalidate the executable link");
         foreach (IExternalAction action in makefile.Actions)
         {
             foreach (FileItem input in action.PrerequisiteItems)
