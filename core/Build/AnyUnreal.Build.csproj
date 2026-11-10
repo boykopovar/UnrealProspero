@@ -6,4 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12</LangVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Programs/UnrealBuildTool/Build/**/*.cs" />
+  </ItemGroup>
 </Project>
