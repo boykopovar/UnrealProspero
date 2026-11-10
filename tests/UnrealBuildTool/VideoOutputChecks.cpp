@@ -1,4 +1,5 @@
 #include "AnyUnreal/Video/Output.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "AnyUnreal/Kernel/Error.h"
 #include "AnyUnreal/Kernel/DirectAllocation.h"
 #include "AnyUnreal/Kernel/Clock.h"
@@ -23,6 +24,9 @@ int main()
     {
         AnyUnreal::Kernel::DirectAllocation pixels(262144, 65536, AnyUnreal::Kernel::DirectMemoryAccess::CpuGpu);
         Output output;
+        static_cast<void>(FPlatformApplicationMisc::IsThisApplicationForeground());
+        FPlatformApplicationMisc::PumpMessages(false);
+        FPlatformApplicationMisc::PumpMessages(true);
         const auto resolution = output.GetResolution();
         if (resolution.fullWidth == 0 || resolution.fullHeight == 0) return 61;
         try

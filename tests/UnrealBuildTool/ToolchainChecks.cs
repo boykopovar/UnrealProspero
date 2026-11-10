@@ -76,20 +76,23 @@ internal static class ToolchainChecks
         toolchain.LinkFiles(link, false, graph);
         CppCompileEnvironment videoCompile = new(platformCompile);
         videoCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Public"));
+        videoCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/ApplicationCore/Public"));
+        videoCompile.Definitions.Add("APPLICATIONCORE_API=");
         CPPOutput video = toolchain.CompileAllCPPFiles(videoCompile, new[]
         {
             FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "VideoOutputChecks.cpp")),
+            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Private/AnyUnreal/AnyUnrealPlatformApplicationMisc.cpp")),
             FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"))
         }, DirectoryReference.Combine(intermediate, "video-objects"), "VideoOutput", graph);
         FileReference videoExecutable = FileReference.Combine(intermediate, "video", "VideoOutputProbe" + extension);
         LinkEnvironment videoLink = new(platform, CppConfiguration.Development, architectures) { IntermediateDirectory = intermediate };
         videoLink.InputFiles.AddRange(video.ObjectFiles);
         videoLink.Libraries.Add(library.Location);
-        videoLink.SystemLibraries.Add("libSceVideoOut");
+        videoLink.SystemLibraries.AddRange(new[] { "libSceVideoOut", "libSceSystemService", "libSceAgc" });
         videoLink.OutputFilePaths.Add(videoExecutable);
         toolchain.LinkFiles(videoLink, false, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 80) throw new InvalidOperationException("Unexpected UBT action count");
+        if (makefile.Actions.Count != 81) throw new InvalidOperationException("Unexpected UBT action count");
         string? startupInput = target switch
         {
             Target.Windows => Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"),
