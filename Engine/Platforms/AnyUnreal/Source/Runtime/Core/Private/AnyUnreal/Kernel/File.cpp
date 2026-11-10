@@ -1,4 +1,5 @@
 #include "AnyUnreal/Kernel/File.h"
+#include "AnyUnreal/Kernel/Path.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libkernel/File/include/File.hpp"
@@ -41,7 +42,7 @@ namespace AnyUnreal::Kernel
 
         std::int64_t checked(std::int64_t result, const char* operation)
         {
-            if (result < 0) throw std::runtime_error(std::string(operation) + ": " + std::to_string(result));
+            if (result < 0) throw Error(result, operation);
             return result;
         }
 
@@ -58,9 +59,9 @@ namespace AnyUnreal::Kernel
 
     File::File(std::string_view path, FileAccess access, FileCreation creation, bool append)
     {
-        if (path.empty() || path.find('\0') != std::string_view::npos) throw std::invalid_argument("Invalid file path");
+        const Path checkedPath(path);
         const int flags = openFlags(access, creation, append);
-        descriptor = static_cast<int>(checked(sceKernelOpen(std::string(path).c_str(), flags, 0666), "sceKernelOpen"));
+        descriptor = static_cast<int>(checked(sceKernelOpen(checkedPath.CStr(), flags, 0666), "sceKernelOpen"));
     }
 
     File::~File() noexcept(false)

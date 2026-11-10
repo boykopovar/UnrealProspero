@@ -2,14 +2,13 @@
 #define ANYUNREAL_KERNEL_RESULT_H
 
 #include "prx/libkernel/KernelErrors.hpp"
-#include <stdexcept>
-#include <string>
+#include "AnyUnreal/Kernel/Error.h"
 
 namespace AnyUnreal::Kernel
 {
     inline void CheckResult(int result, const char* operation)
     {
-        if (result != 0) throw std::runtime_error(std::string(operation) + ": " + std::to_string(result));
+        if (result != 0) throw Error(result, operation);
     }
 
     inline bool CheckLockResult(int result, const char* operation)
