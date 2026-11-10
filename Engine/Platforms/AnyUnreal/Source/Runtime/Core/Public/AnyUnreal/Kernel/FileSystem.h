@@ -16,6 +16,7 @@ namespace AnyUnreal::Kernel
         static void CreateDirectory(std::string_view path, std::uint16_t permissions = 0777);
         static void RemoveDirectory(std::string_view path);
         static void RemoveFile(std::string_view path);
+        static bool MoveNoReplace(std::string_view source, std::string_view destination);
         static void RenameReplacing(std::string_view source, std::string_view destination);
         static void SetPermissions(std::string_view path, std::uint16_t permissions);
         static void SetTimes(std::string_view path, const KernelTimeval& access, const KernelTimeval& modification);

@@ -70,6 +70,28 @@ bool CheckFileSystem()
         {
             File file(second, FileAccess::Write, FileCreation::CreateNew);
         }
+        if (FileSystem::MoveNoReplace(first, second)) return false;
+        const auto untouchedSource = FileSystem::Stat(first);
+        const auto untouchedDestination = FileSystem::Stat(second);
+        if (!untouchedSource || untouchedSource->st_size != 3 || !untouchedDestination || untouchedDestination->st_size != 0) return false;
+        FileSystem::RemoveFile(second);
+        if (!FileSystem::MoveNoReplace(first, second)) return false;
+        const auto moved = FileSystem::Stat(second);
+        if (!moved || moved->st_ino != untouchedSource->st_ino || moved->st_dev != untouchedSource->st_dev) return false;
+        if (FileSystem::Stat(first)) return false;
+        try
+        {
+            FileSystem::MoveNoReplace(first, first + "-absent");
+            return false;
+        }
+        catch (const Error& error)
+        {
+            if (error.Code() != SCE_KERNEL_ERROR_ENOENT) return false;
+        }
+        FileSystem::RenameReplacing(second, first);
+        {
+            File file(second, FileAccess::Write, FileCreation::CreateNew);
+        }
         FileSystem::RenameReplacing(first, second);
         const auto renamed = FileSystem::Stat(second);
         if (FileSystem::Stat(first) || !renamed || renamed->st_size != 3) return false;

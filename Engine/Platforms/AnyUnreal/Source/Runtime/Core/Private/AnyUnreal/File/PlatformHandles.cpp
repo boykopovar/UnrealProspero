@@ -31,3 +31,8 @@ bool FAnyUnrealPlatformFile::DeleteFile(const TCHAR* filename)
     FileSystem::RemoveFile(path);
     return true;
 }
+
+bool FAnyUnrealPlatformFile::MoveFile(const TCHAR* destination, const TCHAR* source)
+{
+    return FileSystem::MoveNoReplace(EncodePath(source), EncodePath(destination));
+}
