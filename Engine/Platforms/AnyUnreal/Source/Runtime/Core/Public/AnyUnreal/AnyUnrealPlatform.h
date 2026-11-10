@@ -3,6 +3,7 @@
 
 #include "Clang/ClangPlatform.h"
 #include "GenericPlatform/GenericPlatform.h"
+#include "AnyUnreal/Kernel/Debug.h"
 #include <bit>
 #include <cstddef>
 
@@ -35,6 +36,7 @@ static_assert(std::endian::native == std::endian::little);
 #define PLATFORM_IS_ANSI_MALLOC_THREADSAFE 1
 #define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA 0
 #define FORCEINLINE inline
+#define PLATFORM_BREAK() AnyUnreal::Kernel::DebugBreak()
 #define MS_ALIGN(alignment) alignas(alignment)
 #define OPERATOR_DELETE_THROW_SPEC noexcept
 #define OPERATOR_NEW_NOTHROW_SPEC noexcept

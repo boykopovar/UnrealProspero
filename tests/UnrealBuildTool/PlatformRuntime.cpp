@@ -7,6 +7,8 @@ std::size_t AnyUnrealRuntimeProbe(std::size_t count);
 bool CheckMutexes();
 bool CheckEvents();
 bool CheckAtomics();
+bool CheckMath();
+bool CheckMisc();
 
 namespace
 {
@@ -34,6 +36,8 @@ int main()
     if (!CheckMutexes()) return 10;
     if (!CheckEvents()) return 11;
     if (!CheckAtomics()) return 12;
+    if (!CheckMath()) return 13;
+    if (!CheckMisc()) return 14;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
     if (FPlatformTLS::GetTlsValue(slot) != nullptr) return 3;
