@@ -14,6 +14,8 @@ namespace AnyUnreal::Kernel
         ThreadAttributes(const ThreadAttributes&) = delete;
         ThreadAttributes& operator=(const ThreadAttributes&) = delete;
         void SetStackSize(std::size_t size);
+        void SetPriority(int priority);
+        void SetExclusiveScheduling(bool exclusive);
         void SetAffinity(KernelCpumask mask);
         const PthreadAttr* Get() const noexcept;
 

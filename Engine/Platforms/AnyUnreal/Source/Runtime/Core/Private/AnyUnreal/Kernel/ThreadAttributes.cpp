@@ -20,6 +20,18 @@ namespace AnyUnreal::Kernel
         CheckResult(scePthreadAttrSetstacksize(&handle, size), "scePthreadAttrSetstacksize");
     }
 
+    void ThreadAttributes::SetPriority(int priority)
+    {
+        const KernelSchedParam parameters{priority};
+        CheckResult(scePthreadAttrSetschedparam(&handle, &parameters), "scePthreadAttrSetschedparam");
+        CheckResult(scePthreadAttrSetinheritsched(&handle, 0), "scePthreadAttrSetinheritsched");
+    }
+
+    void ThreadAttributes::SetExclusiveScheduling(bool exclusive)
+    {
+        CheckResult(scePthreadAttrSetsolosched(&handle, exclusive ? 16 : 0), "scePthreadAttrSetsolosched");
+    }
+
     void ThreadAttributes::SetAffinity(KernelCpumask mask)
     {
         if (mask == 0 || (mask & ~Affinity::Available()) != 0) throw std::invalid_argument("Thread affinity contains unavailable processors");

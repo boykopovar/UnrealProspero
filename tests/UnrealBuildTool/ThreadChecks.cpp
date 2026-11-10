@@ -13,6 +13,14 @@ bool CheckThreads()
     constexpr std::size_t stackSize = 2 * 1024 * 1024;
     const auto affinity = KernelCpumask{1} << std::countr_zero(Affinity::Available());
     attributes.SetStackSize(stackSize);
+    attributes.SetPriority(600);
+    attributes.SetExclusiveScheduling(true);
+    int solo = 0;
+    CheckResult(scePthreadAttrGetsolosched(attributes.Get(), &solo), "scePthreadAttrGetsolosched");
+    if (solo != 16) return false;
+    attributes.SetExclusiveScheduling(false);
+    CheckResult(scePthreadAttrGetsolosched(attributes.Get(), &solo), "scePthreadAttrGetsolosched");
+    if (solo != 0) return false;
     attributes.SetAffinity(affinity);
     const auto parent = scePthreadGetthreadid();
     bool passed = false;
@@ -25,8 +33,12 @@ bool CheckThreads()
         CheckResult(scePthreadAttrGet(scePthreadSelf(), &actual), "scePthreadAttrGet");
         std::size_t actualStack = 0;
         CheckResult(scePthreadAttrGetstacksize(&actual, &actualStack), "scePthreadAttrGetstacksize");
+        KernelSchedParam priority{};
+        int inherit = -1;
+        CheckResult(scePthreadAttrGetschedparam(&actual, &priority), "scePthreadAttrGetschedparam");
+        CheckResult(scePthreadAttrGetinheritsched(&actual, &inherit), "scePthreadAttrGetinheritsched");
         CheckResult(scePthreadAttrDestroy(&actual), "scePthreadAttrDestroy");
-        passed = actualStack == stackSize && Affinity::Get(scePthreadSelf()) == affinity && scePthreadGetthreadid() != parent;
+        passed = priority.sched_priority == 600 && inherit == 0 && actualStack == stackSize && Affinity::Get(scePthreadSelf()) == affinity && scePthreadGetthreadid() != parent;
         entered.Trigger();
         release.Wait();
     }, "AnyUnrealThread", &attributes);
@@ -88,6 +100,14 @@ bool CheckThreads()
     try
     {
         attributes.SetStackSize(1);
+        return false;
+    }
+    catch (const Error&)
+    {
+    }
+    try
+    {
+        attributes.SetPriority(0);
         return false;
     }
     catch (const Error&)
