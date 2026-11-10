@@ -17,6 +17,7 @@ struct FAnyUnrealPlatformProcess : FGenericPlatformProcess
     static CORE_API void SleepNoStats(float seconds);
     [[noreturn]] static CORE_API void SleepInfinite();
     static CORE_API void YieldThread();
+    static CORE_API FRunnableThread* CreateRunnableThread();
     static CORE_API FEvent* CreateSynchEvent(bool manualReset = false);
 };
 

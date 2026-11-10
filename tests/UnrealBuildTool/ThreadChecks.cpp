@@ -1,3 +1,4 @@
+#include "AnyUnreal/Runnable/Priority.h"
 #include "AnyUnreal/Kernel/Thread.h"
 #include "AnyUnreal/Kernel/Affinity.h"
 #include "AnyUnreal/Kernel/Event.h"
@@ -10,6 +11,26 @@ bool CheckThreads()
 {
     using namespace AnyUnreal::Kernel;
     ThreadAttributes attributes;
+    constexpr EThreadPriority priorities[]{TPri_TimeCritical, TPri_Highest, TPri_AboveNormal, TPri_Normal, TPri_SlightlyBelowNormal, TPri_BelowNormal, TPri_Lowest};
+    int previous = 255;
+    for (const auto priority : priorities)
+    {
+        const int mapped = AnyUnreal::Runnable::GetKernelPriority(priority);
+        if (mapped <= previous || mapped > 767) return false;
+        attributes.SetPriority(mapped);
+        KernelSchedParam actual{};
+        CheckResult(scePthreadAttrGetschedparam(attributes.Get(), &actual), "scePthreadAttrGetschedparam");
+        if (actual.sched_priority != mapped) return false;
+        previous = mapped;
+    }
+    try
+    {
+        AnyUnreal::Runnable::GetKernelPriority(TPri_Num);
+        return false;
+    }
+    catch (const std::invalid_argument&)
+    {
+    }
     constexpr std::size_t stackSize = 2 * 1024 * 1024;
     const auto affinity = KernelCpumask{1} << std::countr_zero(Affinity::Available());
     attributes.SetStackSize(stackSize);

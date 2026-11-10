@@ -1,3 +1,5 @@
+#include "Containers/LockFreeList.h"
+#include "AnyUnreal/AnyUnrealRunnableThread.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformFile.h"
 #include "CoreTypes.h"
@@ -76,3 +78,6 @@ static_assert(!std::is_abstract_v<FAnyUnrealFileHandle>);
 static_assert(!std::is_copy_constructible_v<FAnyUnrealFileHandle>);
 
 static_assert(!std::is_abstract_v<FAnyUnrealPlatformFile>);
+
+static_assert(!std::is_abstract_v<FAnyUnrealRunnableThread>);
+static_assert(alignof(FIndexedPointer) >= 8);
