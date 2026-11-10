@@ -38,7 +38,7 @@ internal static class ToolchainChecks
         platformCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/Core/Public"));
         platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Core/Public"));
         platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/TraceLog/Public"));
-        platformCompile.Definitions.AddRange(new[] { "OVERRIDE_PLATFORM_HEADER_NAME=AnyUnreal", "ANYUNREAL_TARGET_" + SdkInstallation.GetTargetName(target).ToUpperInvariant() + "=1", "UE_BUILD_DEVELOPMENT=1", "WITH_EDITOR=0", "WITH_ENGINE=0", "WITH_UNREAL_DEVELOPER_TOOLS=0", "WITH_PLUGIN_SUPPORT=0", "IS_MONOLITHIC=1", "IS_PROGRAM=1" });
+        platformCompile.Definitions.AddRange(new[] { "OVERRIDE_PLATFORM_HEADER_NAME=AnyUnreal", "ANYUNREAL_TARGET_" + SdkInstallation.GetTargetName(target).ToUpperInvariant() + "=1", "UE_BUILD_DEVELOPMENT=1", "WITH_EDITOR=0", "WITH_ENGINE=0", "WITH_UNREAL_DEVELOPER_TOOLS=0", "WITH_PLUGIN_SUPPORT=0", "IS_MONOLITHIC=1", "IS_PROGRAM=1", "WITH_SERVER_CODE=1", "UE_MERGED_MODULES=0" });
         platformCompile.Definitions.Add("CORE_API=");
         platformCompile.Definitions.Add("TRACELOG_API=");
         toolchain.CompileAllCPPFiles(platformCompile, new[] { FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "PlatformTypes.cpp")) }, DirectoryReference.Combine(intermediate, "platform"), "PlatformTypes", graph);

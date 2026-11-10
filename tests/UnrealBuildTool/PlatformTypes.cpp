@@ -1,5 +1,8 @@
 #include "CoreTypes.h"
+#include "AnyUnreal/AnyUnrealPlatformProperties.h"
+#include "HAL/PlatformProperties.h"
 #include <cstddef>
+#include <string_view>
 #include <type_traits>
 
 static_assert(sizeof(TCHAR) == 2);
@@ -12,3 +15,40 @@ static_assert(PLATFORM_WINDOWS == 0);
 static_assert(PLATFORM_LINUX == 0);
 static_assert(PLATFORM_UNIX == 0);
 static_assert(PLATFORM_EXCEPTIONS_DISABLED == 0);
+
+using WindowsProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Windows>;
+using LinuxProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Linux>;
+using Ps5Properties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Ps5>;
+using ServerProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Linux, true>;
+using ClientProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Windows, false, true>;
+
+static_assert(std::string_view(WindowsProperties::PlatformName()) == "AnyWin64");
+static_assert(std::string_view(LinuxProperties::PlatformName()) == "AnyLinux");
+static_assert(std::string_view(Ps5Properties::PlatformName()) == "AnyPS5");
+static_assert(WindowsProperties::SupportsWindowedMode());
+static_assert(LinuxProperties::SupportsMultipleGameInstances());
+static_assert(!Ps5Properties::SupportsWindowedMode());
+static_assert(!Ps5Properties::SupportsMultipleGameInstances());
+static_assert(Ps5Properties::HasFixedResolution());
+static_assert(!WindowsProperties::HasFixedResolution());
+static_assert(ServerProperties::IsServerOnly() && !ServerProperties::IsClientOnly());
+static_assert(!ServerProperties::SupportsWindowedMode());
+static_assert(ClientProperties::IsClientOnly() && !ClientProperties::IsServerOnly());
+static_assert(FPlatformProperties::RequiresCookedData());
+static_assert(!FPlatformProperties::HasEditorOnlyData());
+static_assert(!FPlatformProperties::HasSecurePackageFormat());
+static_assert(FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Game));
+static_assert(FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Client));
+static_assert(FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Server));
+static_assert(FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Program));
+static_assert(!FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Editor));
+static_assert(!FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Unknown));
+static_assert(FPlatformProperties::GetMaxSupportedVirtualMemoryAlignment() == 16384);
+
+#if ANYUNREAL_TARGET_WINDOWS
+static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyWin64");
+#elif ANYUNREAL_TARGET_LINUX
+static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyLinux");
+#else
+static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyPS5");
+#endif
