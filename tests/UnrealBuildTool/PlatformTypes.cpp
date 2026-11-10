@@ -26,6 +26,10 @@ using ClientProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Windows,
 static_assert(std::string_view(WindowsProperties::PlatformName()) == "AnyWin64");
 static_assert(std::string_view(LinuxProperties::PlatformName()) == "AnyLinux");
 static_assert(std::string_view(Ps5Properties::PlatformName()) == "AnyPS5");
+static_assert(std::string_view(ServerProperties::PlatformName()) == "AnyLinuxServer");
+static_assert(std::string_view(ClientProperties::PlatformName()) == "AnyWin64Client");
+static_assert(std::string_view(ServerProperties::IniPlatformName()) == "AnyLinux");
+static_assert(std::string_view(ClientProperties::IniPlatformName()) == "AnyWin64");
 static_assert(WindowsProperties::SupportsWindowedMode());
 static_assert(LinuxProperties::SupportsMultipleGameInstances());
 static_assert(!Ps5Properties::SupportsWindowedMode());

@@ -3,6 +3,8 @@
 
 #include "GenericPlatform/GenericPlatformProperties.h"
 #include "AnyUnreal/Kernel/DirectAllocation.h"
+#include <array>
+#include <string_view>
 
 enum class EAnyUnrealTarget
 {
@@ -26,7 +28,7 @@ struct TAnyUnrealPlatformProperties : FGenericPlatformProperties
 
     static constexpr const char* PlatformName()
     {
-        return IniPlatformName();
+        return platformName.data();
     }
 
     static constexpr bool HasEditorOnlyData()
@@ -78,6 +80,17 @@ struct TAnyUnrealPlatformProperties : FGenericPlatformProperties
     {
         return AnyUnreal::Kernel::DirectAllocation::PageSize;
     }
+
+private:
+    inline static constexpr auto platformName = []
+    {
+        constexpr std::string_view name = IniPlatformName();
+        constexpr std::string_view suffix = TServer ? "Server" : TClient ? "Client" : "";
+        std::array<char, name.size() + suffix.size() + 1> result{};
+        for (std::size_t index = 0; index < name.size(); ++index) result[index] = name[index];
+        for (std::size_t index = 0; index < suffix.size(); ++index) result[name.size() + index] = suffix[index];
+        return result;
+    }();
 };
 
 #endif
