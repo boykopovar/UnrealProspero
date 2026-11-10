@@ -11,9 +11,9 @@ internal abstract class AnyUnrealPlatformFactory : UEBuildPlatformFactory
     }
 }
 
-internal sealed class AnyWindowsPlatformFactory : AnyUnrealPlatformFactory
+internal sealed class AnyWin64PlatformFactory : AnyUnrealPlatformFactory
 {
-    public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.AnyWindows;
+    public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.AnyWin64;
 }
 
 internal sealed class AnyLinuxPlatformFactory : AnyUnrealPlatformFactory

@@ -16,9 +16,9 @@ public abstract partial class AnyUnrealPlatform : Platform
     protected override string GetPlatformExeExtension() => target == Target.Windows ? ".exe" : target == Target.Ps5 ? ".elf" : "";
 }
 
-public sealed class AnyWindowsPlatform : AnyUnrealPlatform
+public sealed class AnyWin64Platform : AnyUnrealPlatform
 {
-    public AnyWindowsPlatform() : base(UnrealTargetPlatform.AnyWindows, Target.Windows) { }
+    public AnyWin64Platform() : base(UnrealTargetPlatform.AnyWin64, Target.Windows) { }
 }
 
 public sealed class AnyLinuxPlatform : AnyUnrealPlatform
