@@ -83,3 +83,6 @@ static_assert(!std::is_abstract_v<FAnyUnrealRunnableThread>);
 static_assert(alignof(FIndexedPointer) >= 8);
 static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealRecursiveMutex>);
 static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealSharedMutex>);
+
+static_assert(ANYUNREAL_TARGET_WINDOWS + ANYUNREAL_TARGET_LINUX + ANYUNREAL_TARGET_PS5 == 1);
+static_assert(PLATFORM_DESKTOP == (ANYUNREAL_TARGET_WINDOWS || ANYUNREAL_TARGET_LINUX));

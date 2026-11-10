@@ -7,6 +7,16 @@
 #include <bit>
 #include <cstddef>
 
+#ifndef ANYUNREAL_TARGET_WINDOWS
+#define ANYUNREAL_TARGET_WINDOWS 0
+#endif
+#ifndef ANYUNREAL_TARGET_LINUX
+#define ANYUNREAL_TARGET_LINUX 0
+#endif
+#ifndef ANYUNREAL_TARGET_PS5
+#define ANYUNREAL_TARGET_PS5 0
+#endif
+
 #if ANYUNREAL_TARGET_WINDOWS + ANYUNREAL_TARGET_LINUX + ANYUNREAL_TARGET_PS5 != 1
 #error Exactly one AnyUnreal target must be selected
 #endif
