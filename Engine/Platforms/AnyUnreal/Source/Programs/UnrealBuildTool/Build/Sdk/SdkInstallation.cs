@@ -71,12 +71,17 @@ public sealed class SdkInstallation
 
     public string GetImportLibrary(Target target, string library)
     {
+        ValidateLibraryName(library);
+        return RequireFile(Path.Combine(GetTargetRoot(target), "imports", library + (target == Target.Windows ? ".a" : ".prx")));
+    }
+
+    public static void ValidateLibraryName(string library)
+    {
         if (!library.StartsWith("lib", StringComparison.Ordinal) || library.Length <= 3) throw new ArgumentException("Invalid import library name", nameof(library));
         foreach (char value in library)
         {
             if (!char.IsAsciiLetterOrDigit(value) && value != '_' && value != '.') throw new ArgumentException("Invalid import library name", nameof(library));
         }
-        return RequireFile(Path.Combine(GetTargetRoot(target), "imports", library + (target == Target.Windows ? ".a" : ".prx")));
     }
 
     public void ValidateTarget(Target target)
