@@ -80,6 +80,7 @@ internal static class ToolchainChecks
         FileReference videoExecutable = FileReference.Combine(intermediate, "video", "VideoOutputProbe" + extension);
         LinkEnvironment videoLink = new(platform, CppConfiguration.Development, architectures) { IntermediateDirectory = intermediate };
         videoLink.InputFiles.AddRange(video.ObjectFiles);
+        videoLink.Libraries.Add(library.Location);
         videoLink.SystemLibraries.Add("libSceVideoOut");
         videoLink.OutputFilePaths.Add(videoExecutable);
         toolchain.LinkFiles(videoLink, false, graph);
