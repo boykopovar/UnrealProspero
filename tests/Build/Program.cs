@@ -1,15 +1,17 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AnyUnreal.Build.Execution;
 using AnyUnreal.Build.Sdk;
+using AnyUnreal.Build.Packaging;
 
 internal static class Program
 {
     private static async Task Main(string[] args)
     {
-        if (args.Length != 2) throw new ArgumentException("Expected SDK and dependency directories");
+        if (args.Length != 2 && args.Length != 5) throw new ArgumentException("Expected SDK, dependencies and optionally project, ELF and output directories");
         SdkInstallation sdk = new(args[0], args[1]);
         foreach (Target target in Enum.GetValues<Target>())
         {
@@ -35,6 +37,19 @@ internal static class Program
         }
         catch (OperationCanceledException) { }
         Console.WriteLine("SDK validation and process checks passed");
+        if (args.Length == 5)
+        {
+            string outputRoot = Path.GetFullPath(args[4]);
+            if (Directory.Exists(outputRoot)) throw new IOException("Test output already exists");
+            Directory.CreateDirectory(outputRoot);
+            Ps5Package package = new(args[2], args[3], Path.Combine(args[2], "app0"), Path.Combine(outputRoot, "AnyUnreal.ffpfsc"), Path.Combine(outputRoot, "package workspace"));
+            ToolCommand command = package.CreateCommand(sdk);
+            if (!command.Arguments.Contains(package.Workspace)) throw new Exception("Workspace argument was not preserved");
+            await package.BuildAsync(sdk, CancellationToken.None);
+            reject<IOException>(() => new Ps5Package(args[2], args[3], Path.Combine(args[2], "app0"), package.Output, Path.Combine(outputRoot, "another workspace")));
+            reject<InvalidDataException>(() => new Ps5Package(args[2], Path.Combine(args[2], "adk.json"), Path.Combine(args[2], "app0"), Path.Combine(outputRoot, "invalid.ffpfsc"), Path.Combine(outputRoot, "invalid workspace")));
+            Console.WriteLine("PS5 packaging passed: " + new FileInfo(package.Output).Length + " bytes");
+        }
     }
 
     private static void reject<TException>(Action action) where TException : Exception
