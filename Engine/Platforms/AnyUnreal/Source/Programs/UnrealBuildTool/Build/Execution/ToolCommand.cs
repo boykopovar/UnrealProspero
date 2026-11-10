@@ -36,10 +36,14 @@ public sealed class ToolCommand
         {
             WorkingDirectory = WorkingDirectory,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (string argument in Arguments) start.ArgumentList.Add(argument);
         using Process process = Process.Start(start) ?? throw new InvalidOperationException("Cannot start " + Executable);
+        Task output = process.StandardOutput.BaseStream.CopyToAsync(Console.OpenStandardOutput(), CancellationToken.None);
+        Task error = process.StandardError.BaseStream.CopyToAsync(Console.OpenStandardError(), CancellationToken.None);
         try
         {
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -48,8 +52,10 @@ public sealed class ToolCommand
         {
             if (!process.HasExited) process.Kill(true);
             await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            await Task.WhenAll(output, error).ConfigureAwait(false);
             throw;
         }
+        await Task.WhenAll(output, error).ConfigureAwait(false);
         if (process.ExitCode != 0) throw new InvalidOperationException(Executable + " exited with code " + process.ExitCode);
     }
 }
