@@ -1,8 +1,10 @@
 #include "AnyUnreal/Kernel/Module.h"
+#include "AnyUnreal/Text/Encoding.h"
 #include "HAL/PlatformProcess.h"
 #include "AnyUnreal/Kernel/Error.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <stdexcept>
+#include <string>
 
 bool CheckModules()
 {
@@ -15,8 +17,12 @@ bool CheckModules()
     catch (const std::invalid_argument&)
     {
     }
-    Module first("libs/libkernel.prx");
-    Module second("libs/libkernel.prx");
+    const std::string executable(getargv_nid_postfix()[0]);
+    const auto separator = executable.find_last_of("/\\");
+    if (separator == std::string::npos) throw std::invalid_argument("Module check requires an executable path with a directory");
+    const auto library = executable.substr(0, separator + 1) + "libs/libkernel.prx";
+    Module first(library);
+    Module second(library);
     using ThreadIdFunction = decltype(&scePthreadGetthreadid);
     auto threadId = reinterpret_cast<ThreadIdFunction>(first.FindSymbol("scePthreadGetthreadid"));
     if (threadId() != scePthreadGetthreadid()) return false;
@@ -41,7 +47,7 @@ bool CheckModules()
     threadId = reinterpret_cast<ThreadIdFunction>(second.FindSymbol("scePthreadGetthreadid"));
     if (threadId() != scePthreadGetthreadid()) return false;
     second.Close();
-    void* handle = FPlatformProcess::GetDllHandle(TEXT("libs/libkernel.prx"));
+    void* handle = FPlatformProcess::GetDllHandle(AnyUnreal::Text::DecodeUtf8(library).c_str());
     threadId = reinterpret_cast<ThreadIdFunction>(FPlatformProcess::GetDllExport(handle, TEXT("scePthreadGetthreadid")));
     const bool passed = threadId() == scePthreadGetthreadid();
     FPlatformProcess::FreeDllHandle(handle);
