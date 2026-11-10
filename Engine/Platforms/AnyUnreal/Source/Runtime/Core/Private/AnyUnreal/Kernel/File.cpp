@@ -1,5 +1,4 @@
 #include "AnyUnreal/Kernel/File.h"
-#include "AnyUnreal/Kernel/Path.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libkernel/File/include/File.hpp"
@@ -7,7 +6,6 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
-#include <utility>
 
 namespace AnyUnreal::Kernel
 {
@@ -57,33 +55,18 @@ namespace AnyUnreal::Kernel
         }
     }
 
-    File::File(std::string_view path, FileAccess access, FileCreation creation, bool append)
+    File::File(std::string_view path, FileAccess access, FileCreation creation, bool append) : descriptor(Descriptor::Open(path, openFlags(access, creation, append), 0666))
     {
-        const Path checkedPath(path);
-        const int flags = openFlags(access, creation, append);
-        descriptor = static_cast<int>(checked(sceKernelOpen(checkedPath.CStr(), flags, 0666), "sceKernelOpen"));
-    }
-
-    File::~File() noexcept(false)
-    {
-        if (descriptor != -1) Close();
-    }
-
-    int File::getDescriptor() const
-    {
-        if (descriptor < 0) throw std::logic_error("File is closed");
-        return descriptor;
     }
 
     void File::Close()
     {
-        getDescriptor();
-        CheckResult(sceKernelClose(std::exchange(descriptor, -1)), "sceKernelClose");
+        descriptor.Close();
     }
 
     std::size_t File::read(std::span<std::byte> destination, std::int64_t offset, bool positioned)
     {
-        const int handle = getDescriptor();
+        const int handle = descriptor.Get();
         validateSize(destination.size());
         if (positioned && (offset < 0 || destination.size() > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max() - offset))) throw std::invalid_argument("Invalid positioned read range");
         std::size_t total = 0;
@@ -112,7 +95,7 @@ namespace AnyUnreal::Kernel
 
     void File::Write(std::span<const std::byte> source)
     {
-        const int handle = getDescriptor();
+        const int handle = descriptor.Get();
         validateSize(source.size());
         std::size_t total = 0;
         while (total < source.size())
@@ -128,36 +111,36 @@ namespace AnyUnreal::Kernel
 
     std::int64_t File::Tell() const
     {
-        return checked(sceKernelLseek(getDescriptor(), 0, 1), "sceKernelLseek");
+        return checked(sceKernelLseek(descriptor.Get(), 0, 1), "sceKernelLseek");
     }
 
     void File::Seek(std::int64_t position)
     {
         if (position < 0) throw std::invalid_argument("Negative file position");
-        checked(sceKernelLseek(getDescriptor(), position, 0), "sceKernelLseek");
+        checked(sceKernelLseek(descriptor.Get(), position, 0), "sceKernelLseek");
     }
 
     void File::SeekFromEnd(std::int64_t offset)
     {
         if (offset > 0) throw std::invalid_argument("File end offset must not be positive");
-        checked(sceKernelLseek(getDescriptor(), offset, 2), "sceKernelLseek");
+        checked(sceKernelLseek(descriptor.Get(), offset, 2), "sceKernelLseek");
     }
 
     std::int64_t File::Size() const
     {
         FileStat status{};
-        CheckResult(sceKernelFstat(getDescriptor(), &status), "sceKernelFstat");
+        CheckResult(sceKernelFstat(descriptor.Get(), &status), "sceKernelFstat");
         return checked(status.st_size, "file size");
     }
 
     void File::Flush()
     {
-        CheckResult(sceKernelFsync(getDescriptor()), "sceKernelFsync");
+        CheckResult(sceKernelFsync(descriptor.Get()), "sceKernelFsync");
     }
 
     void File::Truncate(std::int64_t size)
     {
         if (size < 0) throw std::invalid_argument("Negative file size");
-        CheckResult(sceKernelFtruncate(getDescriptor(), size), "sceKernelFtruncate");
+        CheckResult(sceKernelFtruncate(descriptor.Get(), size), "sceKernelFtruncate");
     }
 }

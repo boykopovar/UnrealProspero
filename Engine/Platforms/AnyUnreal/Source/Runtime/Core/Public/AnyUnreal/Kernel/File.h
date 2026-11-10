@@ -1,6 +1,7 @@
 #ifndef ANYUNREAL_KERNEL_FILE_H
 #define ANYUNREAL_KERNEL_FILE_H
 
+#include "AnyUnreal/Kernel/Descriptor.h"
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -15,7 +16,7 @@ namespace AnyUnreal::Kernel
     {
     public:
         File(std::string_view path, FileAccess access, FileCreation creation = FileCreation::Existing, bool append = false);
-        ~File() noexcept(false);
+        ~File() noexcept(false) = default;
         File(const File&) = delete;
         File& operator=(const File&) = delete;
         std::size_t Read(std::span<std::byte> destination);
@@ -30,8 +31,7 @@ namespace AnyUnreal::Kernel
         void Close();
 
     private:
-        int descriptor = -1;
-        int getDescriptor() const;
+        Descriptor descriptor;
         std::size_t read(std::span<std::byte> destination, std::int64_t offset, bool positioned);
     };
 }
