@@ -1,4 +1,6 @@
 #include "AnyUnreal/Kernel/Directory.h"
+#include "AnyUnreal/File/DirectoryVisitor.h"
+#include "AnyUnreal/Text/Encoding.h"
 #include "AnyUnreal/Kernel/File.h"
 #include "AnyUnreal/Kernel/FileSystem.h"
 #include "AnyUnreal/Kernel/Error.h"
@@ -36,6 +38,46 @@ namespace
     private:
         std::string path;
         std::vector<std::string> files;
+    };
+
+    class NameVisitor final : public IPlatformFile::FDirectoryVisitor
+    {
+    public:
+        explicit NameVisitor(bool stop) : stop(stop) {}
+
+        bool ShouldVisitLeafPathname(FStringView name) override
+        {
+            return name.Len() != 0 && name.GetData()[0] != 'x';
+        }
+
+        bool Visit(const TCHAR* path, bool directory) override
+        {
+            if (directory) throw std::runtime_error("Unexpected directory");
+            names.insert(AnyUnreal::Text::EncodeUtf8(path));
+            return !stop;
+        }
+
+        const std::set<std::string>& Names() const { return names; }
+
+    private:
+        bool stop;
+        std::set<std::string> names;
+    };
+
+    class StatVisitor final : public IPlatformFile::FDirectoryStatVisitor
+    {
+    public:
+        bool Visit(const TCHAR* path, const FFileStatData& status) override
+        {
+            if (!status.bIsValid || status.bIsDirectory || status.FileSize != 0) throw std::runtime_error("Invalid visitor file metadata");
+            names.insert(AnyUnreal::Text::EncodeUtf8(path));
+            return true;
+        }
+
+        const std::set<std::string>& Names() const { return names; }
+
+    private:
+        std::set<std::string> names;
     };
 
     std::set<std::string> collect(Directory& directory)
@@ -76,8 +118,22 @@ bool CheckDirectories()
         Directory invalid(root + "/" + unicode);
         return false;
     }
-    catch (const Error&)
+    catch (const AnyUnreal::Kernel::Error&)
     {
     }
+    const auto wideRoot = AnyUnreal::Text::DecodeUtf8(root);
+    using AnyUnreal::File::DirectoryVisitor;
+    NameVisitor selected(false);
+    if (!DirectoryVisitor::Iterate(wideRoot, selected) || selected.Names() != std::set<std::string>{root + "/" + unicode}) return false;
+    NameVisitor stopped(true);
+    if (DirectoryVisitor::Iterate(wideRoot, stopped) || stopped.Names().size() != 1) return false;
+    StatVisitor metadata;
+    if (!DirectoryVisitor::Iterate(wideRoot, metadata)) return false;
+    std::set<std::string> fullNames;
+    for (const auto& name : expected) fullNames.insert(root + "/" + name);
+    if (metadata.Names() != fullNames) return false;
+    NameVisitor absent(false);
+    if (DirectoryVisitor::Iterate(wideRoot + TEXT("/absent"), absent) || !absent.Names().empty()) return false;
+    if (DirectoryVisitor::Iterate(wideRoot + TEXT("/") + AnyUnreal::Text::DecodeUtf8(unicode), absent)) return false;
     return true;
 }
