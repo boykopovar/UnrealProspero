@@ -25,11 +25,13 @@ public abstract partial class AnyUnrealPlatform
                 foreach (string file in Directory.EnumerateFiles(libraries, "*", SearchOption.AllDirectories)) context.StageFile(StagedFileType.NonUFS, new FileReference(file));
             }
         }
-        if (target == Target.Ps5)
+        string app0 = SdkInstallation.RequireDirectory(Path.Combine(parameters.RawProjectPath.Directory.FullName, "Build/AnyUnreal/app0"));
+        SdkInstallation.RequireFile(Path.Combine(app0, "sce_sys/param.json"));
+        foreach (string file in Directory.EnumerateFiles(app0, "*", SearchOption.AllDirectories))
         {
-            string app0 = SdkInstallation.RequireDirectory(Path.Combine(parameters.RawProjectPath.Directory.FullName, "Build/AnyUnreal/app0"));
-            SdkInstallation.RequireFile(Path.Combine(app0, "sce_sys/param.json"));
-            foreach (string file in Directory.EnumerateFiles(app0, "*", SearchOption.AllDirectories)) context.StageFile(StagedFileType.NonUFS, new FileReference(file), new StagedFileReference(Path.GetRelativePath(app0, file)));
+            string relative = Path.GetRelativePath(app0, file);
+            string destination = target == Target.Ps5 ? relative : Path.Combine("app0", relative);
+            context.StageFile(StagedFileType.NonUFS, new FileReference(file), new StagedFileReference(destination));
         }
     }
 }

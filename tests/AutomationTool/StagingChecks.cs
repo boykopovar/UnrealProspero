@@ -33,7 +33,6 @@ internal sealed class StagingChecks : BuildCommand
             Directory.CreateDirectory(projectDirectory);
             FileReference project = new(Path.Combine(projectDirectory, "StagingProbe.uproject"));
             File.WriteAllText(project.FullName, "{\"FileVersion\":3}");
-            if (platformType == UnrealTargetPlatform.AnyPS5)
             {
                 string metadata = Path.Combine(projectDirectory, "Build", "AnyUnreal");
                 Directory.CreateDirectory(Path.GetDirectoryName(metadata)!);
@@ -61,6 +60,8 @@ internal sealed class StagingChecks : BuildCommand
                 StagedFileReference staged = context.GetStagedFileLocation(input);
                 if (!context.FilesToStage.NonUFSFiles.TryGetValue(staged, out FileReference? recorded) || recorded != input) throw new InvalidOperationException("Missing staged runtime file: " + file);
             }
+            StagedFileReference metadataPath = new(platformType == UnrealTargetPlatform.AnyPS5 ? "sce_sys/param.json" : "app0/sce_sys/param.json");
+            if (!context.FilesToStage.NonUFSFiles.ContainsKey(metadataPath)) throw new InvalidOperationException("Application metadata is missing from the runtime mount path");
             foreach (var file in context.FilesToStage.NonUFSFiles)
             {
                 string destination = Path.Combine(context.StageDirectory.FullName, file.Key.Name);
@@ -80,6 +81,8 @@ internal sealed class StagingChecks : BuildCommand
                 string stagedExecutable = Path.Combine(context.StageDirectory.FullName, context.GetStagedFileLocation(executable).Name);
                 using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
                 new ToolCommand(stagedExecutable, context.StageDirectory.FullName, Array.Empty<string>()).ExecuteAsync(timeout.Token).GetAwaiter().GetResult();
+                string videoProbe = SdkInstallation.RequireFile(Path.Combine(probes, platformType.ToString(), "video", "VideoOutputProbe.exe"));
+                new ToolCommand(videoProbe, context.StageDirectory.FullName, Array.Empty<string>()).ExecuteAsync(timeout.Token).GetAwaiter().GetResult();
             }
             Console.WriteLine("Staged and packaged " + platformType);
         }
