@@ -12,6 +12,7 @@ public sealed class RuntimeProfile
 {
     public string Compiler { get; }
     public string CompilerId { get; }
+    public string Archiver { get; }
     public string CompilerTarget { get; }
     public string Sysroot { get; }
     public string RuntimeLibrary { get; }
@@ -24,6 +25,7 @@ public sealed class RuntimeProfile
     {
         Compiler = SdkInstallation.RequireFile(readValue(directory, "Compiler"));
         CompilerId = readValue(directory, "CompilerId");
+        Archiver = SdkInstallation.RequireFile(readValue(directory, "Archiver"));
         if (CompilerId != "Clang" && CompilerId != "GNU") throw new InvalidDataException("Unsupported SDK compiler: " + CompilerId);
         CompilerTarget = readValue(directory, "CompilerTarget", true);
         Sysroot = SdkInstallation.RequireDirectory(readValue(directory, "Sysroot"));
@@ -59,13 +61,13 @@ public sealed class RuntimeProfile
         return result;
     }
 
-    public IReadOnlyList<string> GetCompileArguments()
+    public IReadOnlyList<string> GetCompileArguments(bool includeLanguageStandard = true)
     {
         List<string> arguments = new();
         if (CompilerTarget.Length != 0) arguments.Add("--target=" + CompilerTarget);
         arguments.Add("--sysroot=" + Sysroot);
         arguments.AddRange(CompileOptions);
-        arguments.Add("-std=c++20");
+        if (includeLanguageStandard) arguments.Add("-std=c++20");
         foreach (string definition in Definitions) arguments.Add("-D" + definition);
         foreach (string directory in IncludeDirectories)
         {

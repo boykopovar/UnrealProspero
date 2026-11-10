@@ -8,6 +8,7 @@ target_include_directories(AnyUnrealRuntimeProfile SYSTEM PRIVATE "${ADK_HEADERS
 separate_arguments(compilerFlags NATIVE_COMMAND "${CMAKE_CXX_FLAGS}")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/Compiler.txt" CONTENT "${CMAKE_CXX_COMPILER}\n")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/CompilerId.txt" CONTENT "${CMAKE_CXX_COMPILER_ID}\n")
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/Archiver.txt" CONTENT "${CMAKE_AR}\n")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/CompilerTarget.txt" CONTENT "${CMAKE_CXX_COMPILER_TARGET}\n")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/Sysroot.txt" CONTENT "${CMAKE_SYSROOT}\n")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/profile/CompilerFlags.txt" CONTENT "$<JOIN:${compilerFlags},\n>\n")
