@@ -1,6 +1,8 @@
 #include "HAL/PlatformTime.h"
 #include "AnyUnreal/Kernel/Calendar.h"
 #include <cmath>
+#include <atomic>
+#include "prx/libkernel/include/Api.hpp"
 #include <limits>
 #include <stdexcept>
 
@@ -23,6 +25,15 @@ namespace
             return true;
         }
         return false;
+    }
+
+    void* APS5_VABI sampleThread(void* argument)
+    {
+        auto& passed = *static_cast<bool*>(argument);
+        const auto initial = FPlatformTime::GetThreadCPUTime();
+        passed = initial.CPUTimePct == 0 && initial.CPUTimePctRelative == 0 && FPlatformTime::GetLastIntervalThreadCPUTimeInSeconds() == 0;
+        passed = FPlatformTime::UpdateThreadCPUTime() && passed;
+        return nullptr;
     }
 
     bool valid(const AnyUnreal::Kernel::CalendarTime& time)
@@ -61,5 +72,20 @@ bool CheckTime()
     FPlatformTime::UtcTime(time.Year, time.Month, time.DayOfWeek, time.Day, time.Hour, time.Minute, time.Second, time.Millisecond);
     if (!valid(time)) return false;
     FPlatformTime::SystemTime(time.Year, time.Month, time.DayOfWeek, time.Day, time.Hour, time.Minute, time.Second, time.Millisecond);
-    return valid(time);
+    if (!valid(time)) return false;
+    if (!FPlatformTime::UpdateCPUTime(0) || !FPlatformTime::UpdateThreadCPUTime()) return false;
+    const auto cpuStart = AnyUnreal::Kernel::Clock::ThreadNanoseconds();
+    while (AnyUnreal::Kernel::Clock::ThreadNanoseconds() - cpuStart < 30000000) std::atomic_signal_fence(std::memory_order_seq_cst);
+    if (!FPlatformTime::UpdateCPUTime(0) || !FPlatformTime::UpdateThreadCPUTime()) return false;
+    const auto processUsage = FPlatformTime::GetCPUTime();
+    const auto threadUsage = FPlatformTime::GetThreadCPUTime();
+    if (!(processUsage.CPUTimePct > 0 && processUsage.CPUTimePctRelative >= processUsage.CPUTimePct)) return false;
+    if (!(threadUsage.CPUTimePct > 0 && threadUsage.CPUTimePctRelative >= threadUsage.CPUTimePct)) return false;
+    if (FPlatformTime::GetLastIntervalCPUTimeInSeconds() < 0.02 || FPlatformTime::GetLastIntervalThreadCPUTimeInSeconds() < 0.02) return false;
+    bool threadPassed = false;
+    Pthread worker{};
+    if (scePthreadCreate(&worker, nullptr, sampleThread, &threadPassed, "CpuSample") != 0) return false;
+    if (scePthreadJoin(worker, nullptr) != 0 || !threadPassed) return false;
+    const auto retained = FPlatformTime::GetThreadCPUTime();
+    return retained.CPUTimePct == threadUsage.CPUTimePct && retained.CPUTimePctRelative == threadUsage.CPUTimePctRelative;
 }

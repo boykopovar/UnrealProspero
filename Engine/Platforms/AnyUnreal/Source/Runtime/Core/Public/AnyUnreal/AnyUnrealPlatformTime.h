@@ -69,40 +69,18 @@ struct FAnyUnrealPlatformTime : FGenericPlatformTime
     static CORE_API void SystemTime(int32& year, int32& month, int32& dayOfWeek, int32& day, int32& hour, int32& minute, int32& second, int32& millisecond);
     static CORE_API void UtcTime(int32& year, int32& month, int32& dayOfWeek, int32& day, int32& hour, int32& minute, int32& second, int32& millisecond);
 
-    static bool UpdateCPUTime(float)
-    {
-        rejectCpuSampling();
-    }
-
-    static bool UpdateThreadCPUTime(float = 0)
-    {
-        rejectCpuSampling();
-    }
+    static CORE_API bool UpdateCPUTime(float deltaTime);
+    static CORE_API bool UpdateThreadCPUTime(float deltaTime = 0);
 
     static void AutoUpdateGameThreadCPUTime(double)
     {
         rejectCpuSampling();
     }
 
-    static FCPUTime GetCPUTime()
-    {
-        rejectCpuSampling();
-    }
-
-    static FCPUTime GetThreadCPUTime()
-    {
-        rejectCpuSampling();
-    }
-
-    static double GetLastIntervalCPUTimeInSeconds()
-    {
-        rejectCpuSampling();
-    }
-
-    static double GetLastIntervalThreadCPUTimeInSeconds()
-    {
-        rejectCpuSampling();
-    }
+    static CORE_API FCPUTime GetCPUTime();
+    static CORE_API FCPUTime GetThreadCPUTime();
+    static CORE_API double GetLastIntervalCPUTimeInSeconds();
+    static CORE_API double GetLastIntervalThreadCPUTimeInSeconds();
 
 private:
     [[noreturn]] static void rejectCpuSampling()
