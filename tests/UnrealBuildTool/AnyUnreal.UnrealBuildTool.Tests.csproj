@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>UnrealBuildTool.Tests</AssemblyName>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -8,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(UnrealRoot)/Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" />
+    <None Include="../RuntimeProfile/Entry.cpp" Link="Entry.cpp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="ValidateUnrealRoot" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(UnrealRoot)' == ''" Text="UnrealRoot must point to an Unreal source checkout with the AnyUnreal extension installed" />
