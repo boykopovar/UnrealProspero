@@ -13,6 +13,7 @@
     <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Runtime/Core/Core_AnyUnreal.Build.cs" Link="Rules/Core_AnyUnreal.Build.cs" />
     <None Update="PlatformRuntime.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MutexChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="PlatformTypes.cpp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="ValidateUnrealRoot" BeforeTargets="PrepareForBuild">
