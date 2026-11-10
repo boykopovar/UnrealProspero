@@ -14,6 +14,19 @@ internal static class Program
         if (args.Length != 5) throw new ArgumentException("Expected SDK, dependencies, CMake, output directory and -rootdirectory=<unreal checkout>");
         if (Directory.Exists(args[3]) || File.Exists(args[3])) throw new IOException("Test output already exists");
         SdkInstallation installation = new(args[0], args[1]);
+        List<ReceiptProperty> receipt = new();
+        AnyUnrealReceipt.Write(receipt, installation);
+        SdkInstallation recorded = AnyUnrealReceipt.Read(receipt);
+        if (recorded.Root != installation.Root || recorded.Dependencies != installation.Dependencies) throw new InvalidDataException("SDK receipt does not round-trip");
+        receipt.Add(receipt[0]);
+        try
+        {
+            AnyUnrealReceipt.Read(receipt);
+            throw new InvalidOperationException("Duplicate SDK receipt metadata was accepted");
+        }
+        catch (InvalidDataException)
+        {
+        }
         AnyUnrealSettings settings = new() { SdkRoot = args[0], Dependencies = args[1], CMake = args[2] };
         UnrealTargetPlatform[] platforms = { UnrealTargetPlatform.AnyWindows, UnrealTargetPlatform.AnyLinux, UnrealTargetPlatform.AnyPS5 };
         Target[] targets = { Target.Windows, Target.Linux, Target.Ps5 };

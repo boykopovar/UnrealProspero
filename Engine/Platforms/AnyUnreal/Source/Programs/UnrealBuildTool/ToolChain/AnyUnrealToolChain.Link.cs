@@ -11,6 +11,8 @@ namespace UnrealBuildTool;
 
 internal sealed partial class AnyUnrealToolChain
 {
+    public override void ModifyTargetReceipt(ReadOnlyTargetRules rules, TargetReceipt receipt) => AnyUnrealReceipt.Write(receipt.AdditionalProperties, sdk);
+
     public override FileItem LinkFiles(LinkEnvironment environment, bool buildImportLibraryOnly, IActionGraphBuilder graph)
     {
         if (environment.Architecture != UnrealArch.X64) throw new BuildException("AnyUnreal requires x86-64");
