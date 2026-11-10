@@ -1,5 +1,4 @@
-#include "AnyUnreal/Mutex/RecursiveMutex.h"
-#include "AnyUnreal/Mutex/SharedMutex.h"
+#include "HAL/CriticalSection.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <array>
 
@@ -7,8 +6,8 @@ namespace
 {
     struct Probe
     {
-        UE::FAnyUnrealRecursiveMutex* recursive;
-        UE::FAnyUnrealSharedMutex* shared;
+        FCriticalSection* recursive;
+        UE::FPlatformSharedMutex* shared;
         bool recursiveAvailable = false;
         bool writerAvailable = false;
         bool readerAvailable = false;
@@ -36,7 +35,7 @@ namespace
 
     struct Counter
     {
-        UE::FAnyUnrealRecursiveMutex mutex;
+        FCriticalSection mutex;
         unsigned value = 0;
     };
 
@@ -55,8 +54,8 @@ namespace
 
 bool CheckMutexes()
 {
-    UE::FAnyUnrealRecursiveMutex recursive;
-    UE::FAnyUnrealSharedMutex shared;
+    FCriticalSection recursive;
+    UE::FPlatformSharedMutex shared;
     Probe probe{&recursive, &shared};
     recursive.Lock();
     if (!recursive.TryLock()) return false;
@@ -70,6 +69,17 @@ bool CheckMutexes()
     if (!runProbe(probe, true, false, false)) return false;
     shared.Unlock();
     if (!runProbe(probe, true, true, true)) return false;
+    FRWLock rwLock;
+    rwLock.ReadLock();
+    if (rwLock.TryWriteLock()) return false;
+    rwLock.ReadUnlock();
+    if (!rwLock.TryWriteLock()) return false;
+    rwLock.WriteUnlock();
+    rwLock.WriteLock();
+    if (rwLock.TryReadLock()) return false;
+    rwLock.WriteUnlock();
+    if (!rwLock.TryReadLock()) return false;
+    rwLock.ReadUnlock();
     Counter counter;
     std::array<Pthread, 4> threads{};
     for (Pthread& thread : threads)
