@@ -19,6 +19,7 @@ bool CheckStrings();
 bool CheckClocks();
 bool CheckTime();
 bool CheckMemory();
+bool CheckVirtualMemory();
 
 namespace
 {
@@ -79,6 +80,7 @@ int main()
     if (!CheckFileMetadata()) return 22;
     if (!CheckDirectories()) return 23;
     if (!CheckMemory()) return 17;
+    if (!CheckVirtualMemory()) return 30;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
     if (FPlatformTLS::GetTlsValue(slot) != nullptr) return 3;

@@ -36,6 +36,7 @@
     <None Update="ModuleChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="ProcessChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="TimeChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="VirtualMemoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MemoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="PlatformTypes.cpp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

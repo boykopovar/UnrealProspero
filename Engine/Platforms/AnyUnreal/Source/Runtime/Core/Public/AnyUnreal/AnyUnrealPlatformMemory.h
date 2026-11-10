@@ -4,6 +4,7 @@
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "AnyUnreal/Memory/PageAllocator.h"
 #include "AnyUnreal/Kernel/DirectAllocation.h"
+#include "AnyUnreal/Memory/VirtualMemoryBlock.h"
 #include <stdexcept>
 
 struct FPlatformMemoryStats : FGenericPlatformMemoryStats
@@ -12,6 +13,7 @@ struct FPlatformMemoryStats : FGenericPlatformMemoryStats
 
 struct FAnyUnrealPlatformMemory : FGenericPlatformMemory
 {
+    using FPlatformVirtualMemoryBlock = AnyUnreal::Memory::VirtualMemoryBlock;
     static void* BinnedAllocFromOS(SIZE_T size)
     {
         return AnyUnreal::Memory::PageAllocator::Allocate(size);
