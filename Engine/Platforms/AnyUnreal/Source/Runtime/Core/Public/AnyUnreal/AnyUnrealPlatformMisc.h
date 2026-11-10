@@ -7,6 +7,9 @@
 
 struct FAnyUnrealPlatformMisc : FGenericPlatformMisc
 {
+    static CORE_API void RequestExit(bool force, const TCHAR* callSite = nullptr);
+    static CORE_API void RequestExitWithStatus(bool force, uint8 status, const TCHAR* callSite = nullptr);
+    static CORE_API bool HasOverriddenReturnCode(uint8* status);
     static CORE_API void CreateGuid(FGuid& result);
     static CORE_API int32 NumberOfCoresIncludingHyperthreads();
     static CORE_API bool IsDebuggerPresent();
