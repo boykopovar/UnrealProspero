@@ -76,6 +76,27 @@ bool CheckMemory()
     if (!checkTrackerAllocator()) return false;
     using AnyUnreal::Kernel::DirectAllocation;
     constexpr auto page = DirectAllocation::PageSize;
+    {
+        using AnyUnreal::Kernel::DirectMemoryAccess;
+        DirectAllocation allocation(page * 3, 65536, DirectMemoryAccess::CpuGpu);
+        auto* bytes = static_cast<unsigned char*>(allocation.Data());
+        if (!checkProtection(bytes, 0x33)) return false;
+        allocation.ProtectCpu(page, page, true, false);
+        if (!checkProtection(bytes, 0x33) || !checkProtection(bytes + page, 0x31) || !checkProtection(bytes + page * 2, 0x33)) return false;
+        allocation.ProtectCpu(page, page, false, false);
+        if (!checkProtection(bytes + page, 0x30)) return false;
+        allocation.ProtectCpu(page, page, true, true);
+        bytes[page] = 43;
+        if (!checkProtection(bytes + page, 0x33) || bytes[page] != 43) return false;
+        try
+        {
+            DirectAllocation invalid(page, page, static_cast<DirectMemoryAccess>(-1));
+            return false;
+        }
+        catch (const std::invalid_argument&)
+        {
+        }
+    }
     const std::size_t alignments[]{page, 65536, 2097152};
     for (const auto alignment : alignments)
     {
@@ -89,20 +110,20 @@ bool CheckMemory()
                 if (bytes[i] != 0) return false;
                 bytes[i] = static_cast<unsigned char>(i % 251);
             }
-            allocation.Protect(page, page, true, false);
+            allocation.ProtectCpu(page, page, true, false);
             if (!checkProtection(bytes, 3) || !checkProtection(bytes + page, 1) || !checkProtection(bytes + page * 2, 3)) return false;
             for (std::size_t i = 0; i < allocation.Size(); ++i)
             {
                 if (bytes[i] != static_cast<unsigned char>(i % 251)) return false;
             }
-            allocation.Protect(page, page, false, false);
+            allocation.ProtectCpu(page, page, false, false);
             if (!checkProtection(bytes + page, 0)) return false;
-            allocation.Protect(page, page, true, true);
+            allocation.ProtectCpu(page, page, true, true);
             bytes[page] = 42;
             if (!checkProtection(bytes + page, 3) || bytes[page] != 42) return false;
             try
             {
-                allocation.Protect(page * 2, page * 2, true, true);
+                allocation.ProtectCpu(page * 2, page * 2, true, true);
                 return false;
             }
             catch (const std::invalid_argument&)

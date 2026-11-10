@@ -90,6 +90,6 @@ namespace AnyUnreal::Memory
         auto entry = allocations.Blocks.upper_bound(location);
         if (entry == allocations.Blocks.begin()) throw std::invalid_argument("Unknown page protection address");
         --entry;
-        entry->second->Protect(location - entry->first, size, readable, writable);
+        entry->second->ProtectCpu(location - entry->first, size, readable, writable);
     }
 }

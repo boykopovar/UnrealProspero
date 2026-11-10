@@ -8,8 +8,9 @@
 
 namespace AnyUnreal::Kernel
 {
-    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment) : size(size)
+    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment, DirectMemoryAccess access) : size(size), gpuProtection(access == DirectMemoryAccess::CpuGpu ? 0x30 : 0)
     {
+        if (access != DirectMemoryAccess::Cpu && access != DirectMemoryAccess::CpuGpu) throw std::invalid_argument("Invalid direct memory access mode");
         if (size == 0 || size % PageSize != 0) throw std::invalid_argument("Direct allocation size must be a positive multiple of the page size");
         if (alignment < PageSize || !std::has_single_bit(alignment)) throw std::invalid_argument("Invalid direct allocation alignment");
         const auto capacity = sceKernelGetDirectMemorySize();
@@ -18,7 +19,7 @@ namespace AnyUnreal::Kernel
         CheckResult(sceKernelAllocateDirectMemory(0, static_cast<std::int64_t>(capacity), size, alignment, directMemoryType, &physicalAddress), "sceKernelAllocateDirectMemory");
         try
         {
-            CheckResult(sceKernelMapDirectMemory(&address, size, 3, 0, physicalAddress, alignment), "sceKernelMapDirectMemory");
+            CheckResult(sceKernelMapDirectMemory(&address, size, 3 | gpuProtection, 0, physicalAddress, alignment), "sceKernelMapDirectMemory");
         }
         catch (...)
         {
@@ -50,11 +51,11 @@ namespace AnyUnreal::Kernel
         return size;
     }
 
-    void DirectAllocation::Protect(std::size_t offset, std::size_t length, bool readable, bool writable)
+    void DirectAllocation::ProtectCpu(std::size_t offset, std::size_t length, bool readable, bool writable)
     {
         if (offset % PageSize != 0 || length == 0 || length % PageSize != 0 || offset > size || length > size - offset) throw std::invalid_argument("Invalid direct memory protection range");
         if (writable && !readable) throw std::invalid_argument("Write-only page protection is not supported on x86-64");
-        const int protection = (readable ? 1 : 0) | (writable ? 2 : 0);
+        const int protection = (readable ? 1 : 0) | (writable ? 2 : 0) | gpuProtection;
         CheckResult(sceKernelMprotect(static_cast<std::byte*>(address) + offset, length, protection), "sceKernelMprotect");
     }
 }
