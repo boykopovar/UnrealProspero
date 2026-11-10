@@ -1,6 +1,8 @@
 #include "AnyUnreal/Video/Output.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceVideoOut/include/Output.hpp"
+#include "prx/libSceVideoOut/include/Buffer.hpp"
+#include <limits>
 #include <stdexcept>
 
 namespace AnyUnreal::Video
@@ -40,6 +42,29 @@ namespace AnyUnreal::Video
     void Output::WaitVblank()
     {
         Kernel::CheckResult(sceVideoOutWaitVblank(GetHandle()), "sceVideoOutWaitVblank");
+    }
+
+    void Output::RegisterBuffers(int setIndex, int firstBuffer, std::span<const VideoOutBuffers> buffers, const VideoOutBufferAttribute2& attribute, int category)
+    {
+        if (buffers.empty() || buffers.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) throw std::invalid_argument("Invalid video buffer count");
+        Kernel::CheckResult(sceVideoOutRegisterBuffers2(GetHandle(), setIndex, firstBuffer, buffers.data(), static_cast<int>(buffers.size()), &attribute, category, nullptr), "sceVideoOutRegisterBuffers2");
+    }
+
+    void Output::UnregisterBuffers(int setIndex)
+    {
+        Kernel::CheckResult(sceVideoOutUnregisterBuffers(GetHandle(), setIndex), "sceVideoOutUnregisterBuffers");
+    }
+
+    void Output::SubmitFlip(int bufferIndex, int mode, std::int64_t argument)
+    {
+        Kernel::CheckResult(sceVideoOutSubmitFlip(GetHandle(), bufferIndex, mode, argument), "sceVideoOutSubmitFlip");
+    }
+
+    VideoOutFlipStatus Output::GetFlipStatus() const
+    {
+        VideoOutFlipStatus status{};
+        Kernel::CheckResult(sceVideoOutGetFlipStatus(GetHandle(), &status), "sceVideoOutGetFlipStatus");
+        return status;
     }
 
     void Output::Close()
