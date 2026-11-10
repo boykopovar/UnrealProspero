@@ -38,6 +38,7 @@ bool CheckProcess();
 bool CheckFiles();
 bool CheckFileSystem();
 bool CheckFileMetadata();
+bool CheckDirectories();
 
 int main()
 {
@@ -54,6 +55,7 @@ int main()
     if (!CheckFiles()) return 20;
     if (!CheckFileSystem()) return 21;
     if (!CheckFileMetadata()) return 22;
+    if (!CheckDirectories()) return 23;
     if (!CheckMemory()) return 17;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;

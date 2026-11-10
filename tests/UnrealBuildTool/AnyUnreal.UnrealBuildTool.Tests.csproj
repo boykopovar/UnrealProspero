@@ -19,6 +19,7 @@
     <None Update="MiscChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="StringChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="ClockChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="DirectoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileMetadataChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileSystemChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
