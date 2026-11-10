@@ -35,6 +35,11 @@ internal static class ToolchainChecks
         };
         CPPOutput objects = toolchain.CompileAllCPPFiles(compile, new[] { FileItem.GetItemByPath(Path.Combine(sourceRoot, "Toolchain/Probe.cpp")) }, DirectoryReference.Combine(intermediate, "objects"), "Probe", graph);
         CPPOutput entry = toolchain.CompileAllCPPFiles(compile, new[] { FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "Entry.cpp")) }, DirectoryReference.Combine(intermediate, "entry"), "Entry", graph);
+        CppCompileEnvironment platformCompile = new(compile);
+        platformCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/Core/Public"));
+        platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Core/Public"));
+        platformCompile.Definitions.AddRange(new[] { "OVERRIDE_PLATFORM_HEADER_NAME=AnyUnreal", "ANYUNREAL_TARGET_" + SdkInstallation.GetTargetName(target).ToUpperInvariant() + "=1", "UE_BUILD_DEVELOPMENT=1", "WITH_EDITOR=0", "WITH_ENGINE=0", "WITH_UNREAL_DEVELOPER_TOOLS=0", "WITH_PLUGIN_SUPPORT=0", "IS_MONOLITHIC=1", "IS_PROGRAM=1" });
+        toolchain.CompileAllCPPFiles(platformCompile, new[] { FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "PlatformTypes.cpp")) }, DirectoryReference.Combine(intermediate, "platform"), "PlatformTypes", graph);
         LinkEnvironment archive = new(platform, CppConfiguration.Development, architectures)
         {
             IntermediateDirectory = intermediate,
@@ -49,7 +54,7 @@ internal static class ToolchainChecks
         link.OutputFilePaths.Add(executable);
         toolchain.LinkFiles(link, false, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 4) throw new InvalidOperationException("Unexpected UBT action count");
+        if (makefile.Actions.Count != 5) throw new InvalidOperationException("Unexpected UBT action count");
         IExternalAction executableLink = makefile.Actions.Last();
         string? startupInput = target switch
         {
