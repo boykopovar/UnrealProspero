@@ -70,16 +70,35 @@ internal static class ToolchainChecks
         link.SystemLibraries.Add("libkernel_sys");
         link.OutputFilePaths.Add(executable);
         toolchain.LinkFiles(link, false, graph);
+        CppCompileEnvironment videoCompile = new(platformCompile);
+        videoCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Public"));
+        CPPOutput video = toolchain.CompileAllCPPFiles(videoCompile, new[]
+        {
+            FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "VideoOutputChecks.cpp")),
+            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"))
+        }, DirectoryReference.Combine(intermediate, "video-objects"), "VideoOutput", graph);
+        FileReference videoExecutable = FileReference.Combine(intermediate, "video", "VideoOutputProbe" + extension);
+        LinkEnvironment videoLink = new(platform, CppConfiguration.Development, architectures) { IntermediateDirectory = intermediate };
+        videoLink.InputFiles.AddRange(video.ObjectFiles);
+        videoLink.SystemLibraries.Add("libSceVideoOut");
+        videoLink.OutputFilePaths.Add(videoExecutable);
+        toolchain.LinkFiles(videoLink, false, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 74) throw new InvalidOperationException("Unexpected UBT action count");
-        IExternalAction executableLink = makefile.Actions.Last();
+        if (makefile.Actions.Count != 77) throw new InvalidOperationException("Unexpected UBT action count");
         string? startupInput = target switch
         {
             Target.Windows => Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"),
             Target.Linux => Path.Combine(sdk.Root, "share/AnyDevKit/startup/LinuxStartup/src/Start.S"),
             _ => null
         };
-        if (startupInput != null && !executableLink.PrerequisiteItems.Contains(FileItem.GetItemByPath(startupInput))) throw new InvalidOperationException("SDK startup changes would not invalidate the executable link");
+        if (startupInput != null)
+        {
+            foreach (FileReference output in new[] { executable, videoExecutable })
+            {
+                IExternalAction executableLink = makefile.Actions.Single(action => action.ProducedItems.Contains(FileItem.GetItemByPath(output.FullName)));
+                if (!executableLink.PrerequisiteItems.Contains(FileItem.GetItemByPath(startupInput))) throw new InvalidOperationException("SDK startup changes would not invalidate the executable link");
+            }
+        }
         foreach (IExternalAction action in makefile.Actions)
         {
             foreach (FileItem input in action.PrerequisiteItems)
@@ -91,6 +110,7 @@ internal static class ToolchainChecks
             await new ToolCommand(action.CommandPath.FullName, action.WorkingDirectory.FullName, CommandLineArguments.Split(action.CommandArguments)).ExecuteAsync(CancellationToken.None);
             if (action.ProducedItems.Any(item => !File.Exists(item.AbsolutePath))) throw new InvalidDataException("Action did not produce its declared outputs");
         }
+        await VideoOutputChecks.PrepareAsync(sdk, outputDirectory, videoExecutable.Directory.FullName);
         if (target == Target.Windows && OperatingSystem.IsWindows())
         {
             using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
@@ -98,6 +118,8 @@ internal static class ToolchainChecks
             await FileLockChecks.RunAsync(executable.FullName);
             await ExitChecks.RunAsync(executable.FullName);
             await ArgumentChecks.RunAsync(executable.FullName);
+            using CancellationTokenSource videoTimeout = new(TimeSpan.FromSeconds(30));
+            await new ToolCommand(videoExecutable.FullName, videoExecutable.Directory.FullName, Array.Empty<string>()).ExecuteAsync(videoTimeout.Token);
         }
         Console.WriteLine("Executed UBT compile, archive and link actions for " + platform);
     }
