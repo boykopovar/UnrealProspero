@@ -40,8 +40,15 @@ bool CheckFileSystem();
 bool CheckFileMetadata();
 bool CheckDirectories();
 
+bool CheckFileLocks();
+int RunFileLockProbe(int count, const char** arguments);
+
 int main()
 {
+    const int count = getargc_nid_postfix();
+    const char** arguments = getargv_nid_postfix();
+    if (count != 1) return RunFileLockProbe(count, arguments);
+    if (!CheckFileLocks()) return 24;
     if (AnyUnrealRuntimeProbe(3) != 27) return 1;
     if (!CheckMutexes()) return 10;
     if (!CheckEvents()) return 11;

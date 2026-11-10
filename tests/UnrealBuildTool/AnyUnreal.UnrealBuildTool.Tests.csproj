@@ -22,6 +22,7 @@
     <None Update="DirectoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileMetadataChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileSystemChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="FileLockChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="FileChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="ProcessChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="TimeChecks.cpp" CopyToOutputDirectory="PreserveNewest" />

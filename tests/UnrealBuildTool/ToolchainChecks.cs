@@ -43,9 +43,9 @@ internal static class ToolchainChecks
         platformCompile.Definitions.Add("CORE_API=");
         platformCompile.Definitions.Add("TRACELOG_API=");
         toolchain.CompileAllCPPFiles(platformCompile, new[] { FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "PlatformTypes.cpp")) }, DirectoryReference.Combine(intermediate, "platform"), "PlatformTypes", graph);
-        CPPOutput entry = toolchain.CompileAllCPPFiles(platformCompile, new[] { "PlatformRuntime.cpp", "MutexChecks.cpp", "EventChecks.cpp", "AtomicChecks.cpp", "MathChecks.cpp", "MiscChecks.cpp", "StringChecks.cpp", "ClockChecks.cpp", "MemoryChecks.cpp", "TimeChecks.cpp", "ProcessChecks.cpp", "FileChecks.cpp", "FileSystemChecks.cpp", "FileMetadataChecks.cpp", "DirectoryChecks.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, name))).ToArray(), DirectoryReference.Combine(intermediate, "entry"), "Entry", graph);
+        CPPOutput entry = toolchain.CompileAllCPPFiles(platformCompile, new[] { "PlatformRuntime.cpp", "MutexChecks.cpp", "EventChecks.cpp", "AtomicChecks.cpp", "MathChecks.cpp", "MiscChecks.cpp", "StringChecks.cpp", "ClockChecks.cpp", "MemoryChecks.cpp", "TimeChecks.cpp", "ProcessChecks.cpp", "FileChecks.cpp", "FileLockChecks.cpp", "FileSystemChecks.cpp", "FileMetadataChecks.cpp", "DirectoryChecks.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, name))).ToArray(), DirectoryReference.Combine(intermediate, "entry"), "Entry", graph);
         string coreSource = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/Core/Private/AnyUnreal");
-        CPPOutput platformObjects = toolchain.CompileAllCPPFiles(platformCompile, new[] { "AnyUnrealPlatformTLS.cpp", "Mutex/RecursiveMutex.cpp", "Mutex/SharedMutex.cpp", "Kernel/Event.cpp", "AnyUnrealEvent.cpp", "AnyUnrealPlatformMisc.cpp", "Text/Encoding.cpp", "Kernel/Debug.cpp", "Kernel/Clock.cpp", "Kernel/DirectAllocation.cpp", "Memory/PageAllocator.cpp", "Kernel/Calendar.cpp", "AnyUnrealPlatformTime.cpp", "AnyUnrealPlatformProcess.cpp", "Process/Events.cpp", "Process/Sleep.cpp", "Kernel/File.cpp", "Kernel/Descriptor.cpp", "Kernel/Directory.cpp", "File/FileHandle.cpp", "Kernel/FileSystem.cpp", "Kernel/Move.cpp", "File/Timestamp.cpp", "File/Metadata.cpp", "File/DirectoryVisitor.cpp", "File/Path.cpp", "AnyUnrealPlatformFile.cpp", "File/PlatformMetadata.cpp", "File/PlatformDirectories.cpp", "File/PlatformHandles.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(coreSource, name))).ToArray(), DirectoryReference.Combine(intermediate, "core"), "Core", graph);
+        CPPOutput platformObjects = toolchain.CompileAllCPPFiles(platformCompile, new[] { "AnyUnrealPlatformTLS.cpp", "Mutex/RecursiveMutex.cpp", "Mutex/SharedMutex.cpp", "Kernel/Event.cpp", "AnyUnrealEvent.cpp", "AnyUnrealPlatformMisc.cpp", "Text/Encoding.cpp", "Kernel/Debug.cpp", "Kernel/Clock.cpp", "Kernel/DirectAllocation.cpp", "Memory/PageAllocator.cpp", "Kernel/Calendar.cpp", "AnyUnrealPlatformTime.cpp", "AnyUnrealPlatformProcess.cpp", "Process/Events.cpp", "Process/Sleep.cpp", "Kernel/File.cpp", "Kernel/FileLock.cpp", "Kernel/Descriptor.cpp", "Kernel/Directory.cpp", "File/FileHandle.cpp", "Kernel/FileSystem.cpp", "Kernel/Move.cpp", "File/Timestamp.cpp", "File/Metadata.cpp", "File/DirectoryVisitor.cpp", "File/Path.cpp", "AnyUnrealPlatformFile.cpp", "File/PlatformMetadata.cpp", "File/PlatformDirectories.cpp", "File/PlatformHandles.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(coreSource, name))).ToArray(), DirectoryReference.Combine(intermediate, "core"), "Core", graph);
         LinkEnvironment archive = new(platform, CppConfiguration.Development, architectures)
         {
             IntermediateDirectory = intermediate,
@@ -62,7 +62,7 @@ internal static class ToolchainChecks
         link.OutputFilePaths.Add(executable);
         toolchain.LinkFiles(link, false, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 49) throw new InvalidOperationException("Unexpected UBT action count");
+        if (makefile.Actions.Count != 51) throw new InvalidOperationException("Unexpected UBT action count");
         IExternalAction executableLink = makefile.Actions.Last();
         string? startupInput = target switch
         {
@@ -86,6 +86,7 @@ internal static class ToolchainChecks
         {
             using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
             await new ToolCommand(executable.FullName, executable.Directory.FullName, Array.Empty<string>()).ExecuteAsync(timeout.Token);
+            await FileLockChecks.RunAsync(executable.FullName);
         }
         Console.WriteLine("Executed UBT compile, archive and link actions for " + platform);
     }
