@@ -1,6 +1,7 @@
 #include "CoreTypes.h"
 #include "AnyUnreal/AnyUnrealPlatformProperties.h"
 #include "HAL/PlatformProperties.h"
+#include "GenericPlatform/GenericPlatformTime.h"
 #include <cstddef>
 #include <string_view>
 #include <type_traits>
@@ -46,9 +47,12 @@ static_assert(!FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Unknow
 static_assert(FPlatformProperties::GetMaxSupportedVirtualMemoryAlignment() == 16384);
 
 #if ANYUNREAL_TARGET_WINDOWS
+static_assert(sizeof(long) == 4);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyWin64");
 #elif ANYUNREAL_TARGET_LINUX
+static_assert(sizeof(long) == 8);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyLinux");
 #else
+static_assert(sizeof(long) == 8);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyPS5");
 #endif
