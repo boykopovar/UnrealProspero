@@ -2,6 +2,7 @@
 #include "prx/libkernel/include/Api.hpp"
 #include <cstddef>
 #include <stdexcept>
+#include <string_view>
 
 std::size_t AnyUnrealRuntimeProbe(std::size_t count);
 bool CheckMutexes();
@@ -10,6 +11,8 @@ bool CheckAtomics();
 bool CheckMath();
 bool CheckMisc();
 bool CheckGuids();
+bool CheckExitStatus();
+[[noreturn]] void RunExitProbe(std::string_view argument);
 bool CheckStrings();
 bool CheckClocks();
 bool CheckTime();
@@ -50,6 +53,7 @@ int main()
 {
     const int count = getargc_nid_postfix();
     const char** arguments = getargv_nid_postfix();
+    if (count == 3 && std::string_view(arguments[1]) == "--exit-probe") RunExitProbe(arguments[2]);
     if (count != 1) return RunFileLockProbe(count, arguments);
     if (!CheckFileLocks()) return 24;
     if (AnyUnrealRuntimeProbe(3) != 27) return 1;
@@ -59,6 +63,7 @@ int main()
     if (!CheckMath()) return 13;
     if (!CheckMisc()) return 14;
     if (!CheckGuids()) return 27;
+    if (!CheckExitStatus()) return 28;
     if (!CheckStrings()) return 15;
     if (!CheckClocks()) return 16;
     if (!CheckTime()) return 18;
