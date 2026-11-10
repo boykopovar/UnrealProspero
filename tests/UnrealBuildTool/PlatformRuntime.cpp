@@ -11,6 +11,7 @@ bool CheckMath();
 bool CheckMisc();
 bool CheckStrings();
 bool CheckClocks();
+bool CheckTime();
 bool CheckMemory();
 
 namespace
@@ -43,6 +44,7 @@ int main()
     if (!CheckMisc()) return 14;
     if (!CheckStrings()) return 15;
     if (!CheckClocks()) return 16;
+    if (!CheckTime()) return 18;
     if (!CheckMemory()) return 17;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
