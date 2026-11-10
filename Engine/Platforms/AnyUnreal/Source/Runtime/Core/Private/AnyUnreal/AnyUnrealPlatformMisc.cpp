@@ -1,3 +1,4 @@
+#include "AnyUnreal/Kernel/SystemConfiguration.h"
 #include "AnyUnreal/AnyUnrealPlatformMisc.h"
 #include "AnyUnreal/Kernel/Debug.h"
 #include "AnyUnreal/Text/Encoding.h"
@@ -36,4 +37,9 @@ void FAnyUnrealPlatformMisc::LowLevelOutputDebugString(const TCHAR* message)
         if (written <= 0 || static_cast<std::uint64_t>(written) > text.size() - offset) throw std::runtime_error("Debug output write failed: " + std::to_string(written));
         offset += static_cast<std::size_t>(written);
     }
+}
+
+int32 FAnyUnrealPlatformMisc::NumberOfCoresIncludingHyperthreads()
+{
+    return AnyUnreal::Kernel::SystemConfiguration::LogicalProcessorCount();
 }

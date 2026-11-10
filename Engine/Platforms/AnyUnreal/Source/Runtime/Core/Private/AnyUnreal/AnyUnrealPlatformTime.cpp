@@ -1,3 +1,4 @@
+#include "AnyUnreal/Kernel/SystemConfiguration.h"
 #include "AnyUnreal/AnyUnrealPlatformTime.h"
 #include "AnyUnreal/Kernel/Calendar.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -35,14 +36,7 @@ namespace
 {
     int processorCount()
     {
-        static const int count = []
-        {
-            int value = 0;
-            std::size_t size = sizeof(value);
-            AnyUnreal::Kernel::CheckResult(sysctlbyname_nid_postfix("hw.ncpu", &value, &size, nullptr, 0), "sysctlbyname");
-            if (size != sizeof(value) || value <= 0) throw std::runtime_error("Invalid logical processor count");
-            return value;
-        }();
+        static const int count = AnyUnreal::Kernel::SystemConfiguration::LogicalProcessorCount();
         return count;
     }
 
