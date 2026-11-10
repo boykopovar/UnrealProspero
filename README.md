@@ -4,7 +4,7 @@ Unreal Engine platform extension for [AnyDevKit](https://github.com/boykopovar/A
 
 ## Status
 
-Under planning.
+Under development. Core HAL in progress; RHI pending.
 
 ## License
 
