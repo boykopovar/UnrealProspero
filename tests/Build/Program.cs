@@ -16,10 +16,10 @@ internal static class Program
         foreach (Target target in Enum.GetValues<Target>())
         {
             sdk.ValidateTarget(target);
-            Console.WriteLine("Validated " + sdk.GetTargetName(target));
+            Console.WriteLine("Validated " + SdkInstallation.GetTargetName(target));
         }
         reject<ArgumentException>(() => sdk.GetImportLibrary(Target.Ps5, "lib/../../libc"));
-        reject<ArgumentOutOfRangeException>(() => sdk.GetTargetName((Target)99));
+        reject<ArgumentOutOfRangeException>(() => SdkInstallation.GetTargetName((Target)99));
         reject<FileNotFoundException>(() => sdk.GetImportLibrary(Target.Ps5, "libAnyUnrealMissing"));
         await new ToolCommand(sdk.Executable, Directory.GetCurrentDirectory(), new[] { "--version" }).ExecuteAsync(CancellationToken.None);
         try

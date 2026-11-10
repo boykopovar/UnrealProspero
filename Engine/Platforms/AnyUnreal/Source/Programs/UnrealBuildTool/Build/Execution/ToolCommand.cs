@@ -23,7 +23,7 @@ public sealed class ToolCommand
         List<string> values = new();
         foreach (string argument in arguments)
         {
-            if (argument is null || argument.Contains('\0')) throw new ArgumentException("Invalid tool argument", nameof(arguments));
+            if (argument is null || argument.Contains('\0', StringComparison.Ordinal)) throw new ArgumentException("Invalid tool argument", nameof(arguments));
             values.Add(argument);
         }
         Arguments = new ReadOnlyCollection<string>(values);
