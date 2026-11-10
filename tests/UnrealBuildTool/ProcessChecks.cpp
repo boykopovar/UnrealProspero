@@ -1,10 +1,59 @@
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformAffinity.h"
+#include "AnyUnreal/Kernel/Affinity.h"
+#include "prx/libkernel/include/Api.hpp"
+#include <bit>
 #include "AnyUnreal/Kernel/Clock.h"
 #include <limits>
 #include <stdexcept>
 
 namespace
 {
+    class AffinityRestore
+    {
+    public:
+        AffinityRestore() : mask(AnyUnreal::Kernel::Affinity::Get(scePthreadSelf())) {}
+        ~AffinityRestore() noexcept(false) { AnyUnreal::Kernel::Affinity::Set(scePthreadSelf(), mask); }
+
+    private:
+        KernelCpumask mask;
+    };
+
+    bool checkIdentity()
+    {
+        using AnyUnreal::Kernel::Affinity;
+        if (FPlatformProcess::GetCurrentProcessId() != static_cast<uint32>(getpid_nid_postfix())) return false;
+        AffinityRestore restore;
+        const auto available = Affinity::Available();
+        const auto selected = KernelCpumask{1} << std::countr_zero(available);
+        FPlatformProcess::SetThreadAffinityMask(selected);
+        if (Affinity::Get(scePthreadSelf()) != selected) return false;
+        const auto core = FPlatformProcess::GetCurrentCoreNumber();
+        if (core >= 64 || (selected & (KernelCpumask{1} << core)) == 0) return false;
+        FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetNoAffinityMask());
+        if (Affinity::Get(scePthreadSelf()) != available) return false;
+        try
+        {
+            FPlatformProcess::SetThreadAffinityMask(0);
+            return false;
+        }
+        catch (const std::invalid_argument&)
+        {
+        }
+        if (available != std::numeric_limits<KernelCpumask>::max())
+        {
+            try
+            {
+                Affinity::Set(scePthreadSelf(), ~available);
+                return false;
+            }
+            catch (const std::invalid_argument&)
+            {
+            }
+        }
+        return true;
+    }
+
     template<typename TException>
     bool rejects(float seconds)
     {
@@ -22,6 +71,7 @@ namespace
 
 bool CheckProcess()
 {
+    if (!checkIdentity()) return false;
     if (!rejects<std::invalid_argument>(-1)) return false;
     if (!rejects<std::invalid_argument>(std::numeric_limits<float>::infinity())) return false;
     if (!rejects<std::invalid_argument>(std::numeric_limits<float>::quiet_NaN())) return false;

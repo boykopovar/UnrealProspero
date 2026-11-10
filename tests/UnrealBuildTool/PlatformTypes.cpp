@@ -1,3 +1,4 @@
+#include "HAL/RunnableThread.h"
 #include "HAL/PlatformFile.h"
 #include "CoreTypes.h"
 #include "AnyUnreal/File/FileHandle.h"
