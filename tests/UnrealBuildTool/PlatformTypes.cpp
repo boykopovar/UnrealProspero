@@ -81,3 +81,5 @@ static_assert(!std::is_abstract_v<FAnyUnrealPlatformFile>);
 
 static_assert(!std::is_abstract_v<FAnyUnrealRunnableThread>);
 static_assert(alignof(FIndexedPointer) >= 8);
+static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealRecursiveMutex>);
+static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealSharedMutex>);

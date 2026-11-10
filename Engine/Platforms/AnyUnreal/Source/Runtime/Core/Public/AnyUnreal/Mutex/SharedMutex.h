@@ -10,7 +10,7 @@ namespace UE
     {
     public:
         CORE_API FAnyUnrealSharedMutex();
-        CORE_API ~FAnyUnrealSharedMutex() noexcept(false);
+        CORE_API ~FAnyUnrealSharedMutex() noexcept;
         FAnyUnrealSharedMutex(const FAnyUnrealSharedMutex&) = delete;
         FAnyUnrealSharedMutex& operator=(const FAnyUnrealSharedMutex&) = delete;
         CORE_API bool TryLock();

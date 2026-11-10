@@ -10,7 +10,7 @@ namespace UE
     {
     public:
         CORE_API FAnyUnrealRecursiveMutex();
-        CORE_API ~FAnyUnrealRecursiveMutex() noexcept(false);
+        CORE_API ~FAnyUnrealRecursiveMutex() noexcept;
         FAnyUnrealRecursiveMutex(const FAnyUnrealRecursiveMutex&) = delete;
         FAnyUnrealRecursiveMutex& operator=(const FAnyUnrealRecursiveMutex&) = delete;
         CORE_API bool TryLock();

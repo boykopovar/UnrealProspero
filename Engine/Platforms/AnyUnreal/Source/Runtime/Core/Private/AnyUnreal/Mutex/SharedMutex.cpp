@@ -9,7 +9,7 @@ namespace UE
         AnyUnreal::Kernel::CheckResult(scePthreadRwlockInit(&mutex, nullptr, nullptr), __func__);
     }
 
-    FAnyUnrealSharedMutex::~FAnyUnrealSharedMutex() noexcept(false)
+    FAnyUnrealSharedMutex::~FAnyUnrealSharedMutex() noexcept
     {
         AnyUnreal::Kernel::CheckResult(scePthreadRwlockDestroy(&mutex), __func__);
     }

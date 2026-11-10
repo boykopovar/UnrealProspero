@@ -25,7 +25,7 @@ namespace UE
         AnyUnreal::Kernel::CheckResult(destroyResult, __func__);
     }
 
-    FAnyUnrealRecursiveMutex::~FAnyUnrealRecursiveMutex() noexcept(false)
+    FAnyUnrealRecursiveMutex::~FAnyUnrealRecursiveMutex() noexcept
     {
         AnyUnreal::Kernel::CheckResult(scePthreadMutexDestroy(&mutex), __func__);
     }
