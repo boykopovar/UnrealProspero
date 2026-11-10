@@ -12,6 +12,8 @@ bool CheckMath();
 bool CheckMisc();
 bool CheckGuids();
 bool CheckExitStatus();
+bool CheckArguments();
+int RunArgumentProbe();
 [[noreturn]] void RunExitProbe(std::string_view argument);
 bool CheckStrings();
 bool CheckClocks();
@@ -53,6 +55,7 @@ int main()
 {
     const int count = getargc_nid_postfix();
     const char** arguments = getargv_nid_postfix();
+    if (count > 1 && std::string_view(arguments[1]) == "--arguments-probe") return RunArgumentProbe();
     if (count == 3 && std::string_view(arguments[1]) == "--exit-probe") RunExitProbe(arguments[2]);
     if (count != 1) return RunFileLockProbe(count, arguments);
     if (!CheckFileLocks()) return 24;
@@ -64,6 +67,7 @@ int main()
     if (!CheckMisc()) return 14;
     if (!CheckGuids()) return 27;
     if (!CheckExitStatus()) return 28;
+    if (!CheckArguments()) return 29;
     if (!CheckStrings()) return 15;
     if (!CheckClocks()) return 16;
     if (!CheckTime()) return 18;

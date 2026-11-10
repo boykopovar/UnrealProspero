@@ -11,11 +11,14 @@
     <ProjectReference Include="$(UnrealRoot)/Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" />
     <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/Core/Core.Build.cs" Link="Rules/Core.Build.cs" />
     <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Runtime/Core/Core_AnyUnreal.Build.cs" Link="Rules/Core_AnyUnreal.Build.cs" />
+    <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/Launch/Launch.Build.cs" Link="Rules/Launch.Build.cs" />
+    <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Runtime/Launch/Launch_AnyUnreal.Build.cs" Link="Rules/Launch_AnyUnreal.Build.cs" />
     <None Update="PlatformRuntime.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MutexChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="AtomicChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MathChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ArgumentChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="ExitChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="GuidChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MiscChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
