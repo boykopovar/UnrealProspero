@@ -17,6 +17,7 @@
     <None Update="AtomicChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MathChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MiscChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="StringChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="PlatformTypes.cpp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="ValidateUnrealRoot" BeforeTargets="PrepareForBuild">
