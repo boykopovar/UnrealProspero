@@ -1,7 +1,7 @@
 #include "AnyUnreal/Kernel/Event.h"
+#include "AnyUnreal/Kernel/Clock.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
-#include "prx/libkernel/Time/include/Time.hpp"
 #include <algorithm>
 
 namespace AnyUnreal::Kernel
@@ -53,7 +53,7 @@ namespace AnyUnreal::Kernel
             return true;
         }
         const std::uint64_t duration = static_cast<std::uint64_t>(milliseconds) * 1000;
-        const std::uint64_t start = sceKernelGetProcessTime();
+        const std::uint64_t start = Clock::MonotonicNanoseconds() / 1000;
         std::uint64_t remaining = duration;
         for (;;)
         {
@@ -61,7 +61,7 @@ namespace AnyUnreal::Kernel
             int result = sceKernelWaitEventFlag(handle, 1, waitMode, nullptr, &timeout);
             if (result == 0) return true;
             if (result != SCE_KERNEL_ERROR_ETIMEDOUT) CheckResult(result, __func__);
-            const std::uint64_t now = sceKernelGetProcessTime();
+            const std::uint64_t now = Clock::MonotonicNanoseconds() / 1000;
             if (now < start) throw std::runtime_error("Monotonic clock moved backwards");
             const std::uint64_t elapsed = now - start;
             if (elapsed >= duration) return false;

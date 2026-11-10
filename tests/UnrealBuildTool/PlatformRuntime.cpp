@@ -10,6 +10,7 @@ bool CheckAtomics();
 bool CheckMath();
 bool CheckMisc();
 bool CheckStrings();
+bool CheckClocks();
 
 namespace
 {
@@ -40,6 +41,7 @@ int main()
     if (!CheckMath()) return 13;
     if (!CheckMisc()) return 14;
     if (!CheckStrings()) return 15;
+    if (!CheckClocks()) return 16;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
     if (FPlatformTLS::GetTlsValue(slot) != nullptr) return 3;
