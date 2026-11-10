@@ -36,6 +36,7 @@ namespace
 
 bool CheckProcess();
 bool CheckFiles();
+bool CheckFileSystem();
 
 int main()
 {
@@ -50,6 +51,7 @@ int main()
     if (!CheckTime()) return 18;
     if (!CheckProcess()) return 19;
     if (!CheckFiles()) return 20;
+    if (!CheckFileSystem()) return 21;
     if (!CheckMemory()) return 17;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
