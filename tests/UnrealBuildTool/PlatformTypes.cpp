@@ -1,4 +1,5 @@
 #include "CoreTypes.h"
+#include "AnyUnreal/AnyUnrealEvent.h"
 #include "AnyUnreal/AnyUnrealPlatformProperties.h"
 #include "HAL/PlatformProperties.h"
 #include "GenericPlatform/GenericPlatformTime.h"
@@ -60,3 +61,9 @@ static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyLi
 static_assert(sizeof(long) == 8);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyPS5");
 #endif
+
+static_assert(std::is_base_of_v<FEvent, FAnyUnrealEvent>);
+static_assert(!std::is_abstract_v<FAnyUnrealEvent>);
+static_assert(!std::is_copy_constructible_v<FAnyUnrealEvent>);
+static_assert(!std::is_move_constructible_v<FAnyUnrealEvent>);
+static_assert(std::is_nothrow_destructible_v<FAnyUnrealEvent>);
