@@ -34,6 +34,8 @@ namespace
     }
 }
 
+bool CheckProcess();
+
 int main()
 {
     if (AnyUnrealRuntimeProbe(3) != 27) return 1;
@@ -45,6 +47,7 @@ int main()
     if (!CheckStrings()) return 15;
     if (!CheckClocks()) return 16;
     if (!CheckTime()) return 18;
+    if (!CheckProcess()) return 19;
     if (!CheckMemory()) return 17;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
