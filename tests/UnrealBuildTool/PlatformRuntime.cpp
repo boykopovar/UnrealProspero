@@ -9,6 +9,7 @@ bool CheckEvents();
 bool CheckAtomics();
 bool CheckMath();
 bool CheckMisc();
+bool CheckGuids();
 bool CheckStrings();
 bool CheckClocks();
 bool CheckTime();
@@ -57,6 +58,7 @@ int main()
     if (!CheckAtomics()) return 12;
     if (!CheckMath()) return 13;
     if (!CheckMisc()) return 14;
+    if (!CheckGuids()) return 27;
     if (!CheckStrings()) return 15;
     if (!CheckClocks()) return 16;
     if (!CheckTime()) return 18;

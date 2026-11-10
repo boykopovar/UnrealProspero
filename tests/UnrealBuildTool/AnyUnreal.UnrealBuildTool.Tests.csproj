@@ -16,6 +16,7 @@
     <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="AtomicChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MathChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="GuidChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MiscChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="StringChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="ClockChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
