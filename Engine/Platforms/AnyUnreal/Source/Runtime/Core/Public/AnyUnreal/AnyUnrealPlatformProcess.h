@@ -10,6 +10,9 @@ struct FProcHandle : TProcHandle<int32, -1>
 
 struct FAnyUnrealPlatformProcess : FGenericPlatformProcess
 {
+    static CORE_API void* GetDllHandle(const TCHAR* filename);
+    static CORE_API void FreeDllHandle(void* handle);
+    static CORE_API void* GetDllExport(void* handle, const TCHAR* name);
     static CORE_API uint32 GetCurrentProcessId();
     static CORE_API uint32 GetCurrentCoreNumber();
     static CORE_API void SetThreadAffinityMask(uint64 mask);

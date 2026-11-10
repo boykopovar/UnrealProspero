@@ -34,6 +34,7 @@ namespace
     }
 }
 
+bool CheckModules();
 bool CheckThreads();
 bool CheckProcess();
 bool CheckFiles();
@@ -60,6 +61,7 @@ int main()
     if (!CheckClocks()) return 16;
     if (!CheckTime()) return 18;
     if (!CheckThreads()) return 25;
+    if (!CheckModules()) return 26;
     if (!CheckProcess()) return 19;
     if (!CheckFiles()) return 20;
     if (!CheckFileSystem()) return 21;
