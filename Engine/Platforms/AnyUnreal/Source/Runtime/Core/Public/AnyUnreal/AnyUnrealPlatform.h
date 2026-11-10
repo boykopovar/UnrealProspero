@@ -37,7 +37,7 @@ static_assert(std::endian::native == std::endian::little);
 #define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA 0
 #define FORCEINLINE inline
 #define PLATFORM_BREAK() AnyUnreal::Kernel::DebugBreak()
-#define MS_ALIGN(alignment) alignas(alignment)
+#define GCC_ALIGN(alignment) __attribute__((aligned(alignment)))
 #define OPERATOR_DELETE_THROW_SPEC noexcept
 #define OPERATOR_NEW_NOTHROW_SPEC noexcept
 #define OPERATOR_DELETE_NOTHROW_SPEC noexcept
