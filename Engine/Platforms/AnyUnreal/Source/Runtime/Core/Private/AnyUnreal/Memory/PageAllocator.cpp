@@ -1,7 +1,7 @@
 #include "AnyUnreal/Memory/PageAllocator.h"
 #include "AnyUnreal/Memory/SystemAllocator.h"
 #include "AnyUnreal/Kernel/DirectAllocation.h"
-#include "AnyUnreal/Mutex/RecursiveMutex.h"
+#include "AnyUnreal/Mutex/ScopedLock.h"
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -13,26 +13,6 @@ namespace AnyUnreal::Memory
     {
         using Allocation = Kernel::DirectAllocation;
         using Entry = std::pair<const std::uintptr_t, Allocation*>;
-
-        class Lock
-        {
-        public:
-            explicit Lock(UE::FAnyUnrealRecursiveMutex& mutex) : mutex(mutex)
-            {
-                mutex.Lock();
-            }
-
-            ~Lock() noexcept(false)
-            {
-                mutex.Unlock();
-            }
-
-            Lock(const Lock&) = delete;
-            Lock& operator=(const Lock&) = delete;
-
-        private:
-            UE::FAnyUnrealRecursiveMutex& mutex;
-        };
 
         void destroyAllocation(Allocation* allocation)
         {
@@ -69,7 +49,7 @@ namespace AnyUnreal::Memory
     void* PageAllocator::Allocate(std::size_t size)
     {
         auto& allocations = getAllocations();
-        Lock lock(allocations.Mutex);
+        ScopedLock lock(allocations.Mutex);
         Allocation* allocation = SystemAllocator<Allocation>{}.allocate(1);
         try
         {
@@ -95,7 +75,7 @@ namespace AnyUnreal::Memory
     void PageAllocator::Free(void* address, std::size_t size)
     {
         auto& allocations = getAllocations();
-        Lock lock(allocations.Mutex);
+        ScopedLock lock(allocations.Mutex);
         auto entry = allocations.Blocks.find(reinterpret_cast<std::uintptr_t>(address));
         if (entry == allocations.Blocks.end() || entry->second->Size() != size) throw std::invalid_argument("Unknown page allocation or mismatched size");
         auto removed = allocations.Blocks.extract(entry);
@@ -105,7 +85,7 @@ namespace AnyUnreal::Memory
     void PageAllocator::Protect(void* address, std::size_t size, bool readable, bool writable)
     {
         auto& allocations = getAllocations();
-        Lock lock(allocations.Mutex);
+        ScopedLock lock(allocations.Mutex);
         const auto location = reinterpret_cast<std::uintptr_t>(address);
         auto entry = allocations.Blocks.upper_bound(location);
         if (entry == allocations.Blocks.begin()) throw std::invalid_argument("Unknown page protection address");
