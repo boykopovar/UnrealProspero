@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <EngineDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../../../'))</EngineDirectory>
+  </PropertyGroup>
+  <Import Project="$(EngineDirectory)/Source/Programs/Shared/UnrealEngine.csproj.props" />
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>AnyUnreal.Automation</AssemblyName>
+    <RootNamespace>AnyUnreal.Automation</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <OutputPath Condition="'$(ArtifactsPath)' == ''">$(EngineDirectory)/Binaries/DotNET/AutomationTool/AutomationScripts/Platforms/AnyUnreal/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(EngineDirectory)/Source/Programs/Shared/EpicGames.Core/EpicGames.Core.csproj" />
+    <ProjectReference Include="$(EngineDirectory)/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" />
+    <ProjectReference Include="$(EngineDirectory)/Source/Programs/AutomationTool/AutomationUtils/AutomationUtils.Automation.csproj" />
+  </ItemGroup>
+</Project>
