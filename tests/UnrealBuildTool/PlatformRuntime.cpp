@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 std::size_t AnyUnrealRuntimeProbe(std::size_t count);
+bool CheckMutexes();
 
 namespace
 {
@@ -28,6 +29,7 @@ namespace
 int main()
 {
     if (AnyUnrealRuntimeProbe(3) != 27) return 1;
+    if (!CheckMutexes()) return 10;
     uint32 slot = FPlatformTLS::AllocTlsSlot();
     if (!FPlatformTLS::IsValidTlsSlot(slot)) return 2;
     if (FPlatformTLS::GetTlsValue(slot) != nullptr) return 3;
