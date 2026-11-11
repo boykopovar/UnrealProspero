@@ -13,6 +13,7 @@ namespace AnyUnreal::RHI
     public:
         void RHISetComputePipelineState(FRHIComputePipelineState* pipelineState) override;
         void RHISetShaderParameters(FRHIComputeShader* computeShader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
+        void RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ) override;
         void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers) override;
         void RHISetStaticUniformBuffer(FUniformBufferStaticSlot slot, FRHIUniformBuffer* uniformBuffer) override;
@@ -25,9 +26,11 @@ namespace AnyUnreal::RHI
         {
             TRefCountPtr<ComputePipeline> pipeline;
             std::unique_ptr<ShaderBindings> bindings;
+            std::shared_ptr<BufferAllocation> arguments;
         };
 
         void requireWritable() const;
+        std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ComputeParameters> parameters;

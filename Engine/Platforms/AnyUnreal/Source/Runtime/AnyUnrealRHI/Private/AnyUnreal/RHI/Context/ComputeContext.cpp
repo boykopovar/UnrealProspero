@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Context/ComputeContext.h"
+#include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include <stdexcept>
 #include <utility>
 
@@ -39,18 +40,46 @@ namespace AnyUnreal::RHI
         }
     }
 
+    std::unique_ptr<ShaderBindings> ComputeContext::createDispatchBindings() const
+    {
+        auto dispatchParameters = *parameters;
+        const auto staticBindings = staticUniforms.Resolve(pipeline->GetShader());
+        dispatchParameters.SetResources({staticBindings.data(), static_cast<int32>(staticBindings.size())});
+        auto bindings = dispatchParameters.CreateBindings();
+        bindings->Finalize();
+        return bindings;
+    }
+
+    void ComputeContext::RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset)
+    {
+        requireWritable();
+        if (!pipeline || !parameters) throw std::runtime_error("Indirect compute dispatch requires a pipeline");
+        if (!argumentBuffer || !EnumHasAnyFlags(argumentBuffer->GetUsage(), EBufferUsageFlags::DrawIndirect)) throw std::invalid_argument("Indirect compute dispatch requires an indirect argument buffer");
+        if (argumentOffset % 4 != 0) throw std::invalid_argument("Indirect dispatch argument offset must be aligned to four bytes");
+        auto arguments = static_cast<Buffer*>(argumentBuffer)->Capture();
+        arguments->GetRange(argumentOffset, 12);
+        try
+        {
+            auto bindings = createDispatchBindings();
+            dispatches.push_back({pipeline, std::move(bindings), std::move(arguments)});
+            const auto& dispatch = dispatches.back();
+            pipeline->RecordIndirectDispatch(commands, *dispatch.bindings, *dispatch.arguments, argumentOffset);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
     void ComputeContext::RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ)
     {
         requireWritable();
         if (!pipeline || !parameters) throw std::runtime_error("Compute dispatch requires a pipeline");
         try
         {
-            auto dispatchParameters = *parameters;
-            const auto staticBindings = staticUniforms.Resolve(pipeline->GetShader());
-            dispatchParameters.SetResources({staticBindings.data(), static_cast<int32>(staticBindings.size())});
-            auto bindings = dispatchParameters.CreateBindings();
-            bindings->Finalize();
-            dispatches.push_back({pipeline, std::move(bindings)});
+            auto bindings = createDispatchBindings();
+            dispatches.push_back({pipeline, std::move(bindings), {}});
             pipeline->RecordDispatch(commands, *dispatches.back().bindings, groupX, groupY, groupZ);
         }
         catch (...)
