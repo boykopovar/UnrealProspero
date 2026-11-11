@@ -25,9 +25,52 @@
 #include <stdexcept>
 #include <set>
 #include <limits>
+#include <cmath>
+#include "AnyUnreal/Kernel/Result.h"
+#include "prx/libSceAgc/libSceAgc.hpp"
 
 namespace AnyUnreal::RHI
 {
+    void DynamicRHI::Init()
+    {
+        if (initialized || shutDown) throw std::runtime_error("RHI initialization requires a new device");
+        Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+        ConfigureTransitionStorage();
+        initialized = true;
+    }
+
+    void DynamicRHI::Shutdown()
+    {
+        if (!initialized || shutDown) throw std::runtime_error("RHI shutdown requires an initialized device");
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        if (defaultContext)
+        {
+            auto commands = std::make_unique<CommandList>(std::move(defaultContext));
+            pendingCommandLists.push_back(std::move(commands));
+            try
+            {
+                pendingCommandLists.back()->Submit();
+            }
+            catch (...)
+            {
+                submissionFailed = true;
+                throw;
+            }
+        }
+        RHIBlockUntilGPUIdle();
+        initialized = false;
+        shutDown = true;
+    }
+
+    const TCHAR* DynamicRHI::GetName() { return TEXT("AnyUnrealAGC"); }
+
+    void DynamicRHI::RHITick(float deltaTime)
+    {
+        if (!initialized || shutDown) throw std::runtime_error("RHI tick requires an initialized device");
+        if (!std::isfinite(deltaTime) || deltaTime < 0) throw std::invalid_argument("Invalid RHI tick interval");
+        RHIProcessDeleteQueue();
+    }
+
     void DynamicRHI::RHIReplaceResources(FRHICommandListBase& commandList, TArray<FRHIResourceReplaceInfo>&& replacements)
     {
         std::vector<std::pair<TRefCountPtr<Buffer>, TRefCountPtr<Buffer>>> buffers;
@@ -365,6 +408,7 @@ namespace AnyUnreal::RHI
 
     void DynamicRHI::RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args)
     {
+        if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         std::set<IRHIPlatformCommandList*> uniqueLists;
         for (const auto& list : pendingCommandLists) uniqueLists.insert(list.get());
@@ -408,12 +452,14 @@ namespace AnyUnreal::RHI
 
     IRHIComputeContext* DynamicRHI::RHIGetCommandContext(ERHIPipeline pipeline)
     {
+        if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
         if (pipeline != ERHIPipeline::Graphics) throw std::runtime_error("Async compute command contexts are not implemented");
         return new GraphicsContext(65536, addressHigh);
     }
 
     IRHICommandContext* DynamicRHI::RHIGetDefaultContext()
     {
+        if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         if (!defaultContext) defaultContext = std::make_unique<GraphicsContext>(65536, addressHigh);
         return static_cast<GraphicsContext*>(defaultContext.get());
@@ -421,6 +467,7 @@ namespace AnyUnreal::RHI
 
     FDynamicRHI::FRHIFinalizeContextsResult DynamicRHI::RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args)
     {
+        if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
         if (args.UploadContext || args.Contexts[ERHIPipeline::AsyncCompute]) throw std::runtime_error("Upload and async compute context finalization is not implemented");
         FRHIFinalizeContextsResult result;
         if (auto* context = args.Contexts[ERHIPipeline::Graphics])
