@@ -38,6 +38,14 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
         {
             string settingsModule = Platform + "TargetPlatformSettings";
             if (!rules.DynamicallyLoadedModuleNames.Contains(settingsModule)) rules.DynamicallyLoadedModuleNames.Add(settingsModule);
+            if (settings.IsConfigured && sdk.HasRequiredManualSDK() == SDKStatus.Valid)
+            {
+                foreach (string suffix in new[] { "TargetPlatform", "TargetPlatformControls" })
+                {
+                    string platformModule = Platform + suffix;
+                    if (!rules.DynamicallyLoadedModuleNames.Contains(platformModule)) rules.DynamicallyLoadedModuleNames.Add(platformModule);
+                }
+            }
         }
         if (!settings.IsConfigured || moduleName != "TargetPlatform") return;
         if (!targetRules.bForceBuildShaderFormats && !targetRules.bNeedsExtraShaderFormats && targetRules.Type == TargetType.Program) return;

@@ -54,6 +54,11 @@ namespace UnrealProspero::Cook
             return false;
         }
 
+        bool SupportsVariants() const override
+        {
+            return true;
+        }
+
 #if WITH_ENGINE
         void GetTextureFormats(const UTexture* texture, TArray<TArray<FName>>& formats) const override
         {
