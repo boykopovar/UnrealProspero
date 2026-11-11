@@ -15,11 +15,13 @@ namespace UnrealProspero::RHI
         const auto& mip = destination.GetMipLayout(mipLevel);
         if (x >= mip.Width || y >= mip.Height || storage.GetWidth() > mip.Width - x || storage.GetHeight() > mip.Height - y) throw std::out_of_range("Texture upload exceeds the destination");
         if (arrayLayer >= destination.GetArrayLayers()) throw std::out_of_range("Texture upload selects an unavailable array layer");
+        const TextureCopyRegion region{0, 0, x, y, storage.GetWidth(), storage.GetHeight(), 0, mipLevel, 0, arrayLayer};
+        ValidateTextureCopy(destination, storage, region);
         recorded = true;
         const auto& allocation = destination.GetStorage();
         const GpuMemoryRange ranges[]{{allocation.Data(), allocation.Size()}};
         barrier.Release(commands);
         barrier.Acquire(commands, ranges);
-        WriteTextureCopy(commands, destination, storage, {0, 0, x, y, storage.GetWidth(), storage.GetHeight(), 0, mipLevel, 0, arrayLayer});
+        WriteTextureCopy(commands, destination, storage, region);
     }
 }

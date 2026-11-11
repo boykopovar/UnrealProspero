@@ -7,6 +7,10 @@ namespace UnrealProspero::RHI
     {
         if (disableSrgb && format == TextureFormat::Rgba8Srgb) format = TextureFormat::Rgba8Unorm;
         if (disableSrgb && format == TextureFormat::Bgra8Srgb) format = TextureFormat::Bgra8Unorm;
+        if (disableSrgb && format == TextureFormat::Bc1Srgb) format = TextureFormat::Bc1Unorm;
+        if (disableSrgb && format == TextureFormat::Bc2Srgb) format = TextureFormat::Bc2Unorm;
+        if (disableSrgb && format == TextureFormat::Bc3Srgb) format = TextureFormat::Bc3Unorm;
+        if (disableSrgb && format == TextureFormat::Bc7Srgb) format = TextureFormat::Bc7Unorm;
         switch (format)
         {
         case TextureFormat::R8Unorm: return {1, 1, 4 | (1 << 9)};
@@ -22,6 +26,20 @@ namespace UnrealProspero::RHI
         case TextureFormat::R32Float: return {22, 4, 4 | (1 << 9)};
         case TextureFormat::Rgba16Float: return {71, 8, 0xfac};
         case TextureFormat::Rgba32Float: return {77, 16, 0xfac};
+        case TextureFormat::Bc1Unorm: return {169, 8, 0xfac, 4, 4};
+        case TextureFormat::Bc1Srgb: return {170, 8, 0xfac, 4, 4};
+        case TextureFormat::Bc2Unorm: return {171, 16, 0xfac, 4, 4};
+        case TextureFormat::Bc2Srgb: return {172, 16, 0xfac, 4, 4};
+        case TextureFormat::Bc3Unorm: return {173, 16, 0xfac, 4, 4};
+        case TextureFormat::Bc3Srgb: return {174, 16, 0xfac, 4, 4};
+        case TextureFormat::Bc4Unorm: return {175, 8, 4 | (1 << 9), 4, 4};
+        case TextureFormat::Bc4Snorm: return {176, 8, 4 | (1 << 9), 4, 4};
+        case TextureFormat::Bc5Unorm: return {177, 16, 4 | (5 << 3) | (1 << 9), 4, 4};
+        case TextureFormat::Bc5Snorm: return {178, 16, 4 | (5 << 3) | (1 << 9), 4, 4};
+        case TextureFormat::Bc6Ufloat: return {179, 16, 4 | (5 << 3) | (6 << 6) | (1 << 9), 4, 4};
+        case TextureFormat::Bc6Sfloat: return {180, 16, 4 | (5 << 3) | (6 << 6) | (1 << 9), 4, 4};
+        case TextureFormat::Bc7Unorm: return {181, 16, 0xfac, 4, 4};
+        case TextureFormat::Bc7Srgb: return {182, 16, 0xfac, 4, 4};
         default: throw std::invalid_argument("Unknown linear texture format");
         }
     }

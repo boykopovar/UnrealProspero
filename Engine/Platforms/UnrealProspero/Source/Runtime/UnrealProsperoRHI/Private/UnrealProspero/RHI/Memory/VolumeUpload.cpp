@@ -18,9 +18,11 @@ namespace UnrealProspero::RHI
         const auto& sourceAllocation = storage.GetStorage();
         const auto& destinationAllocation = destination.GetStorage();
         const GpuMemoryRange ranges[]{{sourceAllocation.Data(), sourceAllocation.Size()}, {destinationAllocation.Data(), destinationAllocation.Size()}};
+        const VolumeCopyRegion region{{0, 0, 0}, {x, y, z}, {storage.GetWidth(), storage.GetHeight(), storage.GetDepth()}, 0, mipLevel};
+        ValidateTextureCopy(destination, storage, region);
         recorded = true;
         barrier.Release(commands);
         barrier.Acquire(commands, ranges);
-        WriteTextureCopy(commands, destination, storage, {{0, 0, 0}, {x, y, z}, {storage.GetWidth(), storage.GetHeight(), storage.GetDepth()}, 0, mipLevel});
+        WriteTextureCopy(commands, destination, storage, region);
     }
 }

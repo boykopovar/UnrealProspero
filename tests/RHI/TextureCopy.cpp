@@ -17,7 +17,7 @@
 void CheckArrayMipData()
 {
     using namespace UnrealProspero::RHI;
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float, TextureFormat::Bc1Unorm, TextureFormat::Bc2Srgb, TextureFormat::Bc3Unorm, TextureFormat::Bc4Snorm, TextureFormat::Bc5Unorm, TextureFormat::Bc6Ufloat, TextureFormat::Bc7Srgb})
     {
         LinearTexture2D texture(13, 7, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
         const auto bytes = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
@@ -29,10 +29,10 @@ void CheckArrayMipData()
         {
             const auto& mip = texture.GetMipLayout(level);
             const auto pitch = mip.RowBytes + 7;
-            std::vector<std::byte> input(pitch * mip.Height);
+            std::vector<std::byte> input(pitch * mip.RowCount);
             for (std::size_t index = 0; index < input.size(); ++index) input[index] = static_cast<std::byte>((index * 11 + layer * 37 + level * 19) & 255);
             texture.Upload(input, pitch, level, layer);
-            for (std::size_t row = 0; row < mip.Height; ++row) std::copy_n(input.begin() + row * pitch, mip.RowBytes, expected.begin() + layer * texture.GetLayerPitch() + mip.Offset + row * mip.RowPitch);
+            for (std::size_t row = 0; row < mip.RowCount; ++row) std::copy_n(input.begin() + row * pitch, mip.RowBytes, expected.begin() + layer * texture.GetLayerPitch() + mip.Offset + row * mip.RowPitch);
             if (!std::equal(bytes.begin(), bytes.end(), expected.begin())) throw std::runtime_error("Array upload changed another layer, mip or padding");
             std::vector<std::byte> output(input.size(), std::byte{0x75});
             texture.CopyRowsTo(output, pitch, level, layer);
@@ -70,7 +70,7 @@ void CheckVolumeMipData()
     try { LinearTexture3D::CalculateDataSize(13, 7, 5, TextureFormat::R32Float, 4, 4); }
     catch (const std::out_of_range&) { invalidMip = true; }
     if (!invalidMip) throw std::runtime_error("Volume allocation accepted an unavailable mip");
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float, TextureFormat::Bc1Unorm, TextureFormat::Bc2Srgb, TextureFormat::Bc3Unorm, TextureFormat::Bc4Snorm, TextureFormat::Bc5Unorm, TextureFormat::Bc6Ufloat, TextureFormat::Bc7Srgb})
     for (const auto dimensions : {std::array{13u, 7u, 5u}, std::array{1u, 1u, 8u}})
     {
         LinearTexture3D texture(dimensions[0], dimensions[1], dimensions[2], format, 2, 4);
@@ -81,19 +81,19 @@ void CheckVolumeMipData()
         {
             const auto& mip = texture.GetMipLayout(level);
             const auto rowPitch = mip.RowBytes + 3;
-            const auto slicePitch = rowPitch * mip.Height + 5;
+            const auto slicePitch = rowPitch * mip.RowCount + 5;
             std::vector<std::byte> input(slicePitch * mip.Depth);
             for (std::size_t index = 0; index < input.size(); ++index) input[index] = static_cast<std::byte>((index * 17 + level * 29) & 255);
             texture.Upload(input, rowPitch, slicePitch, level);
             for (std::size_t z = 0; z < mip.Depth; ++z)
-            for (std::size_t y = 0; y < mip.Height; ++y) std::copy_n(input.begin() + z * slicePitch + y * rowPitch, mip.RowBytes, expected.begin() + mip.Offset + z * texture.GetSlicePitch() + y * mip.RowPitch);
+            for (std::size_t y = 0; y < mip.RowCount; ++y) std::copy_n(input.begin() + z * slicePitch + y * rowPitch, mip.RowBytes, expected.begin() + mip.Offset + z * texture.GetSlicePitch() + y * mip.RowPitch);
             if (!std::equal(allocation.begin(), allocation.end(), expected.begin())) throw std::runtime_error("Volume mip upload changed another level or padding");
             std::vector<std::byte> output(input.size(), std::byte{0xcc});
             texture.CopyTo(output, rowPitch, slicePitch, level);
             for (std::size_t z = 0; z < mip.Depth; ++z)
             for (std::size_t index = 0; index < slicePitch; ++index)
             {
-                const bool pixel = index / rowPitch < mip.Height && index % rowPitch < mip.RowBytes;
+                const bool pixel = index / rowPitch < mip.RowCount && index % rowPitch < mip.RowBytes;
                 if (output[z * slicePitch + index] != (pixel ? input[z * slicePitch + index] : std::byte{0xcc})) throw std::runtime_error("Volume mip readback changed pixels or padding");
             }
             bool rejected = false;
@@ -346,6 +346,76 @@ void CheckMipCopies()
     }
 }
 
+void CheckCompressedCopies()
+{
+    using namespace UnrealProspero::RHI;
+    const std::array formats{TextureFormat::Bc1Unorm, TextureFormat::Bc1Srgb, TextureFormat::Bc2Unorm, TextureFormat::Bc2Srgb, TextureFormat::Bc3Unorm, TextureFormat::Bc3Srgb, TextureFormat::Bc4Unorm, TextureFormat::Bc4Snorm, TextureFormat::Bc5Unorm, TextureFormat::Bc5Snorm, TextureFormat::Bc6Ufloat, TextureFormat::Bc6Sfloat, TextureFormat::Bc7Unorm, TextureFormat::Bc7Srgb};
+    for (std::size_t formatIndex = 0; formatIndex < formats.size(); ++formatIndex)
+    {
+        const auto format = formats[formatIndex];
+        const std::size_t blockBytes = formatIndex < 2 || formatIndex == 6 || formatIndex == 7 ? 8 : 16;
+        LinearTexture2D source(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
+        LinearTexture2D destination(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
+        const auto descriptor = source.GetDescriptor();
+        if (((descriptor[1] >> 20) & 511) != 169 + formatIndex) throw std::runtime_error("Compressed descriptor has an incorrect format code");
+        auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
+        auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
+        std::fill(sourceBytes.begin(), sourceBytes.end(), std::byte{0xc7});
+        std::fill(destinationBytes.begin(), destinationBytes.end(), std::byte{0x53});
+        std::vector expected(destinationBytes.begin(), destinationBytes.end());
+        for (std::uint32_t level = 0; level < 4; ++level)
+        {
+            const auto& mip = source.GetMipLayout(level);
+            const auto rowBytes = ((mip.Width + 3) / 4) * blockBytes;
+            const auto rows = (mip.Height + 3) / 4;
+            const auto pitch = rowBytes + 5;
+            std::vector<std::byte> input(pitch * rows);
+            for (std::size_t index = 0; index < input.size(); ++index) input[index] = static_cast<std::byte>((index * 13 + level * 29) & 255);
+            source.Upload(input, pitch, level, 1);
+            std::vector<std::byte> output(input.size(), std::byte{0xad});
+            source.CopyRowsTo(output, pitch, level, 1);
+            for (std::size_t index = 0; index < output.size(); ++index)
+            {
+                if (output[index] != (index % pitch < rowBytes ? input[index] : std::byte{0xad})) throw std::runtime_error("Compressed readback changed block bytes or padding");
+            }
+        }
+        const auto regions = BuildTextureCopyRegions(destination, source, {0, 0, 0, 0, 13, 10, 0, 0, 1, 0}, 4, 1);
+        for (const auto& region : regions)
+        {
+            const auto& mip = source.GetMipLayout(region.SourceMip);
+            for (std::size_t row = 0; row < (mip.Height + 3) / 4; ++row) std::copy_n(sourceBytes.begin() + source.GetLayerPitch() + mip.Offset + row * mip.RowPitch, ((mip.Width + 3) / 4) * blockBytes, expected.begin() + mip.Offset + row * mip.RowPitch);
+        }
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        CommandStorage commandStorage(16384, 2);
+        auto& commands = commandStorage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        for (const auto invalid : {TextureCopyRegion{1, 0, 0, 0, 4, 4}, TextureCopyRegion{0, 0, 0, 2, 4, 4}, TextureCopyRegion{0, 0, 0, 0, 3, 4}, TextureCopyRegion{0, 0, 0, 0, 4, 3}, TextureCopyRegion{8, 0, 4, 0, 5, 4}})
+        {
+            const auto cursor = commands.cursor_up;
+            bool rejected = false;
+            try { WriteTextureCopy(commands, destination, source, invalid); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected || commands.cursor_up != cursor) throw std::runtime_error("Unaligned compressed copy changed commands");
+        }
+        for (const auto& region : regions) WriteTextureCopy(commands, destination, source, region);
+        const auto pitch = 2 * blockBytes + 3;
+        std::vector<std::byte> patch(pitch * 2, std::byte{0x6b});
+        TextureUpload upload(5, 6, format, patch, pitch, 2);
+        const auto cursor = commands.cursor_up;
+        bool rejected = false;
+        try { upload.Record(commands, destination, 4, 4, 0, 1); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        if (!rejected || cursor != commands.cursor_up) throw std::runtime_error("Invalid compressed upload changed commands");
+        upload.Record(commands, destination, 8, 4, 0, 1);
+        const auto& mip = destination.GetMipLayout(0);
+        for (std::size_t row = 0; row < 2; ++row) std::copy_n(patch.begin() + row * pitch, 2 * blockBytes, expected.begin() + destination.GetLayerPitch() + mip.Offset + (1 + row) * mip.RowPitch + 2 * blockBytes);
+        SubmitAndWait(commands, fence, 1, 10000000);
+        if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Compressed copy changed blocks, mip levels, layers or padding");
+    }
+    std::cout << "BC1 through BC7 block uploads, mip copies, edge regions and invalid alignment verified\n";
+}
+
 int main()
 {
     {
@@ -422,6 +492,7 @@ int main()
         if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() + regular.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes + regular.GetStorage().AllocationSize()) throw std::runtime_error("Non-streaming texture allocation budget is incorrect");
     }
     if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
+    CheckCompressedCopies();
     CheckMipCopies();
     CheckArrayMipData();
     CheckVolumeMipData();

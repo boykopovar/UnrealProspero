@@ -8,17 +8,24 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        TextureFormat storageFormat(TextureFormat format)
+        bool compatible(TextureFormat left, TextureFormat right)
         {
-            if (format == TextureFormat::Rgba8Srgb) return TextureFormat::Rgba8Unorm;
-            if (format == TextureFormat::Bgra8Srgb) return TextureFormat::Bgra8Unorm;
-            return format;
+            const auto a = DescribeTextureFormat(left, true);
+            const auto b = DescribeTextureFormat(right, true);
+            return a.Code == b.Code && a.Swizzle == b.Swizzle;
         }
+
+        void validateBlockAxis(std::uint32_t source, std::uint32_t destination, std::uint32_t extent, std::uint32_t sourceSize, std::uint32_t destinationSize, std::uint32_t block)
+        {
+            if (source % block != 0 || destination % block != 0) throw std::invalid_argument("Texture copy origin is not block aligned");
+            if (extent % block != 0 && (extent != sourceSize - source || extent != destinationSize - destination)) throw std::invalid_argument("Texture copy splits a compressed block");
+        }
+
     }
 
     void ValidateTextureCopy(const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
     {
-        if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Volume copy formats are incompatible");
+        if (!compatible(destination.GetFormat(), source.GetFormat())) throw std::invalid_argument("Volume copy formats are incompatible");
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
         const std::array sourceSize{sourceMip.Width, sourceMip.Height, sourceMip.Depth};
@@ -32,6 +39,9 @@ namespace UnrealProspero::RHI
             if (region.Destination[axis] >= destinationSize[axis] || size > destinationSize[axis] - region.Destination[axis]) throw std::out_of_range("Volume copy exceeds its destination");
             overlap = overlap && region.Source[axis] < region.Destination[axis] + size && region.Destination[axis] < region.Source[axis] + size;
         }
+        const auto info = DescribeTextureFormat(source.GetFormat());
+        validateBlockAxis(region.Source[0], region.Destination[0], region.Extent[0], sourceMip.Width, destinationMip.Width, info.BlockWidth);
+        validateBlockAxis(region.Source[1], region.Destination[1], region.Extent[1], sourceMip.Height, destinationMip.Height, info.BlockHeight);
         if (overlap) throw std::invalid_argument("Volume copy regions overlap");
     }
 
@@ -40,18 +50,19 @@ namespace UnrealProspero::RHI
         ValidateTextureCopy(destination, source, region);
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, source.GetFormat());
-        const auto rowBytes = region.Extent[0] * pixelBytes;
+        const auto info = DescribeTextureFormat(source.GetFormat());
+        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Extent[0], source.GetFormat());
+        const auto rows = (region.Extent[1] + info.BlockHeight - 1) / info.BlockHeight;
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
         const GpuMemoryRange ranges[]{{sourceStorage.Data(), sourceStorage.Size()}, {destinationStorage.Data(), destinationStorage.Size()}};
         WriteMemoryAcquire(commands, ranges);
         for (std::uint32_t z = 0; z < region.Extent[2]; ++z)
         {
-            for (std::uint32_t y = 0; y < region.Extent[1]; ++y)
+            for (std::uint32_t y = 0; y < rows; ++y)
             {
-                const auto from = sourceMip.Offset + (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * sourceMip.RowPitch + region.Source[0] * pixelBytes;
-                const auto to = destinationMip.Offset + (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destinationMip.RowPitch + region.Destination[0] * pixelBytes;
+                const auto from = sourceMip.Offset + (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] / info.BlockHeight + y) * sourceMip.RowPitch + region.Source[0] / info.BlockWidth * info.BlockBytes;
+                const auto to = destinationMip.Offset + (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] / info.BlockHeight + y) * destinationMip.RowPitch + region.Destination[0] / info.BlockWidth * info.BlockBytes;
                 WriteBufferCopy(commands, destinationStorage.GetRange(to, rowBytes).data(), sourceStorage.GetRange(from, rowBytes).data(), rowBytes);
             }
         }
@@ -62,10 +73,13 @@ namespace UnrealProspero::RHI
         if (region.SourceLayer >= source.GetArrayLayers() || region.DestinationLayer >= destination.GetArrayLayers()) throw std::out_of_range("Texture copy selects an unavailable array layer");
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
-        if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Texture copy formats are incompatible");
+        if (!compatible(destination.GetFormat(), source.GetFormat())) throw std::invalid_argument("Texture copy formats are incompatible");
         if (region.Width == 0 || region.Height == 0) throw std::invalid_argument("Texture copy requires a nonempty region");
         if (region.SourceX >= sourceMip.Width || region.SourceY >= sourceMip.Height || region.Width > sourceMip.Width - region.SourceX || region.Height > sourceMip.Height - region.SourceY) throw std::out_of_range("Texture copy source region exceeds its texture");
         if (region.DestinationX >= destinationMip.Width || region.DestinationY >= destinationMip.Height || region.Width > destinationMip.Width - region.DestinationX || region.Height > destinationMip.Height - region.DestinationY) throw std::out_of_range("Texture copy destination region exceeds its texture");
+        const auto info = DescribeTextureFormat(source.GetFormat());
+        validateBlockAxis(region.SourceX, region.DestinationX, region.Width, sourceMip.Width, destinationMip.Width, info.BlockWidth);
+        validateBlockAxis(region.SourceY, region.DestinationY, region.Height, sourceMip.Height, destinationMip.Height, info.BlockHeight);
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
         if (sourceStorage.Data() == destinationStorage.Data() && region.SourceMip == region.DestinationMip && region.SourceLayer == region.DestinationLayer && region.SourceX < region.DestinationX + region.Width && region.DestinationX < region.SourceX + region.Width && region.SourceY < region.DestinationY + region.Height && region.DestinationY < region.SourceY + region.Height) throw std::invalid_argument("Texture copy regions overlap");
@@ -109,14 +123,15 @@ namespace UnrealProspero::RHI
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
-        const auto pixelBytes = source.GetRowBytes() / source.GetWidth();
-        const auto rowBytes = region.Width * pixelBytes;
+        const auto info = DescribeTextureFormat(source.GetFormat());
+        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, source.GetFormat());
+        const auto rows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const GpuMemoryRange ranges[]{{sourceStorage.Data(), sourceStorage.Size()}, {destinationStorage.Data(), destinationStorage.Size()}};
         WriteMemoryAcquire(commands, ranges);
-        for (std::uint32_t row = 0; row < region.Height; ++row)
+        for (std::uint32_t row = 0; row < rows; ++row)
         {
-            const auto sourceOffset = region.SourceLayer * source.GetLayerPitch() + sourceMip.Offset + (region.SourceY + row) * sourceMip.RowPitch + region.SourceX * pixelBytes;
-            const auto destinationOffset = region.DestinationLayer * destination.GetLayerPitch() + destinationMip.Offset + (region.DestinationY + row) * destinationMip.RowPitch + region.DestinationX * pixelBytes;
+            const auto sourceOffset = region.SourceLayer * source.GetLayerPitch() + sourceMip.Offset + (region.SourceY / info.BlockHeight + row) * sourceMip.RowPitch + region.SourceX / info.BlockWidth * info.BlockBytes;
+            const auto destinationOffset = region.DestinationLayer * destination.GetLayerPitch() + destinationMip.Offset + (region.DestinationY / info.BlockHeight + row) * destinationMip.RowPitch + region.DestinationX / info.BlockWidth * info.BlockBytes;
             WriteBufferCopy(commands, destinationStorage.GetRange(destinationOffset, rowBytes).data(), sourceStorage.GetRange(sourceOffset, rowBytes).data(), rowBytes);
         }
     }
