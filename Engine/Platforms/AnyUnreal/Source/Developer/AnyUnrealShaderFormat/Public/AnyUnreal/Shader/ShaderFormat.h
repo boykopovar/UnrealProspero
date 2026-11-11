@@ -6,10 +6,12 @@
 
 namespace AnyUnreal::Shader
 {
-    class ANYUNREALSHADERFORMAT_API ShaderFormat final : public UE::ShaderCompilerCommon::FBaseShaderFormat
+    class ANYUNREALSHADERFORMAT_API ShaderFormat final : public UE::ShaderCompilerCommon::FBaseShaderFormat, public IShaderPipelineCompiler
     {
     public:
         ShaderFormat(const FString& executable, const FString& workingRoot);
+        const IShaderPipelineCompiler* GetPipelineCompiler() const override;
+        void CompilePreprocessedShaderPipeline(TConstArrayView<FShaderPipelineStage> stages) const override;
         uint32 GetVersion(FName format) const override;
         void GetSupportedFormats(TArray<FName>& formats) const override;
         const TCHAR* GetPlatformIncludeDirectory() const override;

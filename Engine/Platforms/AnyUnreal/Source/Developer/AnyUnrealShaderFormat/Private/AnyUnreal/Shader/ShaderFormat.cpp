@@ -1,5 +1,6 @@
 #include "AnyUnreal/Shader/ShaderFormat.h"
 #include "AnyUnreal/Shader/ShaderCompiler.h"
+#include "AnyUnreal/Shader/PipelineCompiler.h"
 #include "AnyUnreal/Shader/CompilerVersion.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -50,7 +51,37 @@ namespace AnyUnreal::Shader
         if (FPaths::IsRelative(executable) || FPaths::IsRelative(workingRoot)) throw std::invalid_argument("Shader compiler paths must be absolute");
         if (!IFileManager::Get().MakeDirectory(*workingRoot, true)) throw std::runtime_error("Cannot create shader compiler working directory");
         compilerHash = hashExecutable(executable);
-        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 3u));
+        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 4u));
+    }
+
+    const IShaderPipelineCompiler* ShaderFormat::GetPipelineCompiler() const
+    {
+        return this;
+    }
+
+    void ShaderFormat::CompilePreprocessedShaderPipeline(TConstArrayView<FShaderPipelineStage> stages) const
+    {
+        for (const auto& stage : stages)
+        {
+            if (!stage.Input || !stage.Preprocessed || !stage.Output) throw std::invalid_argument("Null pipeline stage");
+            stage.Output->bSucceeded = false;
+        }
+        try
+        {
+            if (stages.IsEmpty()) throw std::invalid_argument("Shader pipeline has no stages");
+            std::vector<ShaderCompilationStage> inputs;
+            inputs.reserve(static_cast<std::size_t>(stages.Num()));
+            for (const auto& stage : stages) inputs.push_back({*stage.Input, *stage.Preprocessed, *stage.Output});
+            CompileShaderPipeline(inputs, getTarget(stages[0].Input->ShaderFormat), executable, workingRoot);
+        }
+        catch (const std::exception& error)
+        {
+            for (const auto& stage : stages)
+            {
+                stage.Output->bSucceeded = false;
+                stage.Output->AddErrorf(TEXT("%s"), UTF8_TO_TCHAR(error.what()));
+            }
+        }
     }
 
     uint32 ShaderFormat::GetVersion(FName format) const
