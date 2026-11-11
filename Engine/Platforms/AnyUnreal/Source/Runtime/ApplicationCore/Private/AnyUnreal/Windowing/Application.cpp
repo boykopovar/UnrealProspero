@@ -4,7 +4,7 @@
 
 namespace AnyUnreal::Windowing
 {
-    Application::Application() : GenericApplication(nullptr), output(std::make_shared<Video::Output>()) {}
+    Application::Application() : GenericApplication(nullptr), output(std::make_shared<Video::Output>()), controllers(std::make_unique<Input::ControllerHub>()), controllerEvents(std::make_unique<Input::ControllerEvents>(controllers->GetInitialUser())) {}
 
     void Application::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& handler)
     {
@@ -48,8 +48,24 @@ namespace AnyUnreal::Windowing
         metrics = MoveTemp(result);
     }
 
+    void Application::PollGameDeviceState(float)
+    {
+        if (!controllers) throw std::runtime_error("Application has been destroyed");
+        const bool enabled = window.IsValid() && !window->IsDestroyed() && window->IsVisible() && window->GetDefinition().AcceptsInput && window->IsForegroundWindow();
+        controllerEvents->Dispatch(controllers->Poll(), GetMessageHandler().Get(), enabled);
+    }
+
+    bool Application::IsGamepadAttached() const
+    {
+        return controllerEvents && controllerEvents->IsAttached();
+    }
+
     void Application::DestroyApplication()
     {
+        if (controllerEvents) controllerEvents->Dispatch({}, GetMessageHandler().Get(), false);
+        if (controllers) controllers->Close();
+        controllerEvents.reset();
+        controllers.reset();
         if (window.IsValid()) window->Destroy();
         window.Reset();
         if (output && output.use_count() == 1) output->Close();

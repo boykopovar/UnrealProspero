@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "AnyUnreal/Windowing/Window.h"
+#include "AnyUnreal/Input/ControllerEvents.h"
 
 namespace AnyUnreal::Windowing
 {
@@ -17,10 +18,14 @@ namespace AnyUnreal::Windowing
         FPlatformRect GetWorkArea(const FPlatformRect& currentWindow) const override;
         void GetInitialDisplayMetrics(FDisplayMetrics& metrics) const override;
         void DestroyApplication() override;
+        void PollGameDeviceState(float timeDelta) override;
+        bool IsGamepadAttached() const override;
 
     private:
         std::shared_ptr<Video::Output> output;
         TSharedPtr<Window> window;
+        std::unique_ptr<Input::ControllerHub> controllers;
+        std::unique_ptr<Input::ControllerEvents> controllerEvents;
     };
 }
 
