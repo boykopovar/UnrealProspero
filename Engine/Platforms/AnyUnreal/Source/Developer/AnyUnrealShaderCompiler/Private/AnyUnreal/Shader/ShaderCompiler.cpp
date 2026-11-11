@@ -23,6 +23,7 @@ namespace AnyUnreal::Shader
             }
             auto spirv = CompileSpirv(input, preprocessed, output);
             output.bSucceeded = false;
+            if (!spirv.VertexInputs.empty()) throw std::runtime_error("Vertex input compilation requires pipeline vertex layout integration");
             const auto agc = CompileAgc(spirv.Words, spirv.Descriptors, input.Target.GetFrequency(), target, input.EntryPointName, executable, workingRoot);
             TArray<uint8> resourceTable;
             FMemoryWriter writer(resourceTable, true);
