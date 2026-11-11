@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Shader/ShaderBindings.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include <stdexcept>
+#include <algorithm>
 #include <utility>
 
 namespace AnyUnreal::RHI
@@ -37,6 +38,8 @@ namespace AnyUnreal::RHI
         case Type::UniformBuffer:
         {
             if (resource->GetType() != RRT_UniformBuffer) throw std::invalid_argument("Uniform buffer parameter has the wrong resource type");
+            if (constantBuffers.contains(index)) throw std::invalid_argument("Uniform buffer conflicts with loose shader constants");
+            uniformIndices.insert(index);
             UniformBufferBinding binding(code, index, *static_cast<UniformBuffer*>(resource));
             binding.ApplyConstants(descriptors);
             for (const auto& member : binding.GetResources()) bindResource(member.Type, member.ParameterIndex, member.Resource.GetReference());
@@ -55,6 +58,34 @@ namespace AnyUnreal::RHI
         try
         {
             for (const auto& parameter : parameters) bindResource(parameter.Type, parameter.Index, parameter.Resource);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
+    void ShaderBindings::BindConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters)
+    {
+        if (finalized || failed) throw std::runtime_error("Shader bindings are no longer writable");
+        try
+        {
+            if (data.Num() < 0 || (data.Num() != 0 && !data.GetData())) throw std::invalid_argument("Invalid shader parameter data");
+            for (const auto& parameter : parameters)
+            {
+                if (parameter.ByteSize == 0 || parameter.ByteOffset > data.Num() || parameter.ByteSize > data.Num() - parameter.ByteOffset) throw std::out_of_range("Shader parameter exceeds its source data");
+                if (uniformIndices.contains(parameter.BufferIndex)) throw std::invalid_argument("Loose shader constants conflict with a uniform buffer");
+                const auto& bindings = code.GetBinary().Bindings;
+                const auto binding = std::find_if(bindings.begin(), bindings.end(), [&](const auto& item) { return item.Kind == Shader::ResourceKind::UniformBuffer && item.ParameterIndex == parameter.BufferIndex; });
+                if (binding == bindings.end() || binding->Count != 1) throw std::invalid_argument("Shader constant buffer binding does not exist");
+                if (parameter.BaseIndex > binding->BlockSize || parameter.ByteSize > binding->BlockSize - parameter.BaseIndex) throw std::out_of_range("Shader parameter exceeds its constant buffer");
+                auto& buffer = constantBuffers[parameter.BufferIndex];
+                if (!buffer) buffer = std::make_unique<BufferAllocation>(binding->BlockSize, code.GetUserData().GetAddressHigh());
+                const auto* source = reinterpret_cast<const std::byte*>(data.GetData() + parameter.ByteOffset);
+                buffer->Upload(parameter.BaseIndex, {source, parameter.ByteSize});
+                descriptors.SetBuffer(Shader::ResourceKind::UniformBuffer, parameter.BufferIndex, buffer->Data(), buffer->Size());
+            }
         }
         catch (...)
         {
