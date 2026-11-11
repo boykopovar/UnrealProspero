@@ -24,12 +24,16 @@ namespace AnyUnreal::Shader
             if (descriptor.Count == 0 || descriptor.Count > std::numeric_limits<std::uint16_t>::max()) throw std::overflow_error("Shader resource count exceeds Unreal parameter limits");
             if (descriptor.Kind != ResourceKind::UniformBuffer) continue;
             if (descriptor.Count != 1) throw std::invalid_argument("Uniform buffer arrays require separate Unreal parameter bindings");
-            if (descriptor.BlockSize == 0 || descriptor.BlockSize > std::numeric_limits<std::uint16_t>::max()) throw std::overflow_error("Uniform buffer exceeds Unreal parameter limits");
+            if (descriptor.BlockSize == 0) throw std::invalid_argument("Uniform buffer is empty");
+            const bool constants = descriptor.Name == globalsName || descriptor.Name == rootName;
+            if (constants && descriptor.BlockSize > std::numeric_limits<std::uint16_t>::max()) throw std::overflow_error("Constants exceed Unreal parameter limits");
+            const auto reason = ShouldReflectUniformBufferMembers(input, FString(UTF8_TO_TCHAR(descriptor.Name.c_str())));
             for (const auto& member : descriptor.Members)
             {
                 if (member.Name.empty() || member.Name.find('\0') != std::string::npos || member.Size == 0 || static_cast<std::uint64_t>(member.Offset) + member.Size > descriptor.BlockSize) throw std::invalid_argument("Invalid reflected uniform buffer member");
+                if (!constants && reason != EUniformBufferMemberReflectionReason::None && (member.Offset > std::numeric_limits<std::uint16_t>::max() || member.Size > static_cast<std::uint32_t>(std::numeric_limits<int32>::max()))) throw std::overflow_error("Uniform member exceeds Unreal reflection limits");
             }
-            if (descriptor.Name == globalsName || descriptor.Name == rootName)
+            if (constants)
             {
                 if (hasConstants) throw std::invalid_argument("Global and root constants cannot share the Unreal root buffer slot");
                 hasConstants = true;
@@ -75,9 +79,13 @@ namespace AnyUnreal::Shader
                     }
                     else
                     {
-                        HandleReflectedUniformBuffer(input, name, slot, static_cast<int32>(descriptor.BlockSize), output);
+                        HandleReflectedUniformBuffer(input, name, slot, output);
+                        AddShaderValidationUBSize(binding.ParameterIndex, descriptor.BlockSize, output);
                         const auto reason = ShouldReflectUniformBufferMembers(input, name);
-                        for (const auto& member : descriptor.Members) HandleReflectedUniformBufferConstantBufferMember(input, reason, name, slot, FString(UTF8_TO_TCHAR(member.Name.c_str())), member.Offset, member.Size, output);
+                        if (reason != EUniformBufferMemberReflectionReason::None)
+                        {
+                            for (const auto& member : descriptor.Members) HandleReflectedUniformBufferConstantBufferMember(input, reason, name, slot, FString(UTF8_TO_TCHAR(member.Name.c_str())), member.Offset, member.Size, output);
+                        }
                     }
                     break;
                 }

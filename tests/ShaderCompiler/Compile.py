@@ -27,6 +27,7 @@ def main():
         ("fragment", "ps_6_2", "Texture.frag.hlsl", ["0,2,sampled-image,2,0,32", "0,7,sampler,1,64,16", "1,3,uniform-buffer,1,0,16"]),
         ("fragment", "ps_6_2", "Globals.frag.hlsl", ["0,0,uniform-buffer,1,0,16"]),
         ("compute", "cs_6_2", "ReadWrite.comp.hlsl", ["0,0,storage-buffer,1,0,16", "0,1,storage-buffer,1,16,16"]),
+        ("fragment", "ps_6_2", "LargeUniform.frag.hlsl", ["0,0,uniform-buffer,1,0,16"]),
     )
     details = {
         "Fullscreen.vert.hlsl": [],
@@ -35,6 +36,7 @@ def main():
         "Texture.frag.hlsl": ['"textures" 2 0', '"textureSampler" 1 0', '"Constants" 0 16', '"tint" 0 16'],
         "Globals.frag.hlsl": ['"$Globals" 0 32', '"tint" 0 16', '"intensity" 16 4'],
         "ReadWrite.comp.hlsl": ['"inputValues" 2 0', '"outputValues" 3 0'],
+        "LargeUniform.frag.hlsl": ['"Constants" 0 65536', '"values" 0 65536'],
     }
     for stage, profile, source, expected in stages:
         spirv = output / (source + ".spv")
