@@ -288,12 +288,12 @@ namespace AnyUnreal::RHI
 
     void DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* texture, FIntRect rectangle, TArray<FFloat16Color>& output, ECubeFace cubeFace, int32 arrayIndex, int32 mipIndex)
     {
-        if (arrayIndex != 0 || mipIndex < 0 || cubeFace < CubeFace_PosX || cubeFace > CubeFace_MAX) throw std::invalid_argument("Surface read selects an unavailable subresource");
+        if (arrayIndex < 0 || mipIndex < 0 || cubeFace < CubeFace_PosX || cubeFace > CubeFace_MAX) throw std::invalid_argument("Surface read selects an unavailable subresource");
         auto storage = ResolveTextureResource(texture).Capture();
         auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
         if (commandList.IsExecuting()) throw std::runtime_error("Surface read cannot execute inside a command list");
         commandList.SubmitAndBlockUntilGPUIdle();
-        ReadSurfaceHalfColors(*storage, rectangle, output, static_cast<std::uint32_t>(mipIndex));
+        ReadSurfaceHalfColors(*storage, rectangle, output, static_cast<std::uint32_t>(mipIndex), static_cast<std::uint32_t>(arrayIndex));
     }
 
     void DynamicRHI::RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FColor>& output, FReadSurfaceDataFlags flags)
