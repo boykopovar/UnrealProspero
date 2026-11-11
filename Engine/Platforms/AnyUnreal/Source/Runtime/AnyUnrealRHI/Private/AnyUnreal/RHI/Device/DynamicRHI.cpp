@@ -7,6 +7,7 @@
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
+#include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
 
@@ -16,6 +17,29 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    void* DynamicRHI::RHILockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer, uint32 offset, uint32 size, EResourceLockMode mode)
+    {
+        if (!buffer) throw std::invalid_argument("Buffer lock requires a buffer");
+        if (mode == RLM_ReadOnly)
+        {
+            if (!commandList.IsImmediate() || commandList.IsExecuting()) throw std::runtime_error("Synchronous buffer read requires a non-executing immediate command list");
+            commandList.GetAsImmediate().SubmitAndBlockUntilGPUIdle();
+        }
+        return static_cast<Buffer*>(buffer)->Lock(offset, size, mode);
+    }
+
+    void DynamicRHI::RHIUnlockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer)
+    {
+        if (!buffer) throw std::invalid_argument("Buffer unlock requires a buffer");
+        auto range = static_cast<Buffer*>(buffer)->Unlock();
+        if (range.Mode == RLM_ReadOnly) return;
+        commandList.EnqueueLambda([buffer = TRefCountPtr<Buffer>(static_cast<Buffer*>(buffer)), range = std::move(range)](FRHICommandListBase& executingList)
+        {
+            static_cast<ComputeContext&>(executingList.GetContext()).UploadBuffer(buffer.GetReference(), range.Offset, range.Data);
+        });
+        if (commandList.IsTopOfPipe() || commandList.Bypass()) commandList.RHIThreadFence(true);
     }
 
     FStagingBufferRHIRef DynamicRHI::RHICreateStagingBuffer()

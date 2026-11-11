@@ -30,6 +30,8 @@ namespace AnyUnreal::RHI
         FStagingBufferRHIRef RHICreateStagingBuffer() override;
         void* RHILockStagingBuffer(FRHIStagingBuffer* buffer, FRHIGPUFence* fence, uint32 offset, uint32 size) override;
         void RHIUnlockStagingBuffer(FRHIStagingBuffer* buffer) override;
+        void* RHILockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer, uint32 offset, uint32 size, EResourceLockMode mode) override;
+        void RHIUnlockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer) override;
 
     protected:
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);

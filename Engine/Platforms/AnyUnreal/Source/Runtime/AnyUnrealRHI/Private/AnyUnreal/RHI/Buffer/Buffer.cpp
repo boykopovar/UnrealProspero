@@ -1,5 +1,7 @@
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include "Containers/ResourceArray.h"
+#include "Misc/ScopeLock.h"
+#include <algorithm>
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -65,6 +67,27 @@ namespace AnyUnreal::RHI
     {
         if (initializationState != InitializationState::Writing) throw std::runtime_error("Buffer initialization has not started");
         initializationState = InitializationState::Ready;
+    }
+
+    void* Buffer::Lock(std::size_t offset, std::size_t size, EResourceLockMode mode)
+    {
+        FScopeLock lock(&lockMutex);
+        if (lockedRange) throw std::runtime_error("Buffer is already locked");
+        if (mode != RLM_ReadOnly && mode != RLM_WriteOnly && mode != RLM_WriteOnly_NoOverwrite) throw std::invalid_argument("Invalid buffer lock mode");
+        const auto range = Capture()->GetRange(offset, size);
+        LockedRange next{offset, mode, std::vector<std::byte>(size)};
+        if (mode == RLM_ReadOnly) std::copy(range.begin(), range.end(), next.Data.begin());
+        lockedRange = std::move(next);
+        return lockedRange->Data.data();
+    }
+
+    Buffer::LockedRange Buffer::Unlock()
+    {
+        FScopeLock lock(&lockMutex);
+        if (!lockedRange) throw std::runtime_error("Buffer is not locked");
+        auto result = std::move(*lockedRange);
+        lockedRange.reset();
+        return result;
     }
 
     std::shared_ptr<BufferAllocation> Buffer::Capture() const
