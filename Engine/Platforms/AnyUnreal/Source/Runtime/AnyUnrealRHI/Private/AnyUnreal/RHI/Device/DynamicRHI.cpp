@@ -243,7 +243,6 @@ namespace AnyUnreal::RHI
 
     FRHILockTextureResult DynamicRHI::RHILockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments)
     {
-        if (arguments.FaceIndex != 0) throw std::out_of_range("Texture lock subresource does not exist");
         if (arguments.LockMode != RLM_ReadOnly && arguments.LockMode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         auto& texture = ResolveTextureResource(arguments.Texture);
         if (commandList.IsExecuting()) throw std::runtime_error("Texture lock requires a non-executing immediate command list");
@@ -251,16 +250,15 @@ namespace AnyUnreal::RHI
         else if (arguments.bNeedsDefaultRHIFlush) commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
         std::size_t size = 0;
         std::size_t pitch = 0;
-        auto* data = texture.Lock(arguments.LockMode, arguments.MipIndex, size, pitch, arguments.ArrayIndex);
+        auto* data = texture.Lock(arguments.LockMode, arguments.MipIndex, size, pitch, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
         return {data, size, static_cast<uint32>(pitch)};
     }
 
     void DynamicRHI::RHIUnlockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments)
     {
-        if (arguments.FaceIndex != 0) throw std::out_of_range("Texture unlock subresource does not exist");
         if (commandList.IsExecuting()) throw std::runtime_error("Texture unlock requires a non-executing immediate command list");
         auto& texture = ResolveTextureResource(arguments.Texture);
-        auto locked = texture.Unlock(arguments.LockMode, arguments.MipIndex, arguments.ArrayIndex);
+        auto locked = texture.Unlock(arguments.LockMode, arguments.MipIndex, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
         if (locked.Mode == RLM_ReadOnly) return;
         const auto storage = texture.Capture();
         const auto& mip = storage->GetMipLayout(locked.MipLevel);

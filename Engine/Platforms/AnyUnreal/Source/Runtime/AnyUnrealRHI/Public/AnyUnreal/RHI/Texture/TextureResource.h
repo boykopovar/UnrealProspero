@@ -33,13 +33,14 @@ namespace AnyUnreal::RHI
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);
         void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch, std::uint32_t arrayLayer = 0);
         LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer = 0);
+        std::uint32_t GetArrayLayer(std::uint32_t arrayIndex, std::uint32_t faceIndex) const;
         void* MapReadback();
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
         std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
         std::shared_ptr<const LinearTexture3D> CaptureVolume() const;
         std::shared_ptr<const BufferAllocation> CaptureStorage() const;
-        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0, std::uint32_t firstLayer = 0, std::uint32_t layerCount = 0) const;
+        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0, std::uint32_t firstLayer = 0, std::uint32_t layerCount = 0, bool arrayView = false) const;
         std::vector<std::span<std::byte>> GetMipRanges(std::uint32_t mipLevel, std::uint32_t firstLayer = 0, std::uint32_t layerCount = 0) const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetAllocationSize() const;
