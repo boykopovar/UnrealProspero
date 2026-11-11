@@ -70,6 +70,9 @@ namespace AnyUnreal::RHI
         void RHIUnlockStagingBuffer(FRHIStagingBuffer* buffer) override;
         void* RHILockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer, uint32 offset, uint32 size, EResourceLockMode mode) override;
         void RHIUnlockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer) override;
+#if ENABLE_LOW_LEVEL_MEM_TRACKER || UE_MEMORY_TRACE_ENABLED
+        void RHIUpdateAllocationTags(FRHICommandListBase& commandList, FRHIBuffer* buffer) override;
+#endif
         FBlendStateRHIRef RHICreateBlendState(const FBlendStateInitializerRHI& initializer) override;
         FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& initializer) override;
         FRasterizerStateRHIRef RHICreateRasterizerState(const FRasterizerStateInitializerRHI& initializer) override;

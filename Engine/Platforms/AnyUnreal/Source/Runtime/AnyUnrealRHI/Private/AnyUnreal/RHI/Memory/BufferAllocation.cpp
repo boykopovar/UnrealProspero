@@ -4,6 +4,10 @@
 #include <stdexcept>
 #include <algorithm>
 #include <atomic>
+#if ANYUNREAL_WITH_UE_TRACKING
+#include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MemoryTrace.h"
+#endif
 
 namespace AnyUnreal::RHI
 {
@@ -30,13 +34,31 @@ namespace AnyUnreal::RHI
         if (usage != AllocationUsage::Buffer && usage != AllocationUsage::Texture) throw std::invalid_argument("Invalid GPU allocation usage");
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());
         if ((address >> 32) != addressHigh || ((address + allocation.Size() - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
+#if ANYUNREAL_WITH_UE_TRACKING
+        if (alignment > std::numeric_limits<uint32>::max()) throw std::overflow_error("GPU allocation alignment exceeds memory trace range");
+        LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, allocation.Data(), allocation.Size(), ELLMTag::Untagged, ELLMAllocType::System));
+        MemoryTrace_Alloc(address, allocation.Size(), static_cast<uint32>(alignment));
+#endif
         if (usage == AllocationUsage::Texture) textureAllocationBytes.fetch_add(allocation.Size(), std::memory_order_relaxed);
     }
 
     BufferAllocation::~BufferAllocation() noexcept(false)
     {
+#if ANYUNREAL_WITH_UE_TRACKING
+        MemoryTrace_Free(reinterpret_cast<std::uintptr_t>(allocation.Data()));
+        LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, allocation.Data(), ELLMAllocType::System));
+#endif
         if (usage == AllocationUsage::Texture) textureAllocationBytes.fetch_sub(allocation.Size(), std::memory_order_relaxed);
     }
+
+#if ANYUNREAL_WITH_UE_TRACKING
+    void BufferAllocation::UpdateAllocationTags() const
+    {
+        LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, allocation.Data(), ELLMAllocType::System));
+        LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, allocation.Data(), allocation.Size(), ELLMTag::Untagged, ELLMAllocType::System));
+        MemoryTrace_UpdateAlloc(reinterpret_cast<std::uintptr_t>(allocation.Data()));
+    }
+#endif
 
     std::uint64_t BufferAllocation::GetTextureAllocationBytes()
     {

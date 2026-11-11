@@ -58,6 +58,15 @@ namespace AnyUnreal::RHI
         return result;
     }
 
+#if ENABLE_LOW_LEVEL_MEM_TRACKER || UE_MEMORY_TRACE_ENABLED
+    void DynamicRHI::RHIUpdateAllocationTags(FRHICommandListBase& commandList, FRHIBuffer* buffer)
+    {
+        if (!commandList.IsBottomOfPipe()) throw std::runtime_error("Allocation tag update requires command execution");
+        if (!buffer) throw std::invalid_argument("Allocation tag update requires a buffer");
+        static_cast<Buffer*>(buffer)->Capture()->UpdateAllocationTags();
+    }
+#endif
+
     bool DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& resolutions, bool)
     {
         const auto status = Video::Output::AcquirePrimary()->GetResolution();

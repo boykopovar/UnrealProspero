@@ -26,6 +26,9 @@ namespace AnyUnreal::RHI
         std::size_t AllocationSize() const;
         std::span<std::byte> GetRange(std::size_t offset, std::size_t length) const;
         void Upload(std::size_t offset, std::span<const std::byte> source);
+#if ANYUNREAL_WITH_UE_TRACKING
+        void UpdateAllocationTags() const;
+#endif
 
     private:
         Kernel::DirectAllocation allocation;
