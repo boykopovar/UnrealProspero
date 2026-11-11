@@ -36,7 +36,7 @@ namespace AnyUnreal::RHI
         }
     }
 
-    ShaderCode::ShaderCode(TConstArrayView<uint8> source, Shader::ShaderStage stage, Shader::AgcTarget target) : storage(copyCode(source)), binary(Shader::DecodeUnrealShaderCode(storage))
+    ShaderCode::ShaderCode(TConstArrayView<uint8> source, Shader::ShaderStage stage, Shader::AgcTarget target) : storage(copyCode(source)), binary(Shader::DecodeUnrealShaderCode(storage)), userData(Shader::UserDataLayout::Read(binary.Metadata, stage))
     {
         if (binary.Stage != stage || binary.Target != target) throw std::invalid_argument("Unreal shader code does not match the requested stage or platform");
         const FShaderCodeReader reader(source);
@@ -48,5 +48,6 @@ namespace AnyUnreal::RHI
 
     const Shader::ShaderBinaryView& ShaderCode::GetBinary() const { return binary; }
     const FShaderResourceTable& ShaderCode::GetResourceTable() const { return resourceTable; }
+    const Shader::UserDataLayout& ShaderCode::GetUserData() const { return userData; }
     TConstArrayView<uint8> ShaderCode::GetUnrealCode() const { return {storage.data(), static_cast<int32>(storage.size())}; }
 }

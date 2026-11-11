@@ -2,6 +2,7 @@
 #define ANYUNREAL_RHI_SHADER_CODE_H
 
 #include "AnyUnreal/Shader/ShaderBinary.h"
+#include "AnyUnreal/Shader/UserData.h"
 #include "RHIResources.h"
 
 namespace AnyUnreal::RHI
@@ -14,11 +15,13 @@ namespace AnyUnreal::RHI
         ShaderCode& operator=(const ShaderCode&) = delete;
         const Shader::ShaderBinaryView& GetBinary() const;
         const FShaderResourceTable& GetResourceTable() const;
+        const Shader::UserDataLayout& GetUserData() const;
         TConstArrayView<uint8> GetUnrealCode() const;
 
     private:
         std::vector<std::uint8_t> storage;
         Shader::ShaderBinaryView binary;
+        Shader::UserDataLayout userData;
         FShaderResourceTable resourceTable;
     };
 }
