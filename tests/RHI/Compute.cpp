@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include "AnyUnreal/RHI/Descriptor/Tables.h"
+#include "AnyUnreal/RHI/Descriptor/SamplerDescriptor.h"
 #include "AnyUnreal/Shader/ConstantData.h"
 #include <algorithm>
 #include <string_view>
@@ -86,9 +87,10 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    if (operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view") throw std::invalid_argument("Unknown compute operation");
+    const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view") throw std::invalid_argument("Unknown compute operation");
     const bool textureView = operation == "texture-view";
-    const bool withTexture = operation == "texture" || textureView;
+    const bool withTexture = operation == "texture" || textureView || withSampler;
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -141,7 +143,8 @@ int main()
         bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
     }
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
-    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite || withTexture ? 1u : 0u, 1, withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    if (withSampler) bindings.push_back({Shaders::ResourceKind::Sampler, 0, 0, 1, 1, 32, 16, 0, "sampler"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, withSampler ? 2u : readWrite || withTexture ? 1u : 0u, 1, withSampler ? 48u : withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
@@ -158,6 +161,16 @@ int main()
         const auto view = texture->CreateViewDescriptor(textureView);
         if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
         descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
+    }
+    if (withSampler)
+    {
+        RHI::SamplerDescription description;
+        if (operation == "sample-clamp") description.AddressU = RHI::SamplerAddress::Clamp;
+        if (operation == "sample-mirror") description.AddressU = RHI::SamplerAddress::Mirror;
+        if (operation == "sample-border") description.AddressU = RHI::SamplerAddress::Border;
+        if (operation == "sample-linear") description.Filter = RHI::SamplerFilter::Linear;
+        const auto sampler = RHI::CreateSamplerDescriptor(description);
+        descriptors.SetDescriptor(Shaders::ResourceKind::Sampler, 0, std::as_bytes(std::span(sampler)));
     }
     if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
@@ -272,7 +285,16 @@ int main()
         for (unsigned index = 0; index < 64; ++index)
         {
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
-            const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
+            auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
+            if (withSampler)
+            {
+                auto sourceIndex = index;
+                if (operation == "sample-clamp") sourceIndex = (index / 8) * 8 + 7;
+                if (operation == "sample-mirror") sourceIndex = (index / 8) * 8 + 7 - index % 8;
+                expected = (sourceIndex * 3 + 1) * 4;
+                if (operation == "sample-border") expected = 0;
+                if (operation == "sample-linear") expected = (index * 3 + 1) * 3 + ((index / 8) * 8 + (index + 1) % 8) * 3 + 1;
+            }
             if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
