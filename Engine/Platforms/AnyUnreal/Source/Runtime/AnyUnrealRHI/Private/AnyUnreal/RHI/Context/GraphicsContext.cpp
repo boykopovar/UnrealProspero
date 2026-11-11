@@ -5,6 +5,8 @@
 #include <limits>
 #include <utility>
 #include <cmath>
+#include <algorithm>
+#include "prx/libSceAgc/DcbDraw/include/IndexBuffer.hpp"
 #include "prx/libSceAgc/DcbDraw/include/DrawIndexed.hpp"
 #include "prx/libSceAgc/DcbDraw/include/Instancing.hpp"
 
@@ -31,7 +33,8 @@ namespace AnyUnreal::RHI
             if (!pipeline || !activeRenderPass) throw std::runtime_error("Draw requires a graphics pipeline and render pass");
             activeRenderPass->ValidatePipeline(pipeline->GetDescription());
             const auto vertexCount = pipeline->GetVertexCount(primitiveCount);
-            if (vertexCount == 0 || instanceCount == 0) return;
+            if (vertexCount == 0) return;
+            instanceCount = std::max(1u, instanceCount);
             if (baseVertexIndex > std::numeric_limits<uint32>::max() - (vertexCount - 1)) throw std::overflow_error("Draw vertex index exceeds the hardware field");
             const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
             const auto* declaration = pipeline->GetVertexDeclaration();
@@ -47,17 +50,52 @@ namespace AnyUnreal::RHI
                     if (end > snapshot.Storage->Size()) throw std::out_of_range("Draw vertex fetch exceeds its buffer");
                 }
             }
-            auto vertexBuffers = declaration ? vertexStreams.CaptureTable(*declaration, layout) : std::make_unique<VertexBufferTable>(0, std::span<const VertexBufferBinding>{}, layout.GetAddressHigh());
-            auto vertexBindings = vertexParameters->CreateBindings();
-            auto pixelBindings = pixelParameters ? pixelParameters->CreateBindings() : nullptr;
-            draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers)});
-            const auto& draw = draws.back();
-            Shader::UserDataInputs inputs;
-            inputs.BaseVertex = baseVertexIndex;
-            draw.pipeline->GetShaders().Record(commands, *draw.vertexBindings, draw.pixelBindings.get(), *draw.vertexBuffers, inputs);
-            draw.pipeline->RecordColorState(commands, stencilReference, blendFactor);
+            prepareDraw(commands, baseVertexIndex, 0, {});
             sceAgcDcbSetNumInstances(&commands, instanceCount);
             sceAgcDcbDrawIndexAuto(&commands, vertexCount, 0);
+        });
+    }
+
+    void GraphicsContext::prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer)
+    {
+        const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
+        const auto* declaration = pipeline->GetVertexDeclaration();
+        auto vertexBuffers = declaration ? vertexStreams.CaptureTable(*declaration, layout) : std::make_unique<VertexBufferTable>(0, std::span<const VertexBufferBinding>{}, layout.GetAddressHigh());
+        auto vertexBindings = vertexParameters->CreateBindings();
+        auto pixelBindings = pixelParameters ? pixelParameters->CreateBindings() : nullptr;
+        draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers), std::move(indexBuffer)});
+        const auto& draw = draws.back();
+        Shader::UserDataInputs inputs;
+        inputs.BaseVertex = baseVertexIndex;
+        inputs.StartInstance = firstInstance;
+        if (draw.indexBuffer)
+        {
+            const std::array ranges{GpuMemoryRange{draw.indexBuffer->Data(), draw.indexBuffer->Size()}};
+            WriteMemoryAcquire(commands, ranges);
+        }
+        draw.pipeline->GetShaders().Record(commands, *draw.vertexBindings, draw.pixelBindings.get(), *draw.vertexBuffers, inputs);
+        draw.pipeline->RecordColorState(commands, stencilReference, blendFactor);
+    }
+
+    void GraphicsContext::RHIDrawIndexedPrimitive(FRHIBuffer* indexBuffer, int32 baseVertexIndex, uint32 firstInstance, uint32, uint32 startIndex, uint32 primitiveCount, uint32 instanceCount)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!pipeline || !activeRenderPass) throw std::runtime_error("Draw requires a graphics pipeline and render pass");
+            activeRenderPass->ValidatePipeline(pipeline->GetDescription());
+            if (!indexBuffer || !EnumHasAnyFlags(indexBuffer->GetUsage(), EBufferUsageFlags::IndexBuffer)) throw std::invalid_argument("Indexed draw requires an index buffer");
+            const auto stride = indexBuffer->GetStride();
+            if (stride != 2 && stride != 4) throw std::invalid_argument("Index stride must be two or four bytes");
+            const auto indexCount = pipeline->GetVertexCount(primitiveCount);
+            if (indexCount == 0) return;
+            instanceCount = std::max(1u, instanceCount);
+            if (firstInstance > std::numeric_limits<uint32>::max() - (instanceCount - 1)) throw std::overflow_error("Draw instance index exceeds the hardware field");
+            auto indices = static_cast<Buffer*>(indexBuffer)->Capture();
+            const auto range = indices->GetRange(static_cast<std::size_t>(startIndex) * stride, static_cast<std::size_t>(indexCount) * stride);
+            prepareDraw(commands, static_cast<uint32>(baseVertexIndex), firstInstance, std::move(indices));
+            sceAgcDcbSetIndexSize(&commands, stride == 2 ? 0 : 1, 0);
+            sceAgcDcbSetNumInstances(&commands, instanceCount);
+            sceAgcDcbDrawIndex(&commands, indexCount, range.data(), 0);
         });
     }
 
@@ -88,12 +126,12 @@ namespace AnyUnreal::RHI
         });
     }
 
-    void GraphicsContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilReference, bool applyAdditionalState)
+    void GraphicsContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState)
     {
         RecordCommands([&](CommandBuffer&)
         {
             if (!pipelineState) throw std::invalid_argument("Graphics pipeline is null");
-            if (stencilReference > std::numeric_limits<uint8>::max()) throw std::out_of_range("Stencil reference exceeds eight bits");
+            if (stencilRef > std::numeric_limits<uint8>::max()) throw std::out_of_range("Stencil reference exceeds eight bits");
             auto* nextPipeline = static_cast<GraphicsPipeline*>(pipelineState);
             auto& vertex = nextPipeline->GetShaders().GetVertexShader();
             auto* pixel = nextPipeline->GetShaders().GetPixelShader();
@@ -108,7 +146,7 @@ namespace AnyUnreal::RHI
             pipeline = nextPipeline;
             vertexParameters = std::move(nextVertex);
             pixelParameters = std::move(nextPixel);
-            this->stencilReference = stencilReference;
+            stencilReference = stencilRef;
         });
     }
 

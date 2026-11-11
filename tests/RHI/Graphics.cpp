@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
+#include "prx/libSceAgc/DcbDraw/include/IndexBuffer.hpp"
 #include "prx/libkernel/include/Api.hpp"
 #include <algorithm>
 #include <array>
@@ -53,6 +54,7 @@ int main()
     const AgcShader vertex({Shaders::ShaderStage::Vertex, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, Shaders::ShaderStage::Vertex, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
+    for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
     for (const auto dimensions : {std::array{64u, 64u}, std::array{67u, 39u}, std::array{13u, 7u}})
@@ -64,6 +66,17 @@ int main()
         auto positions = std::make_shared<BufferAllocation>(52 + baseVertex * 12, aperture);
         auto colors = std::make_shared<BufferAllocation>(80 + baseVertex * 16, aperture);
         BufferAllocation fenceStorage(8, aperture);
+        BufferAllocation indexStorage(16, aperture);
+        if (indexStride == 2)
+        {
+            const std::array<std::uint16_t, 4> indices{99, 1, 2, 3};
+            indexStorage.Upload(0, std::as_bytes(std::span(indices)));
+        }
+        else if (indexStride == 4)
+        {
+            const std::array<std::uint32_t, 4> indices{99, 1, 2, 3};
+            indexStorage.Upload(0, std::as_bytes(std::span(indices)));
+        }
         std::fill_n(static_cast<std::uint32_t*>(output.Data()), output.Size() / 4, 0);
         const std::array<float, 9> positionValues{-1, -1, 0, 3, -1, 0, -1, 3, 0};
         const std::array<float, 12> colorValues{0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1};
@@ -106,7 +119,7 @@ int main()
         CommandStorage storage(16384, aperture);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
-        const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
+        const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{indexStorage.Data(), indexStorage.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
         WriteMemoryAcquire(commands, ranges);
         WriteMemoryAcquire(commands, descriptors.GetMemoryRanges());
         link.Record(commands);
@@ -128,11 +141,16 @@ int main()
         WriteScissor(commands, {width / 8, height / 8, width - width / 8, height - height / 8});
         Shaders::UserDataInputs vertexInputs;
         descriptors.Apply(vertexInputs);
-        vertexInputs.BaseVertex = baseVertex;
+        vertexInputs.BaseVertex = indexStride ? baseVertex - 1 : baseVertex;
         WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
         WriteShaderRegisters(commands, pixel, pixelLayout, {});
         sceAgcDcbSetNumInstances(&commands, 1);
-        sceAgcDcbDrawIndexAuto(&commands, 3, 0);
+        if (indexStride)
+        {
+            sceAgcDcbSetIndexSize(&commands, indexStride == 2 ? 0 : 1, 0);
+            sceAgcDcbDrawIndex(&commands, 3, static_cast<std::byte*>(indexStorage.Data()) + indexStride, 0);
+        }
+        else sceAgcDcbDrawIndexAuto(&commands, 3, 0);
         SubmitAndWait(commands, fence, 1, 10000000);
         std::array<std::uint8_t, 16> color{};
         switch (format)
