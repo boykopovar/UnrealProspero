@@ -5,34 +5,34 @@ namespace AnyUnreal::RHI
 {
     namespace
     {
-        void checkComparison(ECompareFunction function)
+        uint32 comparison(ECompareFunction function)
         {
             switch (function)
             {
-            case CF_Less:
-            case CF_LessEqual:
-            case CF_Greater:
-            case CF_GreaterEqual:
-            case CF_Equal:
-            case CF_NotEqual:
-            case CF_Never:
-            case CF_Always: break;
+            case CF_Never: return 0;
+            case CF_Less: return 1;
+            case CF_Equal: return 2;
+            case CF_LessEqual: return 3;
+            case CF_Greater: return 4;
+            case CF_NotEqual: return 5;
+            case CF_GreaterEqual: return 6;
+            case CF_Always: return 7;
             default: throw std::invalid_argument("Unknown depth or stencil comparison function");
             }
         }
 
-        void checkOperation(EStencilOp operation)
+        uint32 stencilOperation(EStencilOp operation)
         {
             switch (operation)
             {
-            case SO_Keep:
-            case SO_Zero:
-            case SO_Replace:
-            case SO_SaturatedIncrement:
-            case SO_SaturatedDecrement:
-            case SO_Invert:
-            case SO_Increment:
-            case SO_Decrement: break;
+            case SO_Keep: return 0;
+            case SO_Zero: return 1;
+            case SO_Replace: return 3;
+            case SO_SaturatedIncrement: return 5;
+            case SO_SaturatedDecrement: return 6;
+            case SO_Invert: return 7;
+            case SO_Increment: return 8;
+            case SO_Decrement: return 9;
             default: throw std::invalid_argument("Unknown stencil operation");
             }
         }
@@ -40,15 +40,15 @@ namespace AnyUnreal::RHI
 
     DepthStencilState::DepthStencilState(const FDepthStencilStateInitializerRHI& initializer) : description(initializer)
     {
-        checkComparison(description.DepthTest);
-        checkComparison(description.FrontFaceStencilTest);
-        checkComparison(description.BackFaceStencilTest);
-        checkOperation(description.FrontFaceStencilFailStencilOp);
-        checkOperation(description.FrontFaceDepthFailStencilOp);
-        checkOperation(description.FrontFacePassStencilOp);
-        checkOperation(description.BackFaceStencilFailStencilOp);
-        checkOperation(description.BackFaceDepthFailStencilOp);
-        checkOperation(description.BackFacePassStencilOp);
+        comparison(description.DepthTest);
+        comparison(description.FrontFaceStencilTest);
+        comparison(description.BackFaceStencilTest);
+        stencilOperation(description.FrontFaceStencilFailStencilOp);
+        stencilOperation(description.FrontFaceDepthFailStencilOp);
+        stencilOperation(description.FrontFacePassStencilOp);
+        stencilOperation(description.BackFaceStencilFailStencilOp);
+        stencilOperation(description.BackFaceDepthFailStencilOp);
+        stencilOperation(description.BackFacePassStencilOp);
     }
 
     bool DepthStencilState::GetInitializer(FDepthStencilStateInitializerRHI& result)
@@ -58,4 +58,23 @@ namespace AnyUnreal::RHI
     }
 
     const FDepthStencilStateInitializerRHI& DepthStencilState::GetDescription() const { return description; }
+    uint32 DepthStencilState::GetDepthControl(bool hasDepth, bool hasStencil, bool depthBounds) const
+    {
+        if (depthBounds && !hasDepth) throw std::invalid_argument("Depth bounds require a depth attachment");
+        const bool stencil = hasStencil && (description.bEnableFrontFaceStencil || description.bEnableBackFaceStencil);
+        const bool depth = hasDepth && (description.bEnableDepthWrite || description.DepthTest != CF_Always);
+        return static_cast<uint32>(stencil) | (static_cast<uint32>(depth) << 1) | (static_cast<uint32>(hasDepth && description.bEnableDepthWrite) << 2) | (static_cast<uint32>(depthBounds) << 3) | (comparison(description.DepthTest) << 4) | (static_cast<uint32>(stencil && description.bEnableBackFaceStencil) << 7) | (comparison(description.FrontFaceStencilTest) << 8) | (comparison(description.BackFaceStencilTest) << 20);
+    }
+
+    uint32 DepthStencilState::GetStencilControl() const
+    {
+        return stencilOperation(description.FrontFaceStencilFailStencilOp) | (stencilOperation(description.FrontFacePassStencilOp) << 4) | (stencilOperation(description.FrontFaceDepthFailStencilOp) << 8) | (stencilOperation(description.BackFaceStencilFailStencilOp) << 12) | (stencilOperation(description.BackFacePassStencilOp) << 16) | (stencilOperation(description.BackFaceDepthFailStencilOp) << 20);
+    }
+
+    uint32 DepthStencilState::GetStencilReferenceMask(uint32 reference) const
+    {
+        if (reference > 255) throw std::out_of_range("Stencil reference exceeds eight bits");
+        return reference | (static_cast<uint32>(description.StencilReadMask) << 8) | (static_cast<uint32>(description.StencilWriteMask) << 16);
+    }
+
 }
