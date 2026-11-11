@@ -122,7 +122,7 @@ internal static class ToolchainChecks
         }
         if (rhiOnly)
         {
-            Console.WriteLine("Compiled " + rhiActions + " RHI source files through UBT for " + platform);
+            Console.WriteLine("Compiled " + rhiActions + " RHI and ApplicationCore source files through UBT for " + platform);
             return;
         }
         await VideoOutputChecks.PrepareAsync(sdk, outputDirectory, videoExecutable.Directory.FullName);
