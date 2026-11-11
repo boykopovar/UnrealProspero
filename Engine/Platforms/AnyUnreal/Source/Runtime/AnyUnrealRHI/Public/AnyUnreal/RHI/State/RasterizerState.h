@@ -12,6 +12,8 @@ namespace AnyUnreal::RHI
         explicit RasterizerState(const FRasterizerStateInitializerRHI& initializer);
         bool GetInitializer(FRasterizerStateInitializerRHI& result) override;
         const FRasterizerStateInitializerRHI& GetDescription() const;
+        uint32 UpdateModeControl(uint32 value, bool depthBias) const;
+        uint32 UpdateClipControl(uint32 value) const;
 
     private:
         FRasterizerStateInitializerRHI description;
