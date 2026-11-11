@@ -95,14 +95,14 @@ namespace AnyUnreal::RHI
         requireWritable();
         if (!view) throw std::invalid_argument("UAV clear requires a view");
         std::shared_ptr<const BufferAllocation> storage;
-        std::span<std::byte> range;
+        std::vector<std::span<std::byte>> ranges;
         std::array<std::uint32_t, 4> pattern;
         std::size_t words;
         if (view->IsBuffer())
         {
             const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
             storage = snapshot.CaptureStorage();
-            range = snapshot.GetRange();
+            ranges.push_back(snapshot.GetRange());
             pattern = EncodeBufferClear(snapshot.GetFormat(), values);
             words = snapshot.GetFormat() == BufferFormat::Untyped ? 1u : GetBufferElementSize(snapshot.GetFormat()) / 4;
         }
@@ -111,15 +111,17 @@ namespace AnyUnreal::RHI
             const auto& texture = *static_cast<TextureUnorderedAccessView*>(view);
             storage = texture.CaptureStorage();
             if (!storage) throw std::invalid_argument("Texture UAV clear requires allocated storage");
-            range = texture.GetRange();
+            const auto textureRanges = texture.GetRanges();
+            ranges.assign(textureRanges.begin(), textureRanges.end());
             pattern = EncodeTextureClear(texture.GetFormat(), values);
             words = pattern.size();
         }
-        if (range.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
+        if (ranges.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
+        for (const auto range : ranges) if (range.empty()) throw std::invalid_argument("UAV clear contains an empty range");
         try
         {
             clearedResources.push_back(std::move(storage));
-            WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(words));
+            for (const auto range : ranges) WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(words));
         }
         catch (...)
         {

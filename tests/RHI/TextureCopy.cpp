@@ -2,6 +2,7 @@
 #include "AnyUnreal/RHI/Memory/TextureUpload.h"
 #include "AnyUnreal/RHI/Memory/VolumeUpload.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "AnyUnreal/RHI/Command/PatternFill.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -47,6 +48,34 @@ void CheckVolumeMipData()
             catch (const std::out_of_range&) { rejected = true; }
             if (!rejected) throw std::runtime_error("Volume mip accepted an unavailable slice");
         }
+    }
+}
+
+void CheckVolumeMipClears()
+{
+    using namespace AnyUnreal::RHI;
+    LinearTexture3D texture(13, 7, 5, TextureFormat::Rgba32Float, 2, 4);
+    const auto allocation = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
+    const std::array<std::uint32_t, 4> pattern{0x3f800000, 0xbf800000, 0x3f000000, 0};
+    const auto patternBytes = std::as_bytes(std::span(pattern));
+    for (std::uint32_t level = 0; level < texture.GetMipCount(); ++level)
+    {
+        std::fill(allocation.begin(), allocation.end(), std::byte{0x59});
+        std::vector expected(allocation.begin(), allocation.end());
+        CommandStorage storage(16384, 2);
+        auto& commands = storage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        const auto& mip = texture.GetMipLayout(level);
+        for (std::uint32_t slice = 0; slice < mip.Depth; ++slice)
+        {
+            const auto range = texture.GetSliceRange(level, slice);
+            WritePatternFill(commands, range.data(), range.size(), pattern);
+            for (std::size_t index = 0; index < mip.Size; ++index) expected[mip.Offset + slice * texture.GetSlicePitch() + index] = patternBytes[index % patternBytes.size()];
+        }
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        SubmitAndWait(commands, fence, 1, 10000000);
+        if (!std::equal(allocation.begin(), allocation.end(), expected.begin())) throw std::runtime_error("Volume mip clear changed another mip or an unavailable slice");
     }
 }
 
@@ -288,6 +317,7 @@ int main()
     if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
     CheckMipCopies();
     CheckVolumeMipData();
+    CheckVolumeMipClears();
     CheckVolumeCopies();
     CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})

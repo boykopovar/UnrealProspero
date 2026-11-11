@@ -24,13 +24,13 @@ namespace AnyUnreal::RHI
         const BufferAllocation* GetStorage() const { return storage.get(); }
         std::shared_ptr<const BufferAllocation> CaptureStorage() const { return storage; }
         TextureFormat GetFormat() const { return format; }
-        std::span<std::byte> GetRange() const { return range; }
+        std::span<const std::span<std::byte>> GetRanges() const { return ranges; }
 
     private:
         TextureFormat format;
         std::shared_ptr<const BufferAllocation> storage;
         std::array<std::uint32_t, 8> descriptor;
-        std::span<std::byte> range;
+        std::vector<std::span<std::byte>> ranges;
     };
 }
 

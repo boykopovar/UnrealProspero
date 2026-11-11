@@ -182,13 +182,21 @@ namespace AnyUnreal::RHI
         return storage->CreateViewDescriptor(disableSrgb, firstMip, mipCount);
     }
 
-    std::span<std::byte> TextureResource::GetMipRange(std::uint32_t mipLevel) const
+    std::vector<std::span<std::byte>> TextureResource::GetMipRanges(std::uint32_t mipLevel) const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
-        if (storage) return storage->GetMipRange(mipLevel);
+        if (storage) return {storage->GetMipRange(mipLevel)};
+        if (volumeStorage)
+        {
+            const auto& mip = volumeStorage->GetMipLayout(mipLevel);
+            std::vector<std::span<std::byte>> ranges;
+            ranges.reserve(mip.Depth);
+            for (std::uint32_t slice = 0; slice < mip.Depth; ++slice) ranges.push_back(volumeStorage->GetSliceRange(mipLevel, slice));
+            return ranges;
+        }
         if (mipLevel != 0) throw std::out_of_range("Texture mip level does not exist");
         const auto& allocation = getAllocation();
-        return allocation.GetRange(0, allocation.Size());
+        return {allocation.GetRange(0, allocation.Size())};
     }
 
     const BufferAllocation& TextureResource::GetStorage() const

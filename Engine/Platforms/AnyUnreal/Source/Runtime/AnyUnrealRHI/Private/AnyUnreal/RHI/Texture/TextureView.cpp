@@ -30,7 +30,7 @@ namespace AnyUnreal::RHI
         description.Texture.SRV.GetViewInfo(&texture);
     }
 
-    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), format(ResolveTextureFormat(texture.GetDesc().Format, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true, description.Texture.UAV.MipRange.First, description.Texture.UAV.MipRange.Num)), range(texture.GetMipRange(description.Texture.UAV.MipRange.First))
+    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), format(ResolveTextureFormat(texture.GetDesc().Format, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true, description.Texture.UAV.MipRange.First, description.Texture.UAV.MipRange.Num)), ranges(texture.GetMipRanges(description.Texture.UAV.MipRange.First))
     {
         description.Texture.UAV.GetViewInfo(&texture);
     }
