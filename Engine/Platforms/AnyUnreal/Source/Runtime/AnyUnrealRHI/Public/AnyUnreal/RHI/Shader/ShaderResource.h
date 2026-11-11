@@ -12,7 +12,7 @@ namespace AnyUnreal::RHI
     template<typename TBase, Shader::ShaderStage TStage>
     class ShaderResource final : public TBase
     {
-        static_assert((std::is_same_v<TBase, FRHIComputeShader> && TStage == Shader::ShaderStage::Compute) || (std::is_same_v<TBase, FRHIVertexShader> && TStage == Shader::ShaderStage::Vertex) || (std::is_same_v<TBase, FRHIPixelShader> && TStage == Shader::ShaderStage::Pixel));
+        static_assert((std::is_same_v<TBase, FRHIComputeShader> && TStage == Shader::ShaderStage::Compute) || (std::is_same_v<TBase, FRHIVertexShader> && TStage == Shader::ShaderStage::Vertex) || (std::is_same_v<TBase, FRHIPixelShader> && TStage == Shader::ShaderStage::Pixel) || (std::is_same_v<TBase, FRHIGeometryShader> && TStage == Shader::ShaderStage::Geometry));
 
     public:
         ShaderResource(TConstArrayView<uint8> source, const FShaderHash& hash, Shader::AgcTarget target) : code(source, TStage, target), shader(code.GetBinary(), TStage, target)
@@ -33,6 +33,7 @@ namespace AnyUnreal::RHI
     extern template class ANYUNREALRHI_API ShaderResource<FRHIComputeShader, Shader::ShaderStage::Compute>;
     extern template class ANYUNREALRHI_API ShaderResource<FRHIVertexShader, Shader::ShaderStage::Vertex>;
     extern template class ANYUNREALRHI_API ShaderResource<FRHIPixelShader, Shader::ShaderStage::Pixel>;
+    extern template class ANYUNREALRHI_API ShaderResource<FRHIGeometryShader, Shader::ShaderStage::Geometry>;
 }
 
 #endif

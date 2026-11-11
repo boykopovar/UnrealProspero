@@ -38,6 +38,7 @@ namespace AnyUnreal::RHI
     ShaderBindings::ShaderBindings(ComputeShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
     ShaderBindings::ShaderBindings(VertexShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
     ShaderBindings::ShaderBindings(PixelShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
+    ShaderBindings::ShaderBindings(GeometryShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
 
     const FRHIShader& ShaderBindings::GetShader() const { return *shader; }
 

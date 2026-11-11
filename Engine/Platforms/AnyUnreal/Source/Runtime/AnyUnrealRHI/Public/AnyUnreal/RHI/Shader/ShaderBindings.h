@@ -5,6 +5,7 @@
 #include "AnyUnreal/RHI/Shader/ComputeShader.h"
 #include "AnyUnreal/RHI/Shader/VertexShader.h"
 #include "AnyUnreal/RHI/Shader/PixelShader.h"
+#include "AnyUnreal/RHI/Shader/GeometryShader.h"
 #include "AnyUnreal/Shader/ConstantData.h"
 #include <map>
 #include <set>
@@ -19,6 +20,7 @@ namespace AnyUnreal::RHI
         explicit ShaderBindings(ComputeShader& shader);
         explicit ShaderBindings(VertexShader& shader);
         explicit ShaderBindings(PixelShader& shader);
+        explicit ShaderBindings(GeometryShader& shader);
         const FRHIShader& GetShader() const;
         std::vector<GpuMemoryRange> GetMemoryRanges() const;
         void Bind(TConstArrayView<FRHIShaderParameterResource> parameters);

@@ -39,6 +39,7 @@ namespace AnyUnreal::RHI
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FBoundShaderStateRHIRef RHICreateBoundShaderState(FRHIVertexDeclaration* declaration, FRHIVertexShader* vertex, FRHIPixelShader* pixel, FRHIGeometryShader* geometry) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
+        FGeometryShaderRHIRef RHICreateGeometryShader(const FRHICreateShaderDesc& description) override;
         FPixelShaderRHIRef RHICreatePixelShader(const FRHICreateShaderDesc& description) override;
         FComputeShaderRHIRef RHICreateComputeShader(const FRHICreateShaderDesc& description) override;
         FComputePipelineStateRHIRef RHICreateComputePipelineState(const FComputePipelineStateInitializer& initializer) override;

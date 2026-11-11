@@ -13,13 +13,14 @@ namespace AnyUnreal::RHI
         explicit ShaderParameters(ComputeShader& shader);
         explicit ShaderParameters(VertexShader& shader);
         explicit ShaderParameters(PixelShader& shader);
+        explicit ShaderParameters(GeometryShader& shader);
         const FRHIShader& GetShader() const;
         void SetConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters);
         void SetResources(TConstArrayView<FRHIShaderParameterResource> parameters);
         std::unique_ptr<ShaderBindings> CreateBindings() const;
 
     private:
-        using ShaderReference = std::variant<TRefCountPtr<ComputeShader>, TRefCountPtr<VertexShader>, TRefCountPtr<PixelShader>>;
+        using ShaderReference = std::variant<TRefCountPtr<ComputeShader>, TRefCountPtr<VertexShader>, TRefCountPtr<PixelShader>, TRefCountPtr<GeometryShader>>;
         ShaderParameters(ShaderReference shader, const ShaderCode& code);
         ShaderReference shader;
         Shader::ConstantData constants;

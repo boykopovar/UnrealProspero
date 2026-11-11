@@ -7,6 +7,7 @@ namespace AnyUnreal::RHI
     ShaderParameters::ShaderParameters(ComputeShader& shader) : ShaderParameters(TRefCountPtr<ComputeShader>(&shader), shader.GetCode()) {}
     ShaderParameters::ShaderParameters(VertexShader& shader) : ShaderParameters(TRefCountPtr<VertexShader>(&shader), shader.GetCode()) {}
     ShaderParameters::ShaderParameters(PixelShader& shader) : ShaderParameters(TRefCountPtr<PixelShader>(&shader), shader.GetCode()) {}
+    ShaderParameters::ShaderParameters(GeometryShader& shader) : ShaderParameters(TRefCountPtr<GeometryShader>(&shader), shader.GetCode()) {}
 
     const FRHIShader& ShaderParameters::GetShader() const
     {

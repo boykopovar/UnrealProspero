@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Shader/GeometryShader.h"
 #include "AnyUnreal/Video/Output.h"
 #include "AnyUnreal/RHI/Presentation/ViewportResource.h"
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
@@ -418,6 +419,11 @@ namespace AnyUnreal::RHI
     FVertexShaderRHIRef DynamicRHI::RHICreateVertexShader(const FRHICreateShaderDesc& description)
     {
         return new VertexShader(description.Code, FShaderHash{}, target);
+    }
+
+    FGeometryShaderRHIRef DynamicRHI::RHICreateGeometryShader(const FRHICreateShaderDesc& description)
+    {
+        return new GeometryShader(description.Code, FShaderHash{}, target);
     }
 
     FPixelShaderRHIRef DynamicRHI::RHICreatePixelShader(const FRHICreateShaderDesc& description)
