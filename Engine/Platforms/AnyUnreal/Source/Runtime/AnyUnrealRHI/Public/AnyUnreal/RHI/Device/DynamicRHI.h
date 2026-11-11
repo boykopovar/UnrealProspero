@@ -19,6 +19,10 @@ namespace AnyUnreal::RHI
         void RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FLinearColor>& output, FReadSurfaceDataFlags flags) override;
         void RHIMapStagingSurface(FRHITexture* texture, FRHIGPUFence* fence, void*& data, int32& width, int32& height, uint32 gpuIndex = 0) override;
         void RHIUnmapStagingSurface(FRHITexture* texture, uint32 gpuIndex = 0) override;
+        FViewportRHIRef RHICreateViewport(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format) override;
+        void RHIResizeViewport(FRHIViewport* viewport, uint32 width, uint32 height, bool fullscreen, EPixelFormat format) override;
+        FTextureRHIRef RHIGetViewportBackBuffer(FRHIViewport* viewport) override;
+        void RHIEndDrawingViewport(FRHICommandListImmediate& commandList, FRHIViewport* viewport, const FRHIPresentArgs& arguments) override;
         uint32 RHIComputeMemorySize(FRHITexture* texture) override;
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;

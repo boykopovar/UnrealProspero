@@ -36,7 +36,8 @@ namespace AnyUnreal::RHI
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
-            constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback;
+            constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
+            if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8) throw std::invalid_argument("Presentable texture format is not supported");
             if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior");
         }
 
@@ -66,13 +67,19 @@ namespace AnyUnreal::RHI
         return *static_cast<TextureResource*>(resource);
     }
 
+    std::size_t TextureResource::CalculateAlignment(const FRHITextureDesc& description)
+    {
+        validateDescription(description);
+        return EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Presentable) ? 65536 : Kernel::DirectAllocation::PageSize;
+    }
+
     std::size_t TextureResource::CalculateAllocationSize(const FRHITextureDesc& description)
     {
         validateDescription(description);
         return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, format(description)));
     }
 
-    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), storage(std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), storage(std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh, CalculateAlignment(description))), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
         if (description.InitAction == ERHITextureInitAction::BulkData)
         {
@@ -81,6 +88,13 @@ namespace AnyUnreal::RHI
             storage->Upload({static_cast<const std::byte*>(description.BulkData->GetResourceBulkData()), size}, storage->GetRowBytes());
             description.BulkData->Discard();
         }
+    }
+
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
+    {
+        if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
+        if (!storage || storage->GetWidth() != static_cast<uint32>(description.Extent.X) || storage->GetHeight() != static_cast<uint32>(description.Extent.Y) || storage->GetFormat() != format(description)) throw std::invalid_argument("External texture storage does not match its description");
+        if (reinterpret_cast<std::uintptr_t>(storage->GetStorage().Data()) % CalculateAlignment(description) != 0) throw std::invalid_argument("External texture storage does not meet its alignment");
     }
 
     void* TextureResource::Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch)

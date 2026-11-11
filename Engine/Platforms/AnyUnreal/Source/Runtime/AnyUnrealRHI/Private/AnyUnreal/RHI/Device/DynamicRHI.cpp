@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Presentation/ViewportResource.h"
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
@@ -80,7 +81,7 @@ namespace AnyUnreal::RHI
     FRHICalcTextureSizeResult DynamicRHI::RHICalcTexturePlatformSize(const FRHITextureDesc& description, uint32 firstMipIndex)
     {
         if (firstMipIndex != 0) throw std::out_of_range("Texture mip does not exist");
-        return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(Kernel::DirectAllocation::PageSize)};
+        return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(TextureResource::CalculateAlignment(description))};
     }
 
     void DynamicRHI::RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FColor>& output, FReadSurfaceDataFlags flags)
@@ -123,6 +124,34 @@ namespace AnyUnreal::RHI
     {
         if (gpuIndex != 0 && gpuIndex != static_cast<uint32>(INDEX_NONE)) throw std::invalid_argument("Staging texture supports only GPU zero");
         ResolveTextureResource(texture).UnmapReadback();
+    }
+
+    FViewportRHIRef DynamicRHI::RHICreateViewport(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
+    {
+        return new ViewportResource(windowHandle, width, height, fullscreen, format, target, addressHigh);
+    }
+
+    void DynamicRHI::RHIResizeViewport(FRHIViewport* viewport, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
+    {
+        if (!viewport) throw std::invalid_argument("Viewport is null");
+        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
+        if (commandList.IsExecuting()) throw std::runtime_error("Viewport resize cannot execute inside a command list");
+        commandList.SubmitAndBlockUntilGPUIdle();
+        static_cast<ViewportResource*>(viewport)->Resize(width, height, fullscreen, format);
+    }
+
+    FTextureRHIRef DynamicRHI::RHIGetViewportBackBuffer(FRHIViewport* viewport)
+    {
+        if (!viewport) throw std::invalid_argument("Viewport is null");
+        return static_cast<ViewportResource*>(viewport)->GetBackBuffer();
+    }
+
+    void DynamicRHI::RHIEndDrawingViewport(FRHICommandListImmediate& commandList, FRHIViewport* viewport, const FRHIPresentArgs& arguments)
+    {
+        if (!viewport) throw std::invalid_argument("Viewport is null");
+        if (commandList.IsExecuting()) throw std::runtime_error("Viewport present cannot execute inside a command list");
+        commandList.SubmitAndBlockUntilGPUIdle();
+        static_cast<ViewportResource*>(viewport)->EndFrame(arguments);
     }
 
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)
