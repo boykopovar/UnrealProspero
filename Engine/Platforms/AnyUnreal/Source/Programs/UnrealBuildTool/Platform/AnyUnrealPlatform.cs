@@ -28,6 +28,14 @@ internal sealed class AnyUnrealPlatform : UEBuildPlatform
     public override bool ShouldCreateDebugInfo(ReadOnlyTargetRules rules) => true;
     public override string[] GetDebugInfoExtensions(ReadOnlyTargetRules rules, UEBuildBinaryType binaryType) => Array.Empty<string>();
 
+    public override void ModifyModuleRulesForOtherPlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
+    {
+        if (!settings.IsConfigured || moduleName != "TargetPlatform") return;
+        if (targetRules.Platform != UnrealTargetPlatform.Win64 && targetRules.Platform != UnrealTargetPlatform.Linux) return;
+        if (!targetRules.bForceBuildShaderFormats && !targetRules.bNeedsExtraShaderFormats) return;
+        if (!rules.DynamicallyLoadedModuleNames.Contains("AnyUnrealShaderFormat")) rules.DynamicallyLoadedModuleNames.Add("AnyUnrealShaderFormat");
+    }
+
     public override void ResetTarget(TargetRules rules)
     {
         rules.bForceEnableExceptions = true;

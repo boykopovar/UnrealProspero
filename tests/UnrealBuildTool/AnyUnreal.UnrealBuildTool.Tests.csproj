@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="$(UnrealRoot)/Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" />
     <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Runtime/AnyUnrealShaderCommon/AnyUnrealShaderCommon.Build.cs" Link="Rules/AnyUnrealShaderCommon.Build.cs" />
+    <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Developer/AnyUnrealShaderFormat/AnyUnrealShaderFormat.Build.cs" Link="Rules/AnyUnrealShaderFormat.Build.cs" />
     <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Developer/AnyUnrealShaderCompiler/AnyUnrealShaderCompiler.Build.cs" Link="Rules/AnyUnrealShaderCompiler.Build.cs" />
     <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/Core/Core.Build.cs" Link="Rules/Core.Build.cs" />
     <Compile Include="../../Engine/Platforms/AnyUnreal/Source/Runtime/Core/Core_AnyUnreal.Build.cs" Link="Rules/Core_AnyUnreal.Build.cs" />
