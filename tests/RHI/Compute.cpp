@@ -130,7 +130,7 @@ int main()
     {
         texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
         std::array<float, 64> texels;
-        for (unsigned index = 0; index < texels.size(); ++index) texels[index] = textureWrite ? 0.0f : static_cast<float>(index * 3 + 1);
+        for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (textureView)
         {
             std::array<std::uint32_t, 64> colors;
