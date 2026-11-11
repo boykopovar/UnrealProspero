@@ -25,7 +25,7 @@ namespace AnyUnreal::RHI
         };
 
         static std::size_t CalculateAlignment(const FRHITextureDesc& description);
-        static std::size_t CalculateAllocationSize(const FRHITextureDesc& description);
+        static std::size_t CalculateAllocationSize(const FRHITextureDesc& description, std::uint32_t firstMip = 0);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, std::span<void* const> initialMipData);
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);

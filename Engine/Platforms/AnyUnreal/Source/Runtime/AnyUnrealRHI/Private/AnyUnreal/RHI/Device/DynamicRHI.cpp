@@ -262,8 +262,7 @@ namespace AnyUnreal::RHI
 
     FRHICalcTextureSizeResult DynamicRHI::RHICalcTexturePlatformSize(const FRHITextureDesc& description, uint32 firstMipIndex)
     {
-        if (firstMipIndex != 0) throw std::out_of_range("Texture mip does not exist");
-        return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(TextureResource::CalculateAlignment(description))};
+        return {TextureResource::CalculateAllocationSize(description, firstMipIndex), static_cast<uint32>(TextureResource::CalculateAlignment(description))};
     }
 
     void DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* texture, FIntRect rectangle, FIntPoint zRange, TArray<FFloat16Color>& output)

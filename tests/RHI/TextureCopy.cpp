@@ -181,6 +181,12 @@ int main()
     {
         using namespace AnyUnreal::RHI;
         const auto levels = LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, 3);
+        const std::size_t tailSizes[]{2560, 1280, 512};
+        for (std::uint32_t firstMip = 0; firstMip < 3; ++firstMip) if (LinearTexture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, firstMip) != tailSizes[firstMip]) throw std::runtime_error("Texture mip tail size is incorrect");
+        bool invalidTailRejected = false;
+        try { LinearTexture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, 3); }
+        catch (const std::out_of_range&) { invalidTailRejected = true; }
+        if (!invalidTailRejected) throw std::runtime_error("Texture size accepted an unavailable mip");
         const std::array<std::size_t, 3> offsets{1280, 512, 0};
         const std::array<std::size_t, 3> sizes{1280, 768, 512};
         for (std::size_t level = 0; level < levels.size(); ++level)

@@ -74,10 +74,11 @@ namespace AnyUnreal::RHI
         return (CalculateRowBytes(width, format) + 255) & ~std::size_t{255};
     }
 
-    std::size_t LinearTexture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
+    std::size_t LinearTexture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
     {
         const auto levels = CalculateMipLayout(width, height, format, mipCount);
-        return levels.front().Offset + levels.front().Size;
+        if (firstMip >= levels.size()) throw std::out_of_range("Texture size selects an unavailable mip");
+        return levels[firstMip].Offset + levels[firstMip].Size;
     }
 
     LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), storage(mipLayouts.front().Offset + mipLayouts.front().Size, addressHigh, alignment, AllocationUsage::Texture)
