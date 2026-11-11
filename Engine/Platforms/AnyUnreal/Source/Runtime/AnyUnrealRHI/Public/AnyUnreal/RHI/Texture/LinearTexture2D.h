@@ -3,6 +3,7 @@
 
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include <array>
+#include <vector>
 
 namespace AnyUnreal::RHI
 {
@@ -24,6 +25,17 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API LinearTexture2D final
     {
     public:
+        struct MipLayout
+        {
+            std::uint32_t Width;
+            std::uint32_t Height;
+            std::size_t RowBytes;
+            std::size_t RowPitch;
+            std::size_t Offset;
+            std::size_t Size;
+        };
+
+        static std::vector<MipLayout> CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount);
         static std::size_t CalculateRowBytes(std::uint32_t width, TextureFormat format);
         static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb = false);
         static std::size_t CalculateRowPitch(std::uint32_t width, TextureFormat format);

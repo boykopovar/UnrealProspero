@@ -118,6 +118,31 @@ void CheckVolumeUploads()
 
 int main()
 {
+    {
+        using namespace AnyUnreal::RHI;
+        const auto levels = LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, 3);
+        const std::array<std::size_t, 3> offsets{1280, 512, 0};
+        const std::array<std::size_t, 3> sizes{1280, 768, 512};
+        for (std::size_t level = 0; level < levels.size(); ++level)
+        {
+            const auto& mip = levels[level];
+            if (mip.Offset != offsets[level] || mip.Size != sizes[level] || mip.RowPitch != 256 || mip.Width != (7u >> level) || mip.Height != (5u >> level) || mip.RowBytes != mip.Width * 4) throw std::runtime_error("Odd-sized mip layout does not match aligned reverse allocation");
+        }
+        for (std::uint32_t width : {1u, 2u, 255u, 256u, 16384u})
+        for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
+        {
+            const auto single = LinearTexture2D::CalculateMipLayout(width, 3, format, 1).front();
+            if (single.Offset != 0 || single.Size != LinearTexture2D::CalculateDataSize(width, 3, format) || single.RowPitch != LinearTexture2D::CalculateRowPitch(width, format)) throw std::runtime_error("Single mip layout changed existing texture geometry");
+        }
+        for (std::uint32_t count : {0u, 4u, 32u, 0xffffffffu})
+        {
+            bool rejected = false;
+            try { LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, count); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Invalid mip count was accepted");
+        }
+    }
+
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     CheckVolumeCopies();
