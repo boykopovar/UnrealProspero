@@ -44,6 +44,24 @@ int main()
     require(decoded.Header.data() >= bytes.data() && decoded.Header.data() < bytes.data() + bytes.size());
     for (auto section : {decoded.Header, decoded.Code, decoded.Metadata, decoded.ResourceTable}) require(std::ranges::equal(section, payload));
     require(EncodeShaderBinary(decoded) == bytes);
+    auto unreal = bytes;
+    unreal.insert(unreal.end(), {4, 0, 0, 0});
+    require(EncodeShaderBinary(DecodeUnrealShaderCode(unreal)) == bytes);
+    unreal = bytes;
+    unreal.insert(unreal.end(), {0x75, 2, 0, 0, 0, 0xab, 0xcd, 11, 0, 0, 0});
+    require(EncodeShaderBinary(DecodeUnrealShaderCode(unreal)) == bytes);
+    for (std::size_t size = 0; size < unreal.size(); ++size) reject([&] { DecodeUnrealShaderCode(std::span(unreal).first(size)); });
+    auto invalidOptional = unreal;
+    invalidOptional[bytes.size() + 1] = 255;
+    reject([&] { DecodeUnrealShaderCode(invalidOptional); });
+    invalidOptional = bytes;
+    invalidOptional.insert(invalidOptional.end(), {0x75, 2, 0, 0, 0, 0xab, 0xcd, 0x75, 2, 0, 0, 0, 0xab, 0xcd, 18, 0, 0, 0});
+    reject([&] { DecodeUnrealShaderCode(invalidOptional); });
+    invalidOptional = unreal;
+    std::fill(invalidOptional.end() - 4, invalidOptional.end(), 0xff);
+    reject([&] { DecodeUnrealShaderCode(invalidOptional); });
+    std::fill(invalidOptional.end() - 4, invalidOptional.end(), 0);
+    reject([&] { DecodeUnrealShaderCode(invalidOptional); });
     for (std::size_t size = 0; size < bytes.size(); ++size) reject([&] { DecodeShaderBinary(std::span(bytes).first(size)); });
     for (std::size_t offset : {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 52, 60, 68})
     {

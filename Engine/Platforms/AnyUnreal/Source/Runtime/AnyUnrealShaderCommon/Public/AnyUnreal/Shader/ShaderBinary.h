@@ -57,6 +57,7 @@ namespace AnyUnreal::Shader
 
     ANYUNREALSHADERCOMMON_API std::vector<std::uint8_t> EncodeShaderBinary(const ShaderBinaryView& shader);
     ANYUNREALSHADERCOMMON_API ShaderBinaryView DecodeShaderBinary(std::span<const std::uint8_t> bytes);
+    ANYUNREALSHADERCOMMON_API ShaderBinaryView DecodeUnrealShaderCode(std::span<const std::uint8_t> bytes);
 }
 
 #endif

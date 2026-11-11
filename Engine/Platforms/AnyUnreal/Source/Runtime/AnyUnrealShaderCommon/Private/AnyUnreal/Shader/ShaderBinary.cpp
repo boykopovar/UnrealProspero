@@ -1,5 +1,6 @@
 #include "AnyUnreal/Shader/ShaderBinary.h"
 #include <initializer_list>
+#include <array>
 #include <limits>
 #include <stdexcept>
 #include <string_view>
@@ -143,5 +144,24 @@ namespace AnyUnreal::Shader
         if (reader.Size() != 0) throw std::invalid_argument("Trailing shader binary data");
         validate(result);
         return result;
+    }
+
+    ShaderBinaryView DecodeUnrealShaderCode(std::span<const std::uint8_t> bytes)
+    {
+        if (bytes.size() < 4 || bytes.size() > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) throw std::invalid_argument("Invalid Unreal shader code size");
+        Reader trailer(bytes.last(4));
+        const auto optionalSize = trailer.Read();
+        if (optionalSize < 4 || optionalSize >= bytes.size()) throw std::invalid_argument("Invalid Unreal shader optional data size");
+        const auto codeSize = bytes.size() - optionalSize;
+        Reader optional(bytes.subspan(codeSize, optionalSize - 4));
+        std::array<bool, 256> keys{};
+        while (optional.Size() != 0)
+        {
+            const auto key = optional.Take(1).front();
+            if (keys[key]) throw std::invalid_argument("Duplicate Unreal shader optional data key");
+            keys[key] = true;
+            optional.Take(optional.Read());
+        }
+        return DecodeShaderBinary(bytes.first(codeSize));
     }
 }
