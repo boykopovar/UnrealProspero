@@ -50,7 +50,7 @@ namespace AnyUnreal::Shader
         if (FPaths::IsRelative(executable) || FPaths::IsRelative(workingRoot)) throw std::invalid_argument("Shader compiler paths must be absolute");
         if (!IFileManager::Get().MakeDirectory(*workingRoot, true)) throw std::runtime_error("Cannot create shader compiler working directory");
         compilerHash = hashExecutable(executable);
-        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 3u));
+        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 2u));
     }
 
     uint32 ShaderFormat::GetVersion(FName format) const

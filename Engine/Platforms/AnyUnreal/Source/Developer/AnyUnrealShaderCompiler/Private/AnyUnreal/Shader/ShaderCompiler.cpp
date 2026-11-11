@@ -29,14 +29,6 @@ namespace AnyUnreal::Shader
             writer << spirv.ResourceTable;
             if (writer.IsError()) throw std::runtime_error("Cannot serialize Unreal shader resource table");
             ShaderBinaryView binary{stage, target, agc.Header, agc.Code, agc.Metadata, {resourceTable.GetData(), static_cast<std::size_t>(resourceTable.Num())}, {}};
-            std::vector<std::uint8_t> intermediate;
-            intermediate.reserve(spirv.Words.size() * sizeof(std::uint32_t));
-            for (const auto word : spirv.Words)
-            {
-                for (unsigned shift = 0; shift < 32; shift += 8) intermediate.push_back(static_cast<std::uint8_t>(word >> shift));
-            }
-            binary.Spirv = intermediate;
-            binary.EntryPoint = TCHAR_TO_UTF8(*input.EntryPointName);
             binary.Bindings.reserve(spirv.Parameters.size());
             for (const auto& parameter : spirv.Parameters)
             {
