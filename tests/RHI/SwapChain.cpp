@@ -28,6 +28,11 @@ int main()
             if (reinterpret_cast<std::uintptr_t>(buffer->GetStorage().Data()) % 65536 != 0) throw std::runtime_error("Swap chain buffer is not display aligned");
             if (frame == 0)
             {
+                chain.Discard();
+                bool discardedRejected = false;
+                try { chain.Present(1); }
+                catch (const std::logic_error&) { discardedRejected = true; }
+                if (!discardedRejected || chain.GetBufferIndex() != 0 || chain.Acquire() != buffer) throw std::runtime_error("Discarded frame changed the swap chain buffer");
                 bool resizeRejected = false;
                 try { chain.Resize(131, 79, format); }
                 catch (const std::logic_error&) { resizeRejected = true; }
@@ -48,6 +53,8 @@ int main()
             chain.Present(1);
         }
     }
+    static_cast<void>(chain.Acquire());
+    chain.Discard();
     chain.Resize(131, 79, TextureFormat::Bgra8Unorm);
     chain.Close();
     chain.Close();
@@ -55,6 +62,10 @@ int main()
     try { static_cast<void>(chain.Acquire()); }
     catch (const std::runtime_error&) { rejected = true; }
     if (!rejected) throw std::runtime_error("Closed swap chain returned a frame");
+    rejected = false;
+    try { chain.Discard(); }
+    catch (const std::runtime_error&) { rejected = true; }
+    if (!rejected) throw std::runtime_error("Closed swap chain accepted a discarded frame");
     std::cout << "Swap chain presented 48 GPU frames and resized safely\n";
     return 0;
 }

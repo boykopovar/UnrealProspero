@@ -16,6 +16,7 @@ namespace AnyUnreal::RHI
         SwapChain& operator=(const SwapChain&) = delete;
         std::shared_ptr<LinearTexture2D> Acquire();
         void Present(int mode);
+        void Discard();
         void Resize(std::uint32_t width, std::uint32_t height, TextureFormat format);
         void Close();
         int GetHandle() const;

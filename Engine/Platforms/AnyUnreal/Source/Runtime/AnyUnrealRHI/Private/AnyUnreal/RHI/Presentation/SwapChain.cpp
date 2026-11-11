@@ -84,6 +84,12 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void SwapChain::Discard()
+    {
+        requireOpen();
+        acquired = false;
+    }
+
     void SwapChain::drain()
     {
         if (sequence == std::numeric_limits<std::int64_t>::max()) throw std::overflow_error("Video flip sequence exhausted");
