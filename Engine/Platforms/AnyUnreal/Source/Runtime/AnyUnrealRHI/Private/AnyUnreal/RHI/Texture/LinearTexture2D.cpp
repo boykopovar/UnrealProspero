@@ -46,7 +46,7 @@ namespace AnyUnreal::RHI
         return CalculateRowPitch(width, format) * dimension(height);
     }
 
-    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(this->width * describe(format).Bytes), rowPitch(CalculateRowPitch(width, format)), storage(rowPitch * this->height, addressHigh)
+    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(this->width * describe(format).Bytes), rowPitch(CalculateRowPitch(width, format)), storage(rowPitch * this->height, addressHigh, alignment)
     {
         const auto address = reinterpret_cast<std::uintptr_t>(storage.Data());
         if (address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");

@@ -2,16 +2,17 @@
 #include <limits>
 #include <cstring>
 #include <stdexcept>
+#include <algorithm>
 
 namespace AnyUnreal::RHI
 {
     namespace
     {
-        void* addressHint(std::uint32_t high)
+        void* addressHint(std::uint32_t high, std::size_t alignment)
         {
             if (high > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
             const auto base = static_cast<std::uint64_t>(high) << 32;
-            return reinterpret_cast<void*>(static_cast<std::uintptr_t>(base == 0 ? 65536 : base));
+            return reinterpret_cast<void*>(static_cast<std::uintptr_t>(base == 0 ? std::max<std::uint64_t>(65536, alignment) : base));
         }
     }
 
@@ -22,7 +23,7 @@ namespace AnyUnreal::RHI
         return (size + pageSize - 1) & ~(pageSize - 1);
     }
 
-    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh) : allocation(CalculateAllocationSize(size), Kernel::DirectAllocation::PageSize, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh)), size(size)
+    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment) : allocation(CalculateAllocationSize(size), alignment, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh, alignment)), size(size)
     {
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());
         if ((address >> 32) != addressHigh || ((address + allocation.Size() - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
