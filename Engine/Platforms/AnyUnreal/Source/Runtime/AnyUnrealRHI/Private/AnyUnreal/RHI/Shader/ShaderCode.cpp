@@ -43,11 +43,13 @@ namespace AnyUnreal::RHI
         const auto binarySize = static_cast<std::size_t>(binary.ResourceTable.data() + binary.ResourceTable.size() - storage.data());
         if (reader.GetActualShaderCodeSize() != binarySize) throw std::invalid_argument("Unreal shader code size does not match its AGC envelope");
         readResourceTable(binary.ResourceTable, resourceTable);
+        resourceBindings = ReadResourceTableBindings(resourceTable);
         ValidateAgcHeader(binary.Header, binary.Code, binary.Stage);
     }
 
     const Shader::ShaderBinaryView& ShaderCode::GetBinary() const { return binary; }
     const FShaderResourceTable& ShaderCode::GetResourceTable() const { return resourceTable; }
+    const std::vector<ResourceTableBinding>& ShaderCode::GetResourceBindings() const { return resourceBindings; }
     const Shader::UserDataLayout& ShaderCode::GetUserData() const { return userData; }
     TConstArrayView<uint8> ShaderCode::GetUnrealCode() const { return {storage.data(), static_cast<int32>(storage.size())}; }
 }

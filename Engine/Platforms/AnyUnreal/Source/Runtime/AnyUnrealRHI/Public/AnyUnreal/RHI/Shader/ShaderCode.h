@@ -3,7 +3,7 @@
 
 #include "AnyUnreal/Shader/ShaderBinary.h"
 #include "AnyUnreal/Shader/UserData.h"
-#include "RHIResources.h"
+#include "AnyUnreal/RHI/Shader/ResourceTable.h"
 
 namespace AnyUnreal::RHI
 {
@@ -16,6 +16,7 @@ namespace AnyUnreal::RHI
         const Shader::ShaderBinaryView& GetBinary() const;
         const FShaderResourceTable& GetResourceTable() const;
         const Shader::UserDataLayout& GetUserData() const;
+        const std::vector<ResourceTableBinding>& GetResourceBindings() const;
         TConstArrayView<uint8> GetUnrealCode() const;
 
     private:
@@ -23,6 +24,7 @@ namespace AnyUnreal::RHI
         Shader::ShaderBinaryView binary;
         Shader::UserDataLayout userData;
         FShaderResourceTable resourceTable;
+        std::vector<ResourceTableBinding> resourceBindings;
     };
 }
 
