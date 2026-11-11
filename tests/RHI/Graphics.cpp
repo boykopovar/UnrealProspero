@@ -99,8 +99,10 @@ int main()
 #if ANYUNREAL_TEST_DEPTH
         caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(ANYUNREAL_TEST_DEPTH_BARRIER);
 #endif
-        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, AnyUnreal::Kernel::DirectAllocation::PageSize, mipLevel + 2);
+        const auto arrayLayer = mipLevel == 0 ? 0u : 2u;
+        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, AnyUnreal::Kernel::DirectAllocation::PageSize, mipLevel + 2, AllocationUsage::Texture, 3);
         const auto& targetMip = targetTexture.GetMipLayout(mipLevel);
+        const auto targetOffset = arrayLayer * targetTexture.GetLayerPitch() + targetMip.Offset;
 #if ANYUNREAL_TEST_DEPTH
         LinearTexture2D secondTarget(width, height, format, aperture);
 #endif
@@ -202,7 +204,7 @@ int main()
         CommandStorage storage(16384, aperture);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
-        WriteColorClear(commands, targetTexture, {}, mipLevel);
+        WriteColorClear(commands, targetTexture, {}, mipLevel, arrayLayer);
 #if ANYUNREAL_TEST_DEPTH
         WriteColorClear(commands, secondTarget, {});
         DepthTexture2D depthTexture(width, height, aperture);
@@ -221,7 +223,7 @@ int main()
         {
             for (std::uint32_t index = 0; index < shader->num_cx_registers; ++index) sceAgcDcbSetCxRegisterDirect(&commands, shader->cx_registers[index]);
         }
-        WriteColorTarget(commands, 0, targetTexture, mipLevel);
+        WriteColorTarget(commands, 0, targetTexture, mipLevel, arrayLayer);
         for (std::uint32_t index = 1; index < 8; ++index) DisableColorTarget(commands, index);
         const std::array state{
             ShaderRegister{0xc, 0}, ShaderRegister{0xd, width | (height << 16)}, ShaderRegister{0x8e, 15}, ShaderRegister{0x200, 0},
@@ -300,8 +302,8 @@ int main()
         case TextureFormat::Rgba16Float: color = {0, 0x38, 0, 0x34, 0, 0x3a, 0, 0x3c}; break;
         }
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
-        for (std::size_t offset = 0; offset < output.Size(); ++offset) if ((offset < targetMip.Offset || offset >= targetMip.Offset + targetMip.Size) && pixels[offset] != 0xa5) throw std::runtime_error("Color target changed an adjacent mip");
-        pixels += targetMip.Offset;
+        for (std::size_t offset = 0; offset < output.Size(); ++offset) if ((offset < targetOffset || offset >= targetOffset + targetMip.Size) && pixels[offset] != 0xa5) throw std::runtime_error("Color target changed an adjacent mip or array layer");
+        pixels += targetOffset;
 #if ANYUNREAL_TEST_DEPTH
         if (depthMode >= 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
 #endif

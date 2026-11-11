@@ -38,12 +38,12 @@ namespace AnyUnreal::RHI
         sceAgcDcbSetCxRegisterDirect(&commands, {0x31c + index * 15, 0});
     }
 
-    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const LinearTexture2D& texture, std::uint32_t mipLevel)
+    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const LinearTexture2D& texture, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         checkIndex(index);
         const auto& mip = texture.GetMipLayout(mipLevel);
         const auto info = colorInfo(texture.GetFormat());
-        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(mipLevel).data());
+        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(mipLevel, arrayLayer).data());
         const auto bytesPerPixel = mip.RowBytes / mip.Width;
         const auto pitch = mip.RowPitch / bytesPerPixel;
         if (pitch == 0 || pitch > 16384) throw std::out_of_range("Color target pitch exceeds the hardware limit");
