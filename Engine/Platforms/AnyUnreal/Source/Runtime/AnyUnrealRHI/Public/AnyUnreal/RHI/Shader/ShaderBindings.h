@@ -26,6 +26,7 @@ namespace AnyUnreal::RHI
         void Bind(TConstArrayView<FRHIShaderParameterResource> parameters);
         void BindConstantData(const Shader::ConstantData& data);
         void BindConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters);
+        const DescriptorTables& FinalizeDescriptors();
         Shader::UserDataInputs Finalize(Shader::UserDataInputs inputs = {});
 
     private:

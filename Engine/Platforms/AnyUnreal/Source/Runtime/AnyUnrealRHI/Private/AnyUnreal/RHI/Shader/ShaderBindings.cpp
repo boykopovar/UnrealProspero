@@ -202,23 +202,38 @@ namespace AnyUnreal::RHI
         }
     }
 
-    Shader::UserDataInputs ShaderBindings::Finalize(Shader::UserDataInputs inputs)
+    const DescriptorTables& ShaderBindings::FinalizeDescriptors()
     {
         if (failed) throw std::runtime_error("Shader bindings contain a failed update");
         if (!finalized)
         {
-            for (const auto& [index, block] : constants.GetBlocks())
+            try
             {
-                if (block.Data.empty()) continue;
-                auto buffer = std::make_unique<BufferAllocation>(block.Data.size(), code.GetUserData().GetAddressHigh());
-                buffer->Upload(0, block.Data);
-                descriptors.SetBuffer(Shader::ResourceKind::UniformBuffer, index, buffer->Data(), buffer->Size());
-                constantBuffers[index] = std::move(buffer);
+                for (const auto& [index, block] : constants.GetBlocks())
+                {
+                    if (block.Data.empty()) continue;
+                    auto buffer = std::make_unique<BufferAllocation>(block.Data.size(), code.GetUserData().GetAddressHigh());
+                    buffer->Upload(0, block.Data);
+                    descriptors.SetBuffer(Shader::ResourceKind::UniformBuffer, index, buffer->Data(), buffer->Size());
+                    constantBuffers[index] = std::move(buffer);
+                }
+                Shader::UserDataInputs inputs;
+                descriptors.Apply(inputs);
+                finalized = true;
+            }
+            catch (...)
+            {
+                failed = true;
+                throw;
             }
         }
-        descriptors.Apply(inputs);
+        return descriptors;
+    }
+
+    Shader::UserDataInputs ShaderBindings::Finalize(Shader::UserDataInputs inputs)
+    {
+        FinalizeDescriptors().Apply(inputs);
         code.GetUserData().Build(inputs);
-        finalized = true;
         return inputs;
     }
 }
