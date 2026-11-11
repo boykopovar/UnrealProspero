@@ -44,7 +44,7 @@ namespace AnyUnreal::RHI
         else info = description.Buffer.UAV.GetViewInfo(&buffer);
         if (info.bNullView) return;
         storage = buffer.Capture();
-        const auto range = storage->GetRange(info.OffsetInBytes, info.SizeInBytes);
+        range = storage->GetRange(info.OffsetInBytes, info.SizeInBytes);
         descriptor = CreateByteAddressBufferDescriptor(range.data(), range.size());
     }
 

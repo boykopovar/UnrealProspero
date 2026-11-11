@@ -15,10 +15,12 @@ namespace AnyUnreal::RHI
         BufferViewData(Buffer& buffer, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 4>& GetDescriptor() const;
         const BufferAllocation* GetStorage() const { return storage.get(); }
+        std::span<std::byte> GetRange() const { return range; }
 
     private:
         std::shared_ptr<BufferAllocation> storage;
         std::array<std::uint32_t, 4> descriptor{};
+        std::span<std::byte> range;
     };
 
     template<typename TBase, FRHIViewDesc::EViewType TType>
@@ -30,6 +32,7 @@ namespace AnyUnreal::RHI
         BufferView(Buffer& buffer, const FRHIViewDesc& description) : TBase(&buffer, CheckBufferViewDescription(buffer, description, TType)), data(buffer, description) {}
         const std::array<std::uint32_t, 4>& GetDescriptor() const { return data.GetDescriptor(); }
         const BufferAllocation* GetStorage() const { return data.GetStorage(); }
+        std::span<std::byte> GetRange() const { return data.GetRange(); }
 
     private:
         BufferViewData data;

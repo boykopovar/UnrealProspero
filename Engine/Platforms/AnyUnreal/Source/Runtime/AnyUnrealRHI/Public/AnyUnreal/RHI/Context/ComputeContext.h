@@ -13,6 +13,8 @@ namespace AnyUnreal::RHI
     public:
         void RHISetComputePipelineState(FRHIComputePipelineState* pipelineState) override;
         void RHISetShaderParameters(FRHIComputeShader* computeShader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
+        void RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values) override;
+        void RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values) override;
         void RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ) override;
         void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers) override;
@@ -30,12 +32,14 @@ namespace AnyUnreal::RHI
         };
 
         void requireWritable() const;
+        void clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ComputeParameters> parameters;
         std::vector<Dispatch> dispatches;
         StaticUniformBuffers staticUniforms;
+        std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
         bool failed = false;
     };
 }

@@ -1,11 +1,42 @@
 #include "AnyUnreal/RHI/Context/ComputeContext.h"
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
+#include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Command/BufferFill.h"
+#include <bit>
 #include <stdexcept>
 #include <utility>
 
 namespace AnyUnreal::RHI
 {
     ComputeContext::ComputeContext(CommandBuffer& commands) : commands(commands) {}
+
+    void ComputeContext::clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value)
+    {
+        requireWritable();
+        if (!view || !view->IsBuffer()) throw std::invalid_argument("UAV clear requires a buffer view");
+        const auto range = static_cast<BufferUnorderedAccessView*>(view)->GetRange();
+        if (range.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
+        try
+        {
+            clearedViews.emplace_back(view);
+            WriteBufferFill(commands, range.data(), range.size(), value);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
+    void ComputeContext::RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values)
+    {
+        clearBufferView(view, values.X);
+    }
+
+    void ComputeContext::RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values)
+    {
+        clearBufferView(view, std::bit_cast<std::uint32_t>(values.X));
+    }
 
     void ComputeContext::requireWritable() const
     {
