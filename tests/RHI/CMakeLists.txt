@@ -12,6 +12,8 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(ComputeCheck Compute.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthBounds.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/SamplerDescriptor.cpp"

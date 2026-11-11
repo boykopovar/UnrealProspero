@@ -18,6 +18,7 @@
 #include "AnyUnreal/RHI/Memory/Readback.h"
 #include "AnyUnreal/RHI/Memory/Upload.h"
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
+#include "AnyUnreal/RHI/Command/DepthTarget.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -91,7 +92,8 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture") throw std::invalid_argument("Unknown compute operation");
+    const bool depthRead = operation == "depth-texture";
     const bool textureWrite = operation == "texture-write";
     const bool textureView = operation == "texture-view";
     const bool withTexture = operation == "texture" || textureView || withSampler || textureWrite;
@@ -146,9 +148,15 @@ int main()
         if (!invalidPitchRejected || texture->GetRowPitch() != 256) throw std::runtime_error("Texture upload accepted incomplete rows or used an invalid row pitch");
         bindings.push_back({textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, textureWrite ? "storage-image" : "sampled-image"});
     }
+    std::unique_ptr<RHI::DepthTexture2D> depthTexture;
+    if (depthRead)
+    {
+        depthTexture = std::make_unique<RHI::DepthTexture2D>(259, 137, layout.GetAddressHigh());
+        bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
+    }
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
     if (withSampler) bindings.push_back({Shaders::ResourceKind::Sampler, 0, 0, 1, 1, 32, 16, 0, "sampler"});
-    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, 0, withSampler ? 2u : readWrite || withTexture ? 1u : 0u, 1, withSampler ? 48u : withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, 0, withSampler ? 2u : readWrite || withTexture || depthRead ? 1u : 0u, 1, withSampler ? 48u : withTexture || depthRead ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
@@ -159,6 +167,11 @@ int main()
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
     descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, output, 64 * sizeof(std::uint32_t));
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+    if (depthTexture)
+    {
+        const auto descriptor = depthTexture->GetDescriptor();
+        descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(descriptor)));
+    }
     if (texture)
     {
         const auto original = texture->GetDescriptor();
@@ -229,6 +242,7 @@ int main()
             if (!rejectedBounds || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid depth bounds changed the command buffer");
         }
         if (texture) ranges.push_back({texture->GetStorage().Data(), texture->GetStorage().Size()});
+        if (depthTexture) ranges.push_back({depthTexture->GetStorage().Data(), depthTexture->GetStorage().Size()});
         for (const RHI::Viewport viewport : {RHI::Viewport{0, 0, 0, -1, 1, 1}, RHI::Viewport{0, 0, -1, 1, 1, 1}, RHI::Viewport{0, 0, 0, std::numeric_limits<float>::infinity(), 1, 1}})
         {
             bool rejected = false;
@@ -264,6 +278,7 @@ int main()
             catch (const std::invalid_argument&) { rejected = true; }
             if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid acquire range changed the command buffer");
         }
+        if (depthTexture) RHI::WriteDepthClear(commands, *depthTexture, iteration == 1 ? 1.0f : 0.0f);
         RHI::WriteViewport(commands, 0, {0, 0, 0, 1920, 1080, 1});
         RHI::WriteViewport(commands, 15, {16, 24, 1, 256, 128, 0});
         RHI::WriteViewportScissor(commands, 0, {0, 0, 1920, 1080});
@@ -316,6 +331,7 @@ int main()
         {
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
             auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
+            if (depthRead) expected = iteration == 1 ? 1 : 0;
             if (textureWrite) expected = ((index + 1) % 64) * 3 + 1;
             if (withSampler)
             {
