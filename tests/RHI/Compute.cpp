@@ -95,13 +95,13 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture") throw std::invalid_argument("Unknown compute operation");
-    const bool volumeRead = operation == "volume-texture";
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
+    const bool volumeRead = operation == "volume-texture" || operation == "volume-write";
     const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
-    const bool textureWrite = operation == "texture-write";
+    const bool textureWrite = operation == "texture-write" || operation == "volume-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = operation == "texture" || textureView || withSampler || textureWrite || halfRead;
+    const bool withTexture = operation == "texture" || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -170,7 +170,7 @@ int main()
     {
         volume = std::make_unique<RHI::LinearTexture3D>(5, 3, 5, RHI::TextureFormat::R32Float, layout.GetAddressHigh());
         std::array<float, 75> values{};
-        for (std::size_t index = 0; index < values.size(); ++index) values[index] = static_cast<float>(index * 3 + 1);
+        for (std::size_t index = 0; index < values.size(); ++index) values[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         const auto source = std::as_bytes(std::span(values));
         volume->Upload(source, 5 * sizeof(float), 15 * sizeof(float));
         bool rejected = false;
@@ -180,7 +180,7 @@ int main()
         std::array<float, 75> copied{};
         volume->CopyTo(std::as_writable_bytes(std::span(copied)), 5 * sizeof(float), 15 * sizeof(float));
         if (copied != values || volume->GetRowPitch() != 256 || volume->GetSlicePitch() != 768) throw std::runtime_error("Volume layout did not preserve its texels");
-        bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
+        bindings.push_back({textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, textureWrite ? "storage-image" : "sampled-image"});
     }
     std::unique_ptr<RHI::DepthTexture2D> depthTexture;
     if (depthRead)
@@ -204,7 +204,7 @@ int main()
     if (volume)
     {
         const auto descriptor = volume->GetDescriptor();
-        descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(descriptor)));
+        descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(descriptor)));
     }
     if (depthTexture)
     {
