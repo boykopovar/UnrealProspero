@@ -34,11 +34,65 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <limits>
 #include <stdexcept>
 
 namespace
 {
+    std::optional<UnrealProspero::RHI::TextureFormat> compressedFormat(std::string_view operation)
+    {
+        using Format = UnrealProspero::RHI::TextureFormat;
+        const std::array names{"bc1", "bc1-srgb", "bc2", "bc2-srgb", "bc3", "bc3-srgb", "bc4", "bc5", "bc7", "bc7-srgb"};
+        const std::array formats{Format::Bc1Unorm, Format::Bc1Srgb, Format::Bc2Unorm, Format::Bc2Srgb, Format::Bc3Unorm, Format::Bc3Srgb, Format::Bc4Unorm, Format::Bc5Unorm, Format::Bc7Unorm, Format::Bc7Srgb};
+        for (std::size_t index = 0; index < names.size(); ++index)
+        {
+            if (operation == names[index]) return formats[index];
+        }
+        return std::nullopt;
+    }
+
+    void uploadCompressed(UnrealProspero::RHI::LinearTexture2D& texture, std::string_view operation)
+    {
+        const auto blockBytes = UnrealProspero::RHI::DescribeTextureFormat(texture.GetFormat()).BlockBytes;
+        std::vector<std::byte> blocks(4 * blockBytes);
+        for (std::size_t block = 0; block < 4; ++block)
+        {
+            auto* data = blocks.data() + block * blockBytes;
+            const bool white = block == 2;
+            const bool middle = block == 1;
+            if (operation.starts_with("bc7"))
+            {
+                data[0] = white ? std::byte{0xc0} : std::byte{0x40};
+                if (middle)
+                {
+                    for (unsigned component = 0; component < 8; ++component)
+                    {
+                        const auto bit = 13 + component * 7;
+                        data[bit / 8] |= static_cast<std::byte>(1u << (bit % 8));
+                    }
+                }
+                if (white)
+                {
+                    std::fill_n(data + 1, 7, std::byte{0xff});
+                    data[8] = std::byte{1};
+                }
+            }
+            else if (operation == "bc4" || operation == "bc5")
+            {
+                data[0] = white ? std::byte{0xff} : middle ? std::byte{0x80} : std::byte{0};
+            }
+            else
+            {
+                const auto offset = operation.starts_with("bc1") ? 0 : 8;
+                data[offset + 1] = white ? std::byte{0xf8} : middle ? std::byte{0x80} : std::byte{0};
+                if (operation.starts_with("bc2")) std::fill_n(data, 8, std::byte{0xff});
+                if (operation.starts_with("bc3")) data[0] = std::byte{0xff};
+            }
+        }
+        texture.Upload(blocks, 2 * blockBytes);
+    }
+
     std::vector<std::uint8_t> read(const char* path)
     {
         std::ifstream file(path, std::ios::binary);
@@ -157,6 +211,7 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
+    const auto compressed = compressedFormat(operation);
     const bool integerWrite = operation == "uint-texture-write" || operation == "sint-texture-write";
     const bool sintTexture = operation == "sint-texture" || operation == "sint-texture-write";
     const bool integerTexture = operation == "uint-texture" || sintTexture || integerWrite;
@@ -166,7 +221,7 @@ int main()
     const bool cubeView = operation == "cube-view" || operation == "cube-array-view";
     const bool cubeRead = operation == "cube-texture" || cubeView || cubeArray;
     const bool withSampler = cubeRead || operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!integerTexture && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
+    if (!compressed && !integerTexture && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
     const bool volumeMipView = operation == "volume-mip-view";
     const bool volumeMipRead = operation == "volume-mip-texture" || volumeMipView;
     const bool volumeRead = operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
@@ -178,7 +233,7 @@ int main()
     const bool depthRead = operation == "depth-texture";
     const bool textureWrite = integerWrite || operation == "texture-write" || operation == "volume-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = integerTexture || operation == "texture" || mipRead || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
+    const bool withTexture = compressed || integerTexture || operation == "texture" || mipRead || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
     const bool typedBuffer = operation == "typed-buffer";
     const bool readWrite = operation == "read-write" || typedBuffer;
     const bool withConstants = operation == "constants";
@@ -215,10 +270,11 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, integerTexture ? (sintTexture ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), UnrealProspero::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
+        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, compressed ? *compressed : integerTexture ? (sintTexture ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), UnrealProspero::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
-        if (integerTexture)
+        if (compressed) uploadCompressed(*texture, operation);
+        else if (integerTexture)
         {
             std::array<std::uint32_t, 64> values;
             for (std::uint32_t index = 0; index < values.size(); ++index) values[index] = integerWrite ? 0x55555555u : sintTexture ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(index * 9 + 300)) : 0x80000001u + index * 65537;
@@ -258,7 +314,7 @@ int main()
             }
         }
         bool invalidPitchRejected = false;
-        try { texture->Upload(std::as_bytes(std::span(texels)), 16 * sizeof(float)); }
+        try { texture->Upload(std::as_bytes(std::span(texels)).first(compressed ? 1 : sizeof(texels)), 16 * sizeof(float)); }
         catch (const std::invalid_argument&) { invalidPitchRejected = true; }
         if (!invalidPitchRejected || texture->GetRowPitch() != 256) throw std::runtime_error("Texture upload accepted incomplete rows or used an invalid row pitch");
         bindings.push_back({textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, textureWrite ? "storage-image" : "sampled-image"});
@@ -528,6 +584,13 @@ int main()
         {
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
             auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
+            if (compressed)
+            {
+                const auto block = (index / 32) * 2 + (index % 8) / 4;
+                const bool rgb565 = operation.starts_with("bc1") || operation.starts_with("bc2") || operation.starts_with("bc3");
+                const auto middle = operation.ends_with("-srgb") ? (rgb565 ? 59u : 55u) : (rgb565 ? 132u : 128u);
+                expected = block == 2 ? 255 : block == 1 ? middle : 0;
+            }
             if (volumeRead) expected = index * 3 + 1;
             if (volumeMipRead)
             {
