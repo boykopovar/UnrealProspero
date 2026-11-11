@@ -26,7 +26,8 @@ def main():
                 suffix = header.parent.name.split(".")[-2]
                 stage = {"vert": "vertex", "frag": "fragment", "comp": "compute"}[suffix]
                 code = header.with_name("code.bin").resolve(strict=True)
-                result = subprocess.run([str(executable), str(header), str(code), stage], cwd=executable.parent, env=environment, capture_output=True, text=True, timeout=60)
+                metadata = header.with_name("bindings.adk").resolve(strict=True)
+                result = subprocess.run([str(executable), str(header), str(code), stage, str(metadata)], cwd=executable.parent, env=environment, capture_output=True, text=True, timeout=60)
                 text = result.stdout + result.stderr
                 log.write(f"{target}/{header.parent.name}\n{text}\nExit: {result.returncode}\n")
                 log.flush()
