@@ -14,7 +14,7 @@
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/PatternFill.h"
-#include "AnyUnreal/RHI/Buffer/ClearValue.h"
+#include "AnyUnreal/RHI/Buffer/BufferClearValue.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"

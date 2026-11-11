@@ -1,6 +1,6 @@
 #include "AnyUnreal/RHI/Command/ColorClear.h"
 #include "AnyUnreal/RHI/Command/PatternFill.h"
-#include "AnyUnreal/RHI/Texture/ClearValue.h"
+#include "AnyUnreal/RHI/Texture/TextureClearValue.h"
 
 namespace AnyUnreal::RHI
 {
