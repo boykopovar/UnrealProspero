@@ -11,6 +11,8 @@ namespace AnyUnreal::RHI
     ShaderBindings::ShaderBindings(VertexShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
     ShaderBindings::ShaderBindings(PixelShader& shader) : ShaderBindings(shader, shader.GetCode()) {}
 
+    const FRHIShader& ShaderBindings::GetShader() const { return *shader; }
+
     void ShaderBindings::bindResource(FRHIShaderParameterResource::EType type, std::uint32_t index, FRHIResource* resource)
     {
         if (!resource) throw std::invalid_argument("Shader resource parameter is null");

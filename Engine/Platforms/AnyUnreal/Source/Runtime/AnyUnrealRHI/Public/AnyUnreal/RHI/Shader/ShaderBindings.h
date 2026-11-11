@@ -16,6 +16,7 @@ namespace AnyUnreal::RHI
         explicit ShaderBindings(ComputeShader& shader);
         explicit ShaderBindings(VertexShader& shader);
         explicit ShaderBindings(PixelShader& shader);
+        const FRHIShader& GetShader() const;
         void Bind(TConstArrayView<FRHIShaderParameterResource> parameters);
         void BindConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters);
         Shader::UserDataInputs Finalize(Shader::UserDataInputs inputs = {});
