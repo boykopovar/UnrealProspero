@@ -32,9 +32,15 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     {
         if (targetRules.Platform == Platform) return;
         if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
-        if (!settings.IsConfigured || moduleName != "TargetPlatform") return;
         if (targetRules.Platform != UnrealTargetPlatform.Win64 && targetRules.Platform != UnrealTargetPlatform.Linux) return;
-        if (!targetRules.bForceBuildShaderFormats && !targetRules.bNeedsExtraShaderFormats) return;
+        if (targetRules.bBuildRequiresCookedData) return;
+        if ((moduleName == "Engine" && targetRules.bBuildDeveloperTools) || (moduleName == "TargetPlatform" && targetRules.bForceBuildTargetPlatforms))
+        {
+            string settingsModule = Platform + "TargetPlatformSettings";
+            if (!rules.DynamicallyLoadedModuleNames.Contains(settingsModule)) rules.DynamicallyLoadedModuleNames.Add(settingsModule);
+        }
+        if (!settings.IsConfigured || moduleName != "TargetPlatform") return;
+        if (!targetRules.bForceBuildShaderFormats && !targetRules.bNeedsExtraShaderFormats && targetRules.Type == TargetType.Program) return;
         if (!rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoShaderFormat")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoShaderFormat");
     }
 
