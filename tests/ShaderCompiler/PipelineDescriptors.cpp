@@ -1,4 +1,5 @@
 #include "AnyUnreal/Shader/PipelineDescriptors.h"
+#include "AnyUnreal/Shader/EntryPoint.h"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -37,6 +38,15 @@ int main(int count, char** arguments)
     if (count != 5) throw std::invalid_argument("Expected vertex and geometry input and output paths");
     auto vertex = read(arguments[1]);
     auto geometry = read(arguments[2]);
+    for (const auto& name : {"V", "MainVS", "GeometryEntryPoint"})
+    {
+        const auto renamed = RenameEntryPoint(vertex, "main", name);
+        if (RenameEntryPoint(renamed, name, "main") != vertex || ReflectDescriptorLayout(renamed, name).size() != 1) throw std::runtime_error("Entry point renaming changed shader interfaces");
+    }
+    bool missingRejected = false;
+    try { RenameEntryPoint(vertex, "MissingEntryPoint", "main"); }
+    catch (const std::invalid_argument&) { missingRejected = true; }
+    if (!missingRejected) throw std::runtime_error("Missing entry point was accepted");
     auto vertexLayout = ReflectDescriptorLayout(vertex, "main");
     auto geometryLayout = ReflectDescriptorLayout(geometry, "main");
     if (vertexLayout.size() != 1 || geometryLayout.size() != 1 || vertexLayout[0].Binding != 0 || geometryLayout[0].Binding != 0) throw std::runtime_error("Expected colliding pipeline bindings");

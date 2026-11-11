@@ -1,4 +1,5 @@
 #include "AnyUnreal/Shader/AgcCompiler.h"
+#include "AnyUnreal/Shader/EntryPoint.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
@@ -49,9 +50,11 @@ namespace AnyUnreal::Shader
         if (entryPoint.IsEmpty()) throw std::invalid_argument("Shader entry point is empty");
         for (const TCHAR character : entryPoint)
         {
-            if (character == 0 || character == TEXT('"') || character == TEXT('\\') || FChar::IsWhitespace(character)) throw std::invalid_argument("Shader entry point cannot be represented as an ADK argument");
+            if (character == 0) throw std::invalid_argument("Shader entry point contains a null character");
         }
-        FString arguments = FString::Printf(TEXT("spirv --input shader.spv --header header.bin --code code.bin --metadata bindings.adk --stage %s --target %s --entry %s --omit-implicit-primitive-id true"), stageName(stage), targetName(target), *entryPoint);
+        const auto normalized = RenameEntryPoint(words, TCHAR_TO_UTF8(*entryPoint), "main");
+        words = normalized;
+        FString arguments = FString::Printf(TEXT("spirv --input shader.spv --header header.bin --code code.bin --metadata bindings.adk --stage %s --target %s --entry main --omit-implicit-primitive-id true"), stageName(stage), targetName(target));
         if (stage == SF_Vertex) arguments += TEXT(" --dynamic-vertex-input");
         for (const auto& descriptor : descriptors)
         {

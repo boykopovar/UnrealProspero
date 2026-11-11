@@ -35,6 +35,7 @@ target_compile_definitions(PipelineDescriptors PRIVATE ANYUNREALSHADERCOMPILER_A
 target_compile_features(PipelineDescriptors PRIVATE cxx_std_20)
 set_target_properties(PipelineDescriptors PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(PipelineDescriptors PRIVATE UnrealSpirvReflect)
+target_sources(PipelineDescriptors PRIVATE "${compiler_root}/Private/AnyUnreal/Shader/EntryPoint.cpp")
 if(MSVC)
     target_compile_options(PipelineDescriptors PRIVATE /W4 /WX)
 else()
