@@ -4,6 +4,7 @@
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "AnyUnreal/RHI/Memory/HalfFloat.h"
+#include "AnyUnreal/RHI/Texture/HalfPixels.h"
 #include <cmath>
 #include <limits>
 #include <algorithm>
@@ -37,6 +38,41 @@ int main()
     for (std::size_t index = 0; index < roundingValues.size(); ++index)
     {
         if (EncodeHalfFloat(roundingValues[index]) != roundingBits[index]) throw std::runtime_error("Half-float rounding mismatch");
+    }
+    for (const auto format : {TextureFormat::R16Float, TextureFormat::Rg16Float, TextureFormat::Rgba16Float})
+    {
+        constexpr std::size_t width = 257;
+        constexpr std::size_t height = 256;
+        const auto channels = format == TextureFormat::R16Float ? 1u : format == TextureFormat::Rg16Float ? 2u : 4u;
+        const auto pitch = width * channels * 2 + 6;
+        std::vector<std::byte> bytes(pitch * height, std::byte{0xa5});
+        for (std::size_t row = 0; row < height; ++row)
+        for (std::size_t column = 0; column < width; ++column)
+        for (std::size_t channel = 0; channel < channels; ++channel)
+        {
+            const auto value = static_cast<std::uint16_t>(row * width + column + channel);
+            std::memcpy(bytes.data() + row * pitch + (column * channels + channel) * 2, &value, 2);
+        }
+        const auto expanded = ExpandHalfPixels(bytes, width, height, pitch, format);
+        if (expanded.size() != width * height) throw std::runtime_error("Half-float expansion returned the wrong extent");
+        for (std::size_t pixel = 0; pixel < expanded.size(); ++pixel)
+        for (std::size_t channel = 0; channel < 4; ++channel)
+        {
+            const auto expected = channel < channels ? static_cast<std::uint16_t>(pixel + channel) : channel == 3 ? 0x3c00 : 0;
+            if (expanded[pixel][channel] != expected) throw std::runtime_error("Half-float expansion changed bits or missing channels");
+        }
+        const auto reject = [&](auto action)
+        {
+            bool rejected = false;
+            try { action(); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Invalid half-float layout was accepted");
+        };
+        reject([&] { ExpandHalfPixels(bytes, width, height, 1, format); });
+        reject([&] { ExpandHalfPixels(std::span(bytes).first(pitch * (height - 1)), width, height, pitch, format); });
+        reject([&] { ExpandHalfPixels(bytes, 0, height, pitch, format); });
+        reject([&] { ExpandHalfPixels(bytes, std::numeric_limits<std::size_t>::max(), height, pitch, format); });
+        reject([&] { ExpandHalfPixels(bytes, width, height, pitch, TextureFormat::R32Float); });
     }
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     const std::array colors{std::array{0.0f, 0.0f, 0.0f, 0.0f}, std::array{1.0f, 1.0f, 1.0f, 1.0f}, std::array{0.5f, 0.25f, 0.75f, 1.0f}, std::array{-1.0f, 2.0f, 0.0031308f, 0.5f}};
