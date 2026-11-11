@@ -16,7 +16,7 @@ int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
         LinearTexture2D source(67, 9, format, 2);

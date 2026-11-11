@@ -15,7 +15,8 @@ namespace AnyUnreal::RHI
         Bgra8Unorm,
         Bgra8Srgb,
         R32Float,
-        Rgba32Float
+        Rgba32Float,
+        Rgba16Float
     };
 
     class ANYUNREALRHI_API LinearTexture2D final

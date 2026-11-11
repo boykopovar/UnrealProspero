@@ -3,6 +3,9 @@
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
+#include "AnyUnreal/RHI/Memory/HalfFloat.h"
+#include <cmath>
+#include <limits>
 #include <algorithm>
 #include <bit>
 #include <cstring>
@@ -13,11 +16,33 @@
 int main()
 {
     using namespace AnyUnreal::RHI;
+    for (std::uint32_t bits = 0; bits <= 65535; ++bits)
+    {
+        const auto exponent = (bits >> 10) & 31;
+        const auto fraction = bits & 1023;
+        const auto decoded = DecodeHalfFloat(static_cast<std::uint16_t>(bits));
+        if (exponent == 31)
+        {
+            if (fraction == 0 ? !std::isinf(decoded) : !std::isnan(decoded)) throw std::runtime_error("Invalid half-float special value");
+        }
+        else
+        {
+            auto expected = exponent == 0 ? std::ldexp(static_cast<float>(fraction), -24) : std::ldexp(1.0f + static_cast<float>(fraction) / 1024.0f, static_cast<int>(exponent) - 15);
+            if (bits & 0x8000) expected = -expected;
+            if (std::bit_cast<std::uint32_t>(decoded) != std::bit_cast<std::uint32_t>(expected) || EncodeHalfFloat(decoded) != bits) throw std::runtime_error("Half-float conversion mismatch");
+        }
+    }
+    const std::array roundingValues{1.00048828125f, 1.00146484375f, 65504.0f, 65520.0f, 0x1p-25f, 0x1.000002p-25f, -0x1p-25f};
+    const std::array<std::uint16_t, 7> roundingBits{0x3c00, 0x3c02, 0x7bff, 0x7c00, 0, 1, 0x8000};
+    for (std::size_t index = 0; index < roundingValues.size(); ++index)
+    {
+        if (EncodeHalfFloat(roundingValues[index]) != roundingBits[index]) throw std::runtime_error("Half-float rounding mismatch");
+    }
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     const std::array colors{std::array{0.0f, 0.0f, 0.0f, 0.0f}, std::array{1.0f, 1.0f, 1.0f, 1.0f}, std::array{0.5f, 0.25f, 0.75f, 1.0f}, std::array{-1.0f, 2.0f, 0.0031308f, 0.5f}};
     const std::array linearBytes{std::array{0, 0, 0, 0}, std::array{255, 255, 255, 255}, std::array{128, 64, 191, 255}, std::array{0, 255, 1, 128}};
     const std::array srgbBytes{std::array{0, 0, 0, 0}, std::array{255, 255, 255, 255}, std::array{188, 137, 225, 255}, std::array{0, 255, 10, 128}};
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
     for (const auto dimensions : {std::array{1u, 1u}, std::array{67u, 9u}, std::array{129u, 37u}})
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
@@ -31,6 +56,11 @@ int main()
         std::array<std::byte, 16> pixel{};
         const auto pixelSize = texture.GetRowBytes() / texture.GetWidth();
         if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float) std::memcpy(pixel.data(), colors[colorIndex].data(), pixelSize);
+        else if (format == TextureFormat::Rgba16Float)
+        {
+            const std::array<std::array<std::uint16_t, 4>, 4> halfColors{{{0, 0, 0, 0}, {0x3c00, 0x3c00, 0x3c00, 0x3c00}, {0x3800, 0x3400, 0x3a00, 0x3c00}, {0xbc00, 0x4000, 0x1a69, 0x3800}}};
+            std::memcpy(pixel.data(), halfColors[colorIndex].data(), pixelSize);
+        }
         else
         {
             const bool srgb = format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
@@ -50,6 +80,6 @@ int main()
             if (bytes[index] != pixel[index % pixelSize]) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }
     }
-    std::cout << "Color clears verified for eight formats and 96 cases\n";
+    std::cout << "Color clears verified for nine formats and 108 cases\n";
     return 0;
 }

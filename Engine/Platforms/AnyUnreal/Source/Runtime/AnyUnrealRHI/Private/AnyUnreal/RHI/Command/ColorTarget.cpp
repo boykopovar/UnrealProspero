@@ -18,6 +18,7 @@ namespace AnyUnreal::RHI
             case TextureFormat::Bgra8Unorm: return (10 << 2) | (1 << 11) | (1 << 15) | (1 << 17);
             case TextureFormat::Bgra8Srgb: return (10 << 2) | (6 << 8) | (1 << 11) | (1 << 15) | (1 << 17);
             case TextureFormat::R32Float: return (4 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
+            case TextureFormat::Rgba16Float: return (12 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::Rgba32Float: return (14 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             default: throw std::invalid_argument("Unknown color target format");
             }

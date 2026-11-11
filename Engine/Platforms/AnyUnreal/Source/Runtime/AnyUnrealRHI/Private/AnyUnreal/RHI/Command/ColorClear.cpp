@@ -2,6 +2,7 @@
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "prx/libSceAgc/DcbFlow/include/Memory.hpp"
+#include "AnyUnreal/RHI/Memory/HalfFloat.h"
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -25,6 +26,14 @@ namespace AnyUnreal::RHI
             if (format == TextureFormat::Rgba32Float)
             {
                 for (std::size_t index = 0; index < result.size(); ++index) result[index] = std::bit_cast<std::uint32_t>(color[index]);
+                return result;
+            }
+            if (format == TextureFormat::Rgba16Float)
+            {
+                result[0] = EncodeHalfFloat(color[0]) | (static_cast<std::uint32_t>(EncodeHalfFloat(color[1])) << 16);
+                result[1] = EncodeHalfFloat(color[2]) | (static_cast<std::uint32_t>(EncodeHalfFloat(color[3])) << 16);
+                result[2] = result[0];
+                result[3] = result[1];
                 return result;
             }
             std::uint32_t word;

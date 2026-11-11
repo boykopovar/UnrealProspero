@@ -81,7 +81,7 @@ int main()
     for (const auto indirect : {false, true})
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
     for (const auto dimensions : {std::array{64u, 64u}, std::array{67u, 39u}, std::array{13u, 7u}, std::array{259u, 137u}})
     {
         const auto width = dimensions[0];
@@ -284,6 +284,7 @@ int main()
         case TextureFormat::Bgra8Srgb: color[0] = 225; color[1] = 137; color[2] = 188; color[3] = 255; break;
         case TextureFormat::R32Float:
         case TextureFormat::Rgba32Float: break;
+        case TextureFormat::Rgba16Float: color = {0, 0x38, 0, 0x34, 0, 0x3a, 0, 0x3c}; break;
         }
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
 #if ANYUNREAL_TEST_DEPTH
@@ -313,7 +314,7 @@ int main()
                 {
                     const auto expected = inside ? color[component] : 0;
                     const auto actual = pixels[y * targetTexture.GetRowPitch() + x * pixelBytes + component];
-                    if (std::abs(static_cast<int>(actual) - expected) > (inside ? 1 : 0)) throw std::runtime_error("Graphics pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + ": " + std::to_string(actual) + " " + caseName);
+                    if (std::abs(static_cast<int>(actual) - expected) > (inside && format != TextureFormat::Rgba16Float ? 1 : 0)) throw std::runtime_error("Graphics pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + ": " + std::to_string(actual) + " " + caseName);
                 }
             }
         }
