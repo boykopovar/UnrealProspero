@@ -197,17 +197,40 @@ namespace AnyUnreal::RHI
         return {storage, &allocation};
     }
 
-    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t firstLayer, std::uint32_t layerCount, bool arrayView) const
+    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t firstLayer, std::uint32_t layerCount, FRHIViewDesc::EDimension viewDimension) const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
-        const auto availableLayers = GetDesc().IsTextureCube() && arrayView ? storage->GetArrayLayers() : GetDesc().ArraySize;
+        using Dimension = FRHIViewDesc::EDimension;
+        if (viewDimension == Dimension::Unknown)
+        {
+            switch (GetDesc().Dimension)
+            {
+            case ETextureDimension::Texture2D: viewDimension = Dimension::Texture2D; break;
+            case ETextureDimension::Texture2DArray: viewDimension = Dimension::Texture2DArray; break;
+            case ETextureDimension::TextureCube: viewDimension = Dimension::TextureCube; break;
+            case ETextureDimension::TextureCubeArray: viewDimension = Dimension::TextureCubeArray; break;
+            case ETextureDimension::Texture3D: viewDimension = Dimension::Texture3D; break;
+            default: throw std::invalid_argument("Texture dimension is not supported");
+            }
+        }
+        const bool cubeView = viewDimension == Dimension::TextureCube || viewDimension == Dimension::TextureCubeArray;
+        const auto availableLayers = storage && !cubeView ? storage->GetArrayLayers() : GetDesc().ArraySize;
         if (firstLayer >= availableLayers || layerCount > availableLayers - firstLayer) throw std::out_of_range("Texture view exceeds its array layers");
-        if (GetDesc().IsTextureCube() && !arrayView) return storage->CreateCubeViewDescriptor(disableSrgb, firstLayer, layerCount == 0 ? availableLayers - firstLayer : layerCount, firstMip, mipCount);
-        if (GetDesc().Dimension == ETextureDimension::Texture2DArray || (GetDesc().IsTextureCube() && arrayView)) return storage->CreateArrayViewDescriptor(disableSrgb, firstLayer, layerCount == 0 ? storage->GetArrayLayers() - firstLayer : layerCount, firstMip, mipCount);
+        if (cubeView)
+        {
+            if (!GetDesc().IsTextureCube()) throw std::invalid_argument("Cube view requires cube storage");
+            return storage->CreateCubeViewDescriptor(disableSrgb, firstLayer, layerCount == 0 ? availableLayers - firstLayer : layerCount, firstMip, mipCount);
+        }
+        if (viewDimension == Dimension::Texture2DArray)
+        {
+            if (!storage) throw std::invalid_argument("Array view requires linear color storage");
+            return storage->CreateArrayViewDescriptor(disableSrgb, firstLayer, layerCount == 0 ? availableLayers - firstLayer : layerCount, firstMip, mipCount);
+        }
+        if (viewDimension == Dimension::Texture2D && (layerCount == 0 ? GetDesc().ArraySize : layerCount) != 1) throw std::invalid_argument("2D view must select exactly one layer");
         if (depthStorage && (firstMip != 0 || mipCount > 1)) throw std::out_of_range("Texture view exceeds the available mip range");
         if (depthStorage) return depthStorage->GetDescriptor();
         if (volumeStorage) return volumeStorage->CreateViewDescriptor(disableSrgb, firstMip, mipCount);
-        return storage->CreateViewDescriptor(disableSrgb, firstMip, mipCount);
+        return storage->CreateViewDescriptor(disableSrgb, firstMip, mipCount, firstLayer);
     }
 
     std::vector<std::span<std::byte>> TextureResource::GetMipRanges(std::uint32_t mipLevel, std::uint32_t firstLayer, std::uint32_t layerCount) const
