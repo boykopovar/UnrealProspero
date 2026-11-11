@@ -2,6 +2,7 @@
 #define ANYUNREAL_RHI_MEMORY_BUFFER_ALLOCATION_H
 
 #include "AnyUnreal/Kernel/DirectAllocation.h"
+#include <span>
 
 namespace AnyUnreal::RHI
 {
@@ -13,6 +14,8 @@ namespace AnyUnreal::RHI
         BufferAllocation& operator=(const BufferAllocation&) = delete;
         void* Data() const;
         std::size_t Size() const;
+        std::span<std::byte> GetRange(std::size_t offset, std::size_t length) const;
+        void Upload(std::size_t offset, std::span<const std::byte> source);
 
     private:
         Kernel::DirectAllocation allocation;

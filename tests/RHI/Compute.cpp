@@ -95,6 +95,14 @@ int main()
     RHI::BufferAllocation secondMemory(16384, layout.GetAddressHigh());
     if (secondMemory.Data() == memory.Data()) throw std::runtime_error("GPU allocations overlap");
     checkDescriptorTables(layout.GetAddressHigh(), secondMemory.Data());
+    const std::array<std::byte, 4> tail{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
+    secondMemory.Upload(secondMemory.Size() - tail.size(), tail);
+    const auto storedTail = secondMemory.GetRange(secondMemory.Size() - tail.size(), tail.size());
+    if (!std::equal(tail.begin(), tail.end(), storedTail.begin())) throw std::runtime_error("Buffer tail upload failed");
+    bool rangeRejected = false;
+    try { secondMemory.Upload(secondMemory.Size() - 3, tail); }
+    catch (const std::out_of_range&) { rangeRejected = true; }
+    if (!rangeRejected || !std::equal(tail.begin(), tail.end(), storedTail.begin())) throw std::runtime_error("Out-of-range upload modified the buffer");
     auto* base = static_cast<std::byte*>(memory.Data());
     auto* fence = std::construct_at(reinterpret_cast<std::uint64_t*>(base + 64), 0);
     auto* output = reinterpret_cast<std::uint32_t*>(base + 256);
@@ -114,11 +122,13 @@ int main()
     descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 2; ++iteration)
     {
-        for (unsigned index = 0; index < 64; ++index)
+        std::array<std::uint32_t, 64> values{};
+        for (unsigned index = 0; index < values.size(); ++index)
         {
             output[index] = 0xffffffff;
-            input[index] = index + static_cast<std::uint32_t>(iteration * 7);
+            values[index] = index + static_cast<std::uint32_t>(iteration * 7);
         }
+        secondMemory.Upload(0, std::as_bytes(std::span(values)));
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);

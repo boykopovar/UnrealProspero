@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include <limits>
+#include <cstring>
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -25,6 +26,18 @@ namespace AnyUnreal::RHI
     {
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());
         if ((address >> 32) != addressHigh || ((address + allocation.Size() - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
+    }
+
+    std::span<std::byte> BufferAllocation::GetRange(std::size_t offset, std::size_t length) const
+    {
+        if (length == 0 || offset > size || length > size - offset) throw std::out_of_range("GPU buffer range exceeds its allocation");
+        return {static_cast<std::byte*>(allocation.Data()) + offset, length};
+    }
+
+    void BufferAllocation::Upload(std::size_t offset, std::span<const std::byte> source)
+    {
+        const auto destination = GetRange(offset, source.size());
+        std::memmove(destination.data(), source.data(), source.size());
     }
 
     void* BufferAllocation::Data() const { return allocation.Data(); }
