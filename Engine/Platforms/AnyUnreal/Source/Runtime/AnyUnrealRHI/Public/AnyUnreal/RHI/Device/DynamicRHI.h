@@ -32,6 +32,7 @@ namespace AnyUnreal::RHI
         void RHIUnlockStagingBuffer(FRHIStagingBuffer* buffer) override;
         void* RHILockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer, uint32 offset, uint32 size, EResourceLockMode mode) override;
         void RHIUnlockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer) override;
+        FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& initializer) override;
         FRasterizerStateRHIRef RHICreateRasterizerState(const FRasterizerStateInitializerRHI& initializer) override;
         FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& initializer) override;
         FRHITextureInitializer RHICreateTextureInitializer(FRHICommandListBase& commandList, const FRHITextureCreateDesc& description) override;
