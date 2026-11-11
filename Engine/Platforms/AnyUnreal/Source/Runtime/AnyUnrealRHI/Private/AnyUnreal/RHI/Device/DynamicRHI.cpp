@@ -18,6 +18,7 @@
 #include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
+#include <limits>
 
 namespace AnyUnreal::RHI
 {
@@ -25,6 +26,13 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)
+    {
+        const auto size = ResolveTextureResource(texture).GetAllocationSize();
+        if (size > std::numeric_limits<uint32>::max()) throw std::overflow_error("Texture allocation exceeds the RHI memory-size range");
+        return static_cast<uint32>(size);
     }
 
     FGraphicsPipelineStateRHIRef DynamicRHI::RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& initializer)

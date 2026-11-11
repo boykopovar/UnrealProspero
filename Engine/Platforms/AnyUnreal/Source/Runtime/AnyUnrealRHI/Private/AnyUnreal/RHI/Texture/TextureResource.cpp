@@ -70,6 +70,8 @@ namespace AnyUnreal::RHI
         }
     }
 
+    std::size_t TextureResource::GetAllocationSize() const { return storage->GetStorage().AllocationSize(); }
+
     std::shared_ptr<const LinearTexture2D> TextureResource::Capture() const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");

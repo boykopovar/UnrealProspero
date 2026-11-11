@@ -14,6 +14,7 @@ namespace AnyUnreal::RHI
         BufferAllocation& operator=(const BufferAllocation&) = delete;
         void* Data() const;
         std::size_t Size() const;
+        std::size_t AllocationSize() const;
         std::span<std::byte> GetRange(std::size_t offset, std::size_t length) const;
         void Upload(std::size_t offset, std::span<const std::byte> source);
 

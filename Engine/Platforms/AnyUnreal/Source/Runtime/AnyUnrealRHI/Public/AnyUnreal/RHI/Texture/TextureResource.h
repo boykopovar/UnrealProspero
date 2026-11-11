@@ -12,6 +12,7 @@ namespace AnyUnreal::RHI
     public:
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         std::shared_ptr<const LinearTexture2D> Capture() const;
+        std::size_t GetAllocationSize() const;
 
     private:
         friend class TextureInitializer;

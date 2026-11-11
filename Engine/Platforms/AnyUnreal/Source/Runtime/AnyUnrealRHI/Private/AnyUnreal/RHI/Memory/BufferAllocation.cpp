@@ -42,4 +42,5 @@ namespace AnyUnreal::RHI
 
     void* BufferAllocation::Data() const { return allocation.Data(); }
     std::size_t BufferAllocation::Size() const { return size; }
+    std::size_t BufferAllocation::AllocationSize() const { return allocation.Size(); }
 }

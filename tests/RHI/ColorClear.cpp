@@ -22,7 +22,9 @@ int main()
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
         LinearTexture2D texture(dimensions[0], dimensions[1], format, 2);
-        const auto bytes = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
+        const auto& allocation = texture.GetStorage();
+        if (allocation.AllocationSize() < allocation.Size() || allocation.AllocationSize() % 16384 != 0 || allocation.AllocationSize() - allocation.Size() >= 16384) throw std::runtime_error("Texture allocation size does not match kernel pages");
+        const auto bytes = allocation.GetRange(0, allocation.Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xa5});
         std::array<std::byte, 16> pixel{};
         const auto pixelSize = texture.GetRowBytes() / texture.GetWidth();
