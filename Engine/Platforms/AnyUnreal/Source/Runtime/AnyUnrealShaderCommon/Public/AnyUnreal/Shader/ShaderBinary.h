@@ -19,7 +19,8 @@ namespace AnyUnreal::Shader
     {
         Vertex,
         Pixel,
-        Compute
+        Compute,
+        Geometry
     };
 
     enum class ResourceKind : std::uint32_t

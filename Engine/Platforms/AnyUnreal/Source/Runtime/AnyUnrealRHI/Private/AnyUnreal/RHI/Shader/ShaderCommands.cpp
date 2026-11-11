@@ -11,6 +11,7 @@ namespace AnyUnreal::RHI
         switch (layout.GetStage())
         {
             case Shader::ShaderStage::Vertex:
+            case Shader::ShaderStage::Geometry:
                 if (native.type != 2) throw std::invalid_argument("Vertex shader binding has the wrong AGC stage");
                 base = 0x8c;
                 break;

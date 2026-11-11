@@ -67,7 +67,9 @@ namespace AnyUnreal::Shader
     {
         const Fields fields(metadata);
         const auto sourceStage = fields.Get("source_stage");
-        if (!((stage == ShaderStage::Vertex && sourceStage == 1) || (stage == ShaderStage::Pixel && sourceStage == 5) || (stage == ShaderStage::Compute && sourceStage == 6))) throw std::invalid_argument("AGC binding metadata has the wrong shader stage");
+        if (!((stage == ShaderStage::Vertex && sourceStage == 1) || (stage == ShaderStage::Pixel && sourceStage == 5) || (stage == ShaderStage::Compute && sourceStage == 6) || (stage == ShaderStage::Geometry && sourceStage == 4))) throw std::invalid_argument("AGC binding metadata has the wrong shader stage");
+        const bool vertexInput = stage == ShaderStage::Vertex || stage == ShaderStage::Geometry;
+        if (stage == ShaderStage::Geometry && (!fields.Flag("merged_geometry") || fields.Get("merged_es_source_stage") != 1 || !fields.Flag("esgs_system_sgprs_valid") || fields.Get("merged_es_itemsize") == 0 || fields.Get("merged_esgs_ring_itemsize") == 0)) throw std::invalid_argument("Geometry program does not contain its vertex export stage");
         UserDataLayout result;
         result.stage = stage;
         result.count = fields.Get("user_sgpr_count");
@@ -77,8 +79,8 @@ namespace AnyUnreal::Shader
         result.vertexBuffersPerAttribute = fields.Flag("vertex_buffer_per_attribute");
         result.dynamicVertexInput = fields.Flag("dynamic_vertex_input");
         const auto hasVertexBuffers = fields.Flag("vertex_buffer_table_valid");
-        if (hasVertexBuffers != (result.vertexBufferUsageMask != 0) || (!hasVertexBuffers && result.vertexBuffersPerAttribute) || (hasVertexBuffers && stage != ShaderStage::Vertex)) throw std::invalid_argument("Invalid AGC vertex buffer table metadata");
-        if (result.dynamicVertexInput && (!result.vertexBuffersPerAttribute || stage != ShaderStage::Vertex)) throw std::invalid_argument("Invalid dynamic vertex input metadata");
+        if (hasVertexBuffers != (result.vertexBufferUsageMask != 0) || (!hasVertexBuffers && result.vertexBuffersPerAttribute) || (hasVertexBuffers && !vertexInput)) throw std::invalid_argument("Invalid AGC vertex buffer table metadata");
+        if (result.dynamicVertexInput && (!result.vertexBuffersPerAttribute || !vertexInput)) throw std::invalid_argument("Invalid dynamic vertex input metadata");
         const auto descriptorStride = hasVertexBuffers ? (result.dynamicVertexInput ? 32u : 16u) : 0u;
         if (fields.Get("vertex_buffer_descriptor_stride") != descriptorStride) throw std::invalid_argument("Invalid vertex buffer descriptor stride");
         if (result.count > 16) throw std::invalid_argument("AGC user data exceeds register capacity");

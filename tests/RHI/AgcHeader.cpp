@@ -49,7 +49,7 @@ namespace
             if (registers.at(expected.offset) != expected.value) throw std::runtime_error("AGC program register was not written");
         }
         using AnyUnreal::Shader::ShaderStage;
-        const auto base = layout.GetStage() == ShaderStage::Compute ? 0x240u : layout.GetStage() == ShaderStage::Vertex ? 0x8cu : 0xcu;
+        const auto base = layout.GetStage() == ShaderStage::Compute ? 0x240u : (layout.GetStage() == ShaderStage::Vertex || layout.GetStage() == ShaderStage::Geometry) ? 0x8cu : 0xcu;
         const auto expected = layout.Build(inputs);
         for (unsigned index = 0; index < layout.GetCount(); ++index)
         {
@@ -96,6 +96,7 @@ int RunChecks(int argc, const char* const* argv)
     if (name == "vertex") stage = ShaderStage::Vertex;
     else if (name == "fragment") stage = ShaderStage::Pixel;
     else if (name == "compute") stage = ShaderStage::Compute;
+    else if (name == "geometry") stage = ShaderStage::Geometry;
     else throw std::invalid_argument("Unknown shader stage");
     const auto metadata = read(argv[4]);
     const auto layout = AnyUnreal::Shader::UserDataLayout::Read(metadata, stage);
@@ -139,6 +140,14 @@ int RunChecks(int argc, const char* const* argv)
         rejectField("vertex_buffer_usage_mask", "1");
         rejectField("vertex_buffer_per_attribute", "1");
     }
+    if (stage == ShaderStage::Geometry)
+    {
+        rejectField("merged_geometry", "0");
+        rejectField("merged_es_source_stage", "0");
+        rejectField("esgs_system_sgprs_valid", "0");
+        rejectField("merged_es_itemsize", "0");
+        rejectField("merged_esgs_ring_itemsize", "0");
+    }
     if (stage == ShaderStage::Vertex) rejectField("ngg_lds_layout_user_data_dword", "0");
     if (stage == ShaderStage::Compute)
     {
@@ -171,7 +180,7 @@ int RunChecks(int argc, const char* const* argv)
     checkCommands(shader, layout, inputs);
     if (argc == 8)
     {
-        if (stage != ShaderStage::Vertex) throw std::invalid_argument("Graphics link check requires a vertex shader");
+        if (stage != ShaderStage::Vertex && stage != ShaderStage::Geometry) throw std::invalid_argument("Graphics link check requires a vertex shader");
         const auto pixelHeader = read(argv[5]);
         const auto pixelCode = read(argv[6]);
         const auto pixelMetadata = read(argv[7]);

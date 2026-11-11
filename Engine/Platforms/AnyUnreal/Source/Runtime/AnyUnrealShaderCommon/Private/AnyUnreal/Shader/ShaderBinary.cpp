@@ -53,7 +53,7 @@ namespace AnyUnreal::Shader
 
         void validate(const ShaderBinaryView& shader)
         {
-            if (shader.Stage > ShaderStage::Compute || shader.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader stage or target");
+            if (shader.Stage > ShaderStage::Geometry || shader.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader stage or target");
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
             ValidateRuntimeBindings(shader.Bindings);
         }

@@ -50,7 +50,7 @@ namespace AnyUnreal::RHI
         if (reader.Read<std::uint64_t>(offsetof(::Shader, code)) != 0) throw std::invalid_argument("AGC header has already been relocated");
         if (reader.Read<std::uint32_t>(offsetof(::Shader, target)) != 5) throw std::invalid_argument("Unsupported AGC hardware target");
         const auto type = reader.Read<std::uint8_t>(offsetof(::Shader, type));
-        const bool validStage = (stage == Shader::ShaderStage::Vertex && type == 2) || (stage == Shader::ShaderStage::Pixel && type == 1) || (stage == Shader::ShaderStage::Compute && type == 0);
+        const bool validStage = ((stage == Shader::ShaderStage::Vertex || stage == Shader::ShaderStage::Geometry) && type == 2) || (stage == Shader::ShaderStage::Pixel && type == 1) || (stage == Shader::ShaderStage::Compute && type == 0);
         if (!validStage) throw std::invalid_argument("AGC shader stage does not match its binary envelope");
         const auto shaderRegisters = reader.Read<std::uint8_t>(offsetof(::Shader, num_sh_registers));
         if (shaderRegisters == 0) throw std::invalid_argument("AGC shader has no program registers");
