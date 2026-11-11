@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Device/ShaderPlatform.h"
 #include "AnyUnreal/RHI/Shader/GeometryShader.h"
 #include "AnyUnreal/Video/Output.h"
 #include "AnyUnreal/RHI/Presentation/ViewportResource.h"
@@ -95,7 +96,9 @@ namespace AnyUnreal::RHI
     void DynamicRHI::Init()
     {
         if (initialized || shutDown) throw std::runtime_error("RHI initialization requires a new device");
+        const auto platform = ResolveShaderPlatform(target);
         Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+        ConfigureShaderPlatform(platform);
         ConfigureTransitionStorage();
         initialized = true;
     }
