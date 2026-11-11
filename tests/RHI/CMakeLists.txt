@@ -111,6 +111,14 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     target_include_directories(SwapChainCheck PRIVATE "${runtime_root}/ApplicationCore/Public")
     adk_link_libraries(SwapChainCheck libc libkernel libSceAgc libSceAgcDriver libSceVideoOut)
+    adk_add_executable(DrawArgumentsCheck DrawArguments.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    adk_link_libraries(DrawArgumentsCheck libc libkernel libSceAgc libSceAgcDriver)
+    list(APPEND test_targets DrawArgumentsCheck)
     adk_add_executable(MemoryAccountingCheck MemoryAccounting.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"

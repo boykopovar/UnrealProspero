@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--check", type=Path, required=True)
     parser.add_argument("--compute-check", type=Path)
     parser.add_argument("--graphics-check", type=Path)
+    parser.add_argument("--draw-arguments-check", type=Path)
     parser.add_argument("--shaders", type=Path, required=True)
     parser.add_argument("--pipelines", type=Path)
     parser.add_argument("--target", choices=("windows", "linux", "ps5"))
@@ -27,6 +28,7 @@ def main():
         parser.error("GPU execution checks require a native --target windows or linux")
     compute = options.compute_check.resolve(strict=True) if options.compute_check else None
     graphics = options.graphics_check.resolve(strict=True) if options.graphics_check else None
+    draw_arguments = options.draw_arguments_check.resolve(strict=True) if options.draw_arguments_check else None
     executable = options.check.resolve(strict=True)
     shaders = options.shaders.resolve(strict=True)
     pipelines = options.pipelines.resolve(strict=True) if options.pipelines else None
@@ -46,17 +48,23 @@ def main():
                 metadata = header.with_name("bindings.adk").resolve(strict=True)
                 run_check(executable, (header, code, stage, metadata), environment, f"{target}/{header.parent.name}", log, options.log)
                 count += 1
+                if draw_arguments and stage == "vertex":
+                    run_check(draw_arguments, (metadata, stage), environment, f"{target}/{header.parent.name}/draw-arguments", log, options.log)
+                    count += 1
             if graphics:
                 arguments = [(shaders / target / name / file).resolve(strict=True) for name in ("VertexStreams.vert.hlsl", "Color.frag.hlsl") for file in ("header.bin", "code.bin", "bindings.adk")]
                 run_check(graphics, arguments, environment, f"{target}/draw/VertexStreams.vert.hlsl", log, options.log)
                 count += 1
             if pipelines:
-                for name in ("geometry", "geometry-streams"):
+                for name in ("geometry", "geometry-streams", "geometry-dynamic", "geometry-resources"):
                     directory = pipelines / (target + "-" + name)
                     header, code, metadata = [(directory / ("geometry." + extension)).resolve(strict=True) for extension in ("header", "code", "adk")]
                     pixel = [(shaders / target / "Color.frag.hlsl" / file).resolve(strict=True) for file in ("header.bin", "code.bin", "bindings.adk")]
                     run_check(executable, (header, code, "geometry", metadata, *pixel), environment, f"{target}/{name}/link", log, options.log)
                     count += 1
+                    if draw_arguments:
+                        run_check(draw_arguments, (metadata, "geometry"), environment, f"{target}/{name}/draw-arguments", log, options.log)
+                        count += 1
                     if graphics and name == "geometry-streams":
                         run_check(graphics, (header, code, metadata, *pixel, "geometry"), environment, f"{target}/{name}/draw", log, options.log)
                         count += 1
