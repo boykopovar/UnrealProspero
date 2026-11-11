@@ -395,13 +395,20 @@ namespace AnyUnreal::RHI
         return new GraphicsContext(65536, addressHigh);
     }
 
+    IRHICommandContext* DynamicRHI::RHIGetDefaultContext()
+    {
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        if (!defaultContext) defaultContext = std::make_unique<GraphicsContext>(65536, addressHigh);
+        return static_cast<GraphicsContext*>(defaultContext.get());
+    }
+
     FDynamicRHI::FRHIFinalizeContextsResult DynamicRHI::RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args)
     {
         if (args.UploadContext || args.Contexts[ERHIPipeline::AsyncCompute]) throw std::runtime_error("Upload and async compute context finalization is not implemented");
         FRHIFinalizeContextsResult result;
         if (auto* context = args.Contexts[ERHIPipeline::Graphics])
         {
-            auto owned = std::unique_ptr<ComputeContext>(static_cast<ComputeContext*>(context));
+            auto owned = context == defaultContext.get() ? std::move(defaultContext) : std::unique_ptr<ComputeContext>(static_cast<ComputeContext*>(context));
             result.CommandLists[ERHIPipeline::Graphics] = std::make_unique<CommandList>(std::move(owned)).release();
         }
         return result;

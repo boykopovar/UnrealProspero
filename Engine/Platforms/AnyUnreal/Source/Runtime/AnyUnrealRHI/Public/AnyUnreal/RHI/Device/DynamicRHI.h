@@ -40,6 +40,7 @@ namespace AnyUnreal::RHI
         void RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info) override;
         void RHIReleaseTransition(FRHITransition* transition) override;
         IRHIComputeContext* RHIGetCommandContext(ERHIPipeline pipeline) override;
+        IRHICommandContext* RHIGetDefaultContext() override;
         FRHIFinalizeContextsResult RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args) override;
         void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
         void RHIProcessDeleteQueue() override;
@@ -66,6 +67,7 @@ namespace AnyUnreal::RHI
         Shader::AgcTarget target;
         std::uint32_t addressHigh;
         std::vector<std::unique_ptr<CommandList>> pendingCommandLists;
+        std::unique_ptr<ComputeContext> defaultContext;
         bool submissionFailed = false;
     };
 }
