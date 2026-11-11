@@ -4,7 +4,7 @@
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
-#include "AnyUnreal/RHI/Transition/BufferTransition.h"
+#include "AnyUnreal/RHI/Transition/ResourceTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
@@ -137,13 +137,13 @@ namespace AnyUnreal::RHI
     {
         if (!transition) throw std::invalid_argument("Transition storage is null");
         if (GRHITransitionPrivateData_SizeInBytes != sizeof(TransitionData) || GRHITransitionPrivateData_AlignInBytes != alignof(TransitionData)) throw std::runtime_error("Transition storage is not configured");
-        InitializeBufferTransition(*transition, info, addressHigh);
+        InitializeResourceTransition(*transition, info, addressHigh);
     }
 
     void DynamicRHI::RHIReleaseTransition(FRHITransition* transition)
     {
         if (!transition) throw std::invalid_argument("Transition storage is null");
-        DestroyBufferTransition(*transition);
+        DestroyResourceTransition(*transition);
     }
 
     void DynamicRHI::RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args)

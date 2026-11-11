@@ -1,5 +1,5 @@
-#ifndef ANYUNREAL_RHI_BUFFER_TRANSITION_H
-#define ANYUNREAL_RHI_BUFFER_TRANSITION_H
+#ifndef ANYUNREAL_RHI_RESOURCE_TRANSITION_H
+#define ANYUNREAL_RHI_RESOURCE_TRANSITION_H
 
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "RHIResources.h"
@@ -8,10 +8,10 @@
 
 namespace AnyUnreal::RHI
 {
-    class ANYUNREALRHI_API BufferTransition final
+    class ANYUNREALRHI_API ResourceTransition final
     {
     public:
-        BufferTransition(const FRHITransitionCreateInfo& info, std::uint32_t addressHigh);
+        ResourceTransition(const FRHITransitionCreateInfo& info, std::uint32_t addressHigh);
         void Begin(CommandBuffer& commands, ERHIPipeline pipeline);
         void End(CommandBuffer& commands, ERHIPipeline pipeline);
 
@@ -24,11 +24,11 @@ namespace AnyUnreal::RHI
 
     struct TransitionData
     {
-        std::shared_ptr<BufferTransition> State;
+        std::shared_ptr<ResourceTransition> State;
     };
 
-    ANYUNREALRHI_API void InitializeBufferTransition(FRHITransition& transition, const FRHITransitionCreateInfo& info, std::uint32_t addressHigh);
-    ANYUNREALRHI_API void DestroyBufferTransition(FRHITransition& transition);
+    ANYUNREALRHI_API void InitializeResourceTransition(FRHITransition& transition, const FRHITransitionCreateInfo& info, std::uint32_t addressHigh);
+    ANYUNREALRHI_API void DestroyResourceTransition(FRHITransition& transition);
 }
 
 #endif
