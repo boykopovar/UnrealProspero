@@ -211,6 +211,15 @@ int main()
 
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    const auto initialTextureBytes = BufferAllocation::GetTextureAllocationBytes();
+    const auto initialNonStreamingBytes = BufferAllocation::GetNonStreamingTextureAllocationBytes();
+    {
+        LinearTexture2D streaming(67, 19, TextureFormat::Rgba8Unorm, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::StreamingTexture);
+        if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Streaming texture allocation entered the non-streaming budget");
+        LinearTexture2D regular(7, 5, TextureFormat::Rgba8Unorm, 2);
+        if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() + regular.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes + regular.GetStorage().AllocationSize()) throw std::runtime_error("Non-streaming texture allocation budget is incorrect");
+    }
+    if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
     CheckMipCopies();
     CheckVolumeCopies();
     CheckVolumeUploads();

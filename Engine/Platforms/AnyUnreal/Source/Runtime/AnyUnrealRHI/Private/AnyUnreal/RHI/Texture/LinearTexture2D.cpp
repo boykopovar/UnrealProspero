@@ -81,8 +81,9 @@ namespace AnyUnreal::RHI
         return levels[firstMip].Offset + levels[firstMip].Size;
     }
 
-    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), storage(mipLayouts.front().Offset + mipLayouts.front().Size, addressHigh, alignment, AllocationUsage::Texture)
+    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), storage(mipLayouts.front().Offset + mipLayouts.front().Size, addressHigh, alignment, usage)
     {
+        if (usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Texture requires texture allocation usage");
         descriptor = CreateDescriptor(width, height, format, storage.Data(), false, mipCount);
     }
 

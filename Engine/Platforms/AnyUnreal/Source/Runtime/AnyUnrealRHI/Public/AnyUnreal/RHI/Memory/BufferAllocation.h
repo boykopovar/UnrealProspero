@@ -9,13 +9,15 @@ namespace AnyUnreal::RHI
     enum class AllocationUsage
     {
         Buffer,
-        Texture
+        Texture,
+        StreamingTexture
     };
 
     class ANYUNREALRHI_API BufferAllocation final
     {
     public:
         static std::uint64_t GetTextureAllocationBytes();
+        static std::uint64_t GetNonStreamingTextureAllocationBytes();
         static std::size_t CalculateAllocationSize(std::size_t size);
         BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, AllocationUsage usage = AllocationUsage::Buffer);
         ~BufferAllocation() noexcept(false);
