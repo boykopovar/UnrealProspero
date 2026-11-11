@@ -4,6 +4,7 @@
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
+#include "AnyUnreal/RHI/Command/CommandList.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -81,5 +82,17 @@ namespace AnyUnreal::RHI
     {
         if (!transition) throw std::invalid_argument("Transition storage is null");
         DestroyBufferTransition(*transition);
+    }
+
+    FDynamicRHI::FRHIFinalizeContextsResult DynamicRHI::RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args)
+    {
+        if (args.UploadContext || args.Contexts[ERHIPipeline::AsyncCompute]) throw std::runtime_error("Upload and async compute context finalization is not implemented");
+        FRHIFinalizeContextsResult result;
+        if (auto* context = args.Contexts[ERHIPipeline::Graphics])
+        {
+            auto owned = std::unique_ptr<ComputeContext>(static_cast<ComputeContext*>(context));
+            result.CommandLists[ERHIPipeline::Graphics] = std::make_unique<CommandList>(std::move(owned)).release();
+        }
+        return result;
     }
 }

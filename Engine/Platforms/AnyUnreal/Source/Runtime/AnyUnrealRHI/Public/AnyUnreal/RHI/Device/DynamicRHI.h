@@ -20,6 +20,7 @@ namespace AnyUnreal::RHI
         FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHICommandListBase& commandList, FRHIViewableResource* resource, const FRHIViewDesc& description) override;
         void RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info) override;
         void RHIReleaseTransition(FRHITransition* transition) override;
+        FRHIFinalizeContextsResult RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args) override;
 
     protected:
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);

@@ -6,12 +6,14 @@
 #include "RHIContext.h"
 #include "AnyUnreal/RHI/Buffer/StaticUniformBuffers.h"
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
+#include "AnyUnreal/RHI/Command/CommandStorage.h"
 
 namespace AnyUnreal::RHI
 {
-    class ANYUNREALRHI_API ComputeContext : public IRHIComputeContext
+    class ANYUNREALRHI_API ComputeContext : public IRHICommandContext
     {
     public:
+        using IRHICommandContext::RHISetShaderParameters;
         ERHIPipeline GetPipeline() const override { return ERHIPipeline::Graphics; }
         void RHIBeginTransitions(TArrayView<const FRHITransition*> transitions) override;
         void RHIEndTransitions(TArrayView<const FRHITransition*> transitions) override;
@@ -25,9 +27,11 @@ namespace AnyUnreal::RHI
         void RHISetStaticUniformBuffer(FUniformBufferStaticSlot slot, FRHIUniformBuffer* uniformBuffer) override;
 
     protected:
-        explicit ComputeContext(CommandBuffer& commands);
+        ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
 
     private:
+        friend class CommandList;
+        Packet finalize();
         struct Dispatch
         {
             TRefCountPtr<ComputePipeline> pipeline;
@@ -39,6 +43,7 @@ namespace AnyUnreal::RHI
         void recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin);
         void clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
+        CommandStorage commandStorage;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ComputeParameters> parameters;
@@ -47,6 +52,7 @@ namespace AnyUnreal::RHI
         std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
         std::vector<std::shared_ptr<BufferTransition>> retainedTransitions;
         bool failed = false;
+        bool finalized = false;
     };
 }
 

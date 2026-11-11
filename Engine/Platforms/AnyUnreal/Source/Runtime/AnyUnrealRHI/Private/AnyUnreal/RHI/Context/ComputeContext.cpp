@@ -2,13 +2,24 @@
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "prx/libSceAgc/DcbState/include/ContextState.hpp"
 #include <bit>
 #include <stdexcept>
 #include <utility>
 
 namespace AnyUnreal::RHI
 {
-    ComputeContext::ComputeContext(CommandBuffer& commands) : commands(commands) {}
+    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), commands(commandStorage.Get())
+    {
+        sceAgcDcbContextStateOp(&commands, 0);
+    }
+
+    Packet ComputeContext::finalize()
+    {
+        requireWritable();
+        finalized = true;
+        return {commands.bottom, static_cast<std::uint32_t>(commands.cursor_up - commands.bottom), 0, {}};
+    }
 
     void ComputeContext::recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin)
     {
@@ -73,6 +84,7 @@ namespace AnyUnreal::RHI
     void ComputeContext::requireWritable() const
     {
         if (failed) throw std::runtime_error("Compute context contains a failed command");
+        if (finalized) throw std::runtime_error("Compute context is finalized");
     }
 
     void ComputeContext::RHISetComputePipelineState(FRHIComputePipelineState* pipelineState)
