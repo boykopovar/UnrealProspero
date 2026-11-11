@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Presentation/ViewportResource.h"
 #include "Misc/ScopeLock.h"
+#include "AnyUnreal/Windowing/Window.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -17,7 +18,11 @@ namespace AnyUnreal::RHI
     ViewportResource::ViewportResource(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh) : windowHandle(windowHandle), target(target), format(format == PF_Unknown ? PF_B8G8R8A8 : format)
     {
         validateMode(fullscreen);
-        chain = std::make_unique<SwapChain>(width, height, storageFormat(this->format), addressHigh);
+        if (!windowHandle) throw std::invalid_argument("Viewport requires an initialized game window");
+        auto& window = *static_cast<Windowing::Window*>(windowHandle);
+        auto output = window.GetOutput();
+        visible = window.CaptureVisibility();
+        chain = std::make_unique<SwapChain>(std::move(output), width, height, storageFormat(this->format), addressHigh);
     }
 
     void ViewportResource::validateMode(bool fullscreen) const
@@ -68,7 +73,7 @@ namespace AnyUnreal::RHI
     void ViewportResource::EndFrame(const FRHIPresentArgs& arguments)
     {
         FScopeLock lock(&mutex);
-        if (!arguments.bPresent)
+        if (!arguments.bPresent || !visible->load(std::memory_order_acquire))
         {
             chain->Discard();
             return;

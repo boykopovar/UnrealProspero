@@ -4,6 +4,7 @@
 #include "AnyUnreal/RHI/Presentation/SwapChain.h"
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include "AnyUnreal/Shader/ShaderBinary.h"
+#include <atomic>
 
 namespace AnyUnreal::RHI
 {
@@ -23,6 +24,7 @@ namespace AnyUnreal::RHI
         void validateMode(bool fullscreen) const;
         FTextureRHIRef acquireBackBuffer();
         void* windowHandle;
+        std::shared_ptr<const std::atomic<bool>> visible;
         Shader::AgcTarget target;
         EPixelFormat format;
         std::unique_ptr<SwapChain> chain;
