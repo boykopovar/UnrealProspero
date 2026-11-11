@@ -21,6 +21,9 @@ namespace AnyUnreal::RHI
         std::array<EPixelFormat, MaxSimultaneousRenderTargets> formats{};
         std::array<bool, MaxSimultaneousRenderTargets> srgb{};
         std::array<std::optional<std::array<float, 4>>, MaxSimultaneousRenderTargets> clearColors{};
+        std::shared_ptr<const DepthTexture2D> depthTarget;
+        std::optional<float> clearDepth;
+        FExclusiveDepthStencil depthAccess;
         MemoryBarrier barrier;
         uint32 targetCount = 0;
         uint32 width = 16384;

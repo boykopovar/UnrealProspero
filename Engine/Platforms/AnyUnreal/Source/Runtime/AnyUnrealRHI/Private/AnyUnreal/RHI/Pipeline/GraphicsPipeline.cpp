@@ -89,7 +89,11 @@ namespace AnyUnreal::RHI
 
     void GraphicsPipeline::RecordColorState(CommandBuffer& commands, uint32 stencilReference, const FLinearColor& blendFactor) const
     {
-        if (description.DepthStencilTargetFormat != PF_Unknown || description.bDepthBounds) throw std::runtime_error("Graphics depth attachments and bounds are not implemented");
+        if (description.DepthStencilTargetFormat != PF_Unknown && description.DepthStencilTargetFormat != PF_ShadowDepth) throw std::runtime_error("Graphics depth format is not implemented");
+        const bool hasDepth = description.DepthStencilTargetFormat == PF_ShadowDepth && description.DepthStencilAccess.IsUsingDepth();
+        if (description.DepthStencilAccess.IsUsingStencil()) throw std::invalid_argument("Graphics pipeline has no stencil plane");
+        if (hasDepth && depthStencil->GetDescription().bEnableDepthWrite && !description.DepthStencilAccess.IsDepthWrite()) throw std::invalid_argument("Depth write is enabled on a read-only attachment");
+        if (hasDepth && (rasterizer->GetDescription().DepthBias != 0 || rasterizer->GetDescription().SlopeScaleDepthBias != 0)) throw std::runtime_error("Depth bias is not implemented");
         if (blend->GetDescription().bUseAlphaToCoverage) throw std::runtime_error("Alpha to coverage is not implemented");
         for (uint32 index = 0; index < description.RenderTargetsEnabled; ++index)
         {
@@ -105,7 +109,7 @@ namespace AnyUnreal::RHI
             if (!std::isfinite(factor)) throw std::invalid_argument("Blend factor must be finite");
         }
         WriteColorBlendRegisters(commands, *blend, description.RenderTargetsEnabled);
-        WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, false, false, false);
+        WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, hasDepth, false, description.bDepthBounds);
         WriteRasterizationRegisters(commands, *rasterizer, 0x240, 0x1080000, false);
         const std::array registers{
             ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0010u : 0u},
