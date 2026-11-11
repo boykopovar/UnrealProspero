@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
 #include <stdexcept>
+#include <cstring>
 
 namespace AnyUnreal::RHI
 {
@@ -63,6 +64,16 @@ namespace AnyUnreal::RHI
     {
         if (!source.data() || sourcePitch < rowBytes || source.size() < rowBytes || (height - 1) > (source.size() - rowBytes) / sourcePitch) throw std::invalid_argument("Texture upload does not contain all source rows");
         for (std::size_t row = 0; row < height; ++row) storage.Upload(row * rowPitch, source.subspan(row * sourcePitch, rowBytes));
+    }
+
+    void LinearTexture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch) const
+    {
+        if (!destination.data() || destinationPitch < rowBytes || destination.size() < rowBytes || (height - 1) > (destination.size() - rowBytes) / destinationPitch) throw std::invalid_argument("Texture read destination does not contain all rows");
+        const auto sourceAddress = reinterpret_cast<std::uintptr_t>(storage.Data());
+        const auto destinationAddress = reinterpret_cast<std::uintptr_t>(destination.data());
+        if ((destinationAddress >= sourceAddress && destinationAddress - sourceAddress < storage.Size()) || (sourceAddress >= destinationAddress && sourceAddress - destinationAddress < destination.size())) throw std::invalid_argument("Texture read destination overlaps its storage");
+        const auto* source = static_cast<const std::byte*>(storage.Data());
+        for (std::size_t row = 0; row < height; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * rowPitch, rowBytes);
     }
 
     const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }

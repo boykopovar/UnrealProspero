@@ -101,6 +101,30 @@ namespace AnyUnreal::RHI
         ReadSurfaceColors(*storage, rectangle, flags, output);
     }
 
+    void DynamicRHI::RHIMapStagingSurface(FRHITexture* texture, FRHIGPUFence* fence, void*& data, int32& width, int32& height, uint32 gpuIndex)
+    {
+        if (gpuIndex != 0 && gpuIndex != static_cast<uint32>(INDEX_NONE)) throw std::invalid_argument("Staging texture supports only GPU zero");
+        auto& resource = ResolveTextureResource(texture);
+        if (!EnumHasAnyFlags(resource.GetDesc().Flags, ETextureCreateFlags::CPUReadback)) throw std::invalid_argument("Texture was not created for CPU readback");
+        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
+        if (commandList.IsExecuting()) throw std::runtime_error("Staging texture mapping cannot execute inside a command list");
+        if (fence)
+        {
+            if (!fence->Poll(FRHIGPUMask::GPU0())) fence->Wait(commandList, FRHIGPUMask::GPU0());
+        }
+        else commandList.SubmitAndBlockUntilGPUIdle();
+        const auto storage = resource.Capture();
+        data = resource.MapReadback();
+        width = static_cast<int32>(storage->GetWidth());
+        height = static_cast<int32>(storage->GetHeight());
+    }
+
+    void DynamicRHI::RHIUnmapStagingSurface(FRHITexture* texture, uint32 gpuIndex)
+    {
+        if (gpuIndex != 0 && gpuIndex != static_cast<uint32>(INDEX_NONE)) throw std::invalid_argument("Staging texture supports only GPU zero");
+        ResolveTextureResource(texture).UnmapReadback();
+    }
+
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)
     {
         const auto size = ResolveTextureResource(texture).GetAllocationSize();

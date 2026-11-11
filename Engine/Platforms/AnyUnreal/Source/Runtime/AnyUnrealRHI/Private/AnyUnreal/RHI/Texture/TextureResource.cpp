@@ -36,7 +36,7 @@ namespace AnyUnreal::RHI
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
-            constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
+            constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback;
             if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior");
         }
 
@@ -86,7 +86,7 @@ namespace AnyUnreal::RHI
     void* TextureResource::Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch)
     {
         FScopeLock lock(&lockMutex);
-        if (lockedData) throw std::runtime_error("Texture is already locked");
+        if (lockedData || mappedData) throw std::runtime_error("Texture is already locked or mapped");
         if (mode != RLM_ReadOnly && mode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         const auto texture = Capture();
         const auto& allocation = texture->GetStorage();
@@ -100,6 +100,25 @@ namespace AnyUnreal::RHI
         size = lockedData->Data.size();
         pitch = lockedData->Pitch;
         return lockedData->Data.data();
+    }
+
+    void* TextureResource::MapReadback()
+    {
+        FScopeLock lock(&lockMutex);
+        if (lockedData || mappedData) throw std::runtime_error("Texture is already locked or mapped");
+        if (!EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::CPUReadback)) throw std::invalid_argument("Texture was not created for CPU readback");
+        const auto texture = Capture();
+        std::vector<std::byte> data(texture->GetRowBytes() * texture->GetHeight());
+        texture->CopyRowsTo(data, texture->GetRowBytes());
+        mappedData = std::move(data);
+        return mappedData->data();
+    }
+
+    void TextureResource::UnmapReadback()
+    {
+        FScopeLock lock(&lockMutex);
+        if (!mappedData) throw std::runtime_error("Texture is not mapped for readback");
+        mappedData.reset();
     }
 
     TextureResource::LockedData TextureResource::Unlock()

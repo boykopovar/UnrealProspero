@@ -24,6 +24,8 @@ namespace AnyUnreal::RHI
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         void* Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch);
         LockedData Unlock();
+        void* MapReadback();
+        void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
         std::size_t GetAllocationSize() const;
 
@@ -35,6 +37,7 @@ namespace AnyUnreal::RHI
         bool initialized;
         FCriticalSection lockMutex;
         std::optional<LockedData> lockedData;
+        std::optional<std::vector<std::byte>> mappedData;
     };
 
     ANYUNREALRHI_API TextureResource& ResolveTextureResource(FRHIResource* resource);

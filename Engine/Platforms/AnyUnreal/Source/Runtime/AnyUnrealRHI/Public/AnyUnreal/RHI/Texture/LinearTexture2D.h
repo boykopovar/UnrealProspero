@@ -25,6 +25,7 @@ namespace AnyUnreal::RHI
         static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format);
         LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         void Upload(std::span<const std::byte> source, std::size_t sourcePitch);
+        void CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch) const;
         const std::array<std::uint32_t, 8>& GetDescriptor() const;
         std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb) const;
         const BufferAllocation& GetStorage() const;

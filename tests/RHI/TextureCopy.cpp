@@ -68,6 +68,17 @@ int main()
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Texture copy changed incorrect bytes or row padding");
         if (mode != 2 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Texture copy modified its source");
+        for (const std::size_t padding : {0u, 11u})
+        {
+            const auto pitch = destination.GetRowBytes() + padding;
+            std::vector<std::byte> readback(pitch * destination.GetHeight(), std::byte{0xee});
+            destination.CopyRowsTo(readback, pitch);
+            for (std::size_t row = 0; row < destination.GetHeight(); ++row)
+            {
+                for (std::size_t column = 0; column < destination.GetRowBytes(); ++column) if (readback[row * pitch + column] != expected[row * destination.GetRowPitch() + column]) throw std::runtime_error("Texture readback changed pixels");
+                for (std::size_t column = destination.GetRowBytes(); column < pitch; ++column) if (readback[row * pitch + column] != std::byte{0xee}) throw std::runtime_error("Texture readback overwrote destination padding");
+            }
+        }
     }
     LinearTexture2D texture(17, 7, TextureFormat::Rgba8Unorm, 2);
     LinearTexture2D incompatible(17, 7, TextureFormat::R32Float, 2);
@@ -119,6 +130,19 @@ int main()
     try { upload.Record(commands, texture, 1, 1); }
     catch (const std::runtime_error&) { repeated = true; }
     if (!repeated || commands.cursor_up != before) throw std::runtime_error("Texture upload was recorded twice");
-    std::cout << "Texture copies, uploads and invalid regions verified\n";
+    std::vector<std::byte> readback(texture.GetRowBytes() * texture.GetHeight(), std::byte{0x4f});
+    const auto rejectRead = [&](std::span<std::byte> bytes, std::size_t pitch)
+    {
+        const std::vector original(bytes.begin(), bytes.end());
+        bool rejected = false;
+        try { texture.CopyRowsTo(bytes, pitch); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        if (!rejected || !std::equal(bytes.begin(), bytes.end(), original.begin())) throw std::runtime_error("Invalid texture read was accepted or changed data");
+    };
+    rejectRead({}, texture.GetRowBytes());
+    rejectRead(readback, texture.GetRowBytes() - 1);
+    rejectRead(std::span{readback}.first(readback.size() - 1), texture.GetRowBytes());
+    rejectRead(texture.GetStorage().GetRange(0, texture.GetStorage().Size()), texture.GetRowPitch());
+    std::cout << "Texture copies, uploads, readbacks and invalid regions verified\n";
     return 0;
 }

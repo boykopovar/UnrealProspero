@@ -17,6 +17,8 @@ namespace AnyUnreal::RHI
         FRHICalcTextureSizeResult RHICalcTexturePlatformSize(const FRHITextureDesc& description, uint32 firstMipIndex) override;
         void RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FColor>& output, FReadSurfaceDataFlags flags) override;
         void RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FLinearColor>& output, FReadSurfaceDataFlags flags) override;
+        void RHIMapStagingSurface(FRHITexture* texture, FRHIGPUFence* fence, void*& data, int32& width, int32& height, uint32 gpuIndex = 0) override;
+        void RHIUnmapStagingSurface(FRHITexture* texture, uint32 gpuIndex = 0) override;
         uint32 RHIComputeMemorySize(FRHITexture* texture) override;
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
