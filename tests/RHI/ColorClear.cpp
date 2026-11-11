@@ -84,6 +84,7 @@ int main()
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const auto dimensions : {std::array{1u, 1u}, std::array{67u, 9u}, std::array{129u, 37u}})
     for (const auto mipCount : {1u, 3u})
+    for (std::uint32_t mipLevel = 0; mipLevel < mipCount; ++mipLevel)
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
         if (mipCount > static_cast<std::uint32_t>(std::bit_width(std::max(dimensions[0], dimensions[1])))) continue;
@@ -114,11 +115,11 @@ int main()
         CommandStorage storage(16384, 2);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
-        WriteColorClear(commands, texture, colors[colorIndex]);
+        WriteColorClear(commands, texture, colors[colorIndex], mipLevel);
         SubmitAndWait(commands, fence, 1, 10000000);
         for (std::size_t index = 0; index < bytes.size(); ++index)
         {
-            const auto& mip = texture.GetMipLayout(0);
+            const auto& mip = texture.GetMipLayout(mipLevel);
             const auto expected = index >= mip.Offset && index < mip.Offset + mip.Size ? pixel[(index - mip.Offset) % pixelSize] : std::byte{0xa5};
             if (bytes[index] != expected) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }

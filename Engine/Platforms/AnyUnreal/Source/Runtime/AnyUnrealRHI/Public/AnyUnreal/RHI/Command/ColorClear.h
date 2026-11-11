@@ -6,7 +6,7 @@
 
 namespace AnyUnreal::RHI
 {
-    ANYUNREALRHI_API void WriteColorClear(CommandBuffer& commands, const LinearTexture2D& texture, const std::array<float, 4>& color);
+    ANYUNREALRHI_API void WriteColorClear(CommandBuffer& commands, const LinearTexture2D& texture, const std::array<float, 4>& color, std::uint32_t mipLevel = 0);
 }
 
 #endif

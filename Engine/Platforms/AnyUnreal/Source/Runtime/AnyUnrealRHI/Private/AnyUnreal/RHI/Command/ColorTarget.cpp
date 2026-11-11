@@ -38,13 +38,14 @@ namespace AnyUnreal::RHI
         sceAgcDcbSetCxRegisterDirect(&commands, {0x31c + index * 15, 0});
     }
 
-    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const LinearTexture2D& texture)
+    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const LinearTexture2D& texture, std::uint32_t mipLevel)
     {
         checkIndex(index);
+        const auto& mip = texture.GetMipLayout(mipLevel);
         const auto info = colorInfo(texture.GetFormat());
-        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(0).data());
-        const auto bytesPerPixel = texture.GetRowBytes() / texture.GetWidth();
-        const auto pitch = texture.GetRowPitch() / bytesPerPixel;
+        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(mipLevel).data());
+        const auto bytesPerPixel = mip.RowBytes / mip.Width;
+        const auto pitch = mip.RowPitch / bytesPerPixel;
         if (pitch == 0 || pitch > 16384) throw std::out_of_range("Color target pitch exceeds the hardware limit");
         const auto format = texture.GetFormat();
         const bool forceAlpha = format == TextureFormat::R8Unorm || format == TextureFormat::Rg8Unorm || format == TextureFormat::R32Float || format == TextureFormat::R16Float || format == TextureFormat::Rg16Float;
@@ -57,7 +58,7 @@ namespace AnyUnreal::RHI
             ShaderRegister{0x324 + base, 0}, ShaderRegister{0x325 + base, 0},
             ShaderRegister{0x390 + index, static_cast<std::uint32_t>(address >> 40)},
             ShaderRegister{0x398 + index, 0}, ShaderRegister{0x3a0 + index, 0}, ShaderRegister{0x3a8 + index, 0},
-            ShaderRegister{0x3b0 + index, (texture.GetHeight() - 1) | (static_cast<std::uint32_t>(pitch - 1) << 14)},
+            ShaderRegister{0x3b0 + index, (mip.Height - 1) | (static_cast<std::uint32_t>(pitch - 1) << 14)},
             ShaderRegister{0x3b8 + index, 0x09000000}
         };
         for (const auto value : registers) sceAgcDcbSetCxRegisterDirect(&commands, value);

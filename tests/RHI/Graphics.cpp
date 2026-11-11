@@ -86,6 +86,11 @@ int main()
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+#if ANYUNREAL_TEST_DEPTH
+    for (const auto mipLevel : {0u})
+#else
+    for (const auto mipLevel : {0u, 1u})
+#endif
     for (const auto dimensions : {std::array{64u, 64u}, std::array{67u, 39u}, std::array{13u, 7u}, std::array{259u, 137u}})
     {
         const auto width = dimensions[0];
@@ -94,11 +99,13 @@ int main()
 #if ANYUNREAL_TEST_DEPTH
         caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(ANYUNREAL_TEST_DEPTH_BARRIER);
 #endif
-        LinearTexture2D targetTexture(width, height, format, aperture);
+        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, AnyUnreal::Kernel::DirectAllocation::PageSize, mipLevel + 2);
+        const auto& targetMip = targetTexture.GetMipLayout(mipLevel);
 #if ANYUNREAL_TEST_DEPTH
         LinearTexture2D secondTarget(width, height, format, aperture);
 #endif
         const auto& output = targetTexture.GetStorage();
+        std::fill_n(static_cast<std::byte*>(output.Data()), output.Size(), std::byte{0xa5});
         auto positions = std::make_shared<BufferAllocation>(52 + baseVertex * 12, aperture);
         auto colors = std::make_shared<BufferAllocation>(128, aperture);
         std::fill_n(static_cast<std::byte*>(colors->Data()), colors->Size(), std::byte{});
@@ -195,7 +202,7 @@ int main()
         CommandStorage storage(16384, aperture);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
-        WriteColorClear(commands, targetTexture, {});
+        WriteColorClear(commands, targetTexture, {}, mipLevel);
 #if ANYUNREAL_TEST_DEPTH
         WriteColorClear(commands, secondTarget, {});
         DepthTexture2D depthTexture(width, height, aperture);
@@ -214,7 +221,7 @@ int main()
         {
             for (std::uint32_t index = 0; index < shader->num_cx_registers; ++index) sceAgcDcbSetCxRegisterDirect(&commands, shader->cx_registers[index]);
         }
-        WriteColorTarget(commands, 0, targetTexture);
+        WriteColorTarget(commands, 0, targetTexture, mipLevel);
         for (std::uint32_t index = 1; index < 8; ++index) DisableColorTarget(commands, index);
         const std::array state{
             ShaderRegister{0xc, 0}, ShaderRegister{0xd, width | (height << 16)}, ShaderRegister{0x8e, 15}, ShaderRegister{0x200, 0},
@@ -293,10 +300,12 @@ int main()
         case TextureFormat::Rgba16Float: color = {0, 0x38, 0, 0x34, 0, 0x3a, 0, 0x3c}; break;
         }
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
+        for (std::size_t offset = 0; offset < output.Size(); ++offset) if ((offset < targetMip.Offset || offset >= targetMip.Offset + targetMip.Size) && pixels[offset] != 0xa5) throw std::runtime_error("Color target changed an adjacent mip");
+        pixels += targetMip.Offset;
 #if ANYUNREAL_TEST_DEPTH
         if (depthMode >= 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
 #endif
-        const auto pixelBytes = targetTexture.GetRowBytes() / width;
+        const auto pixelBytes = targetMip.RowBytes / width;
         for (unsigned y = 0; y < height; ++y)
         {
             for (unsigned x = 0; x < width; ++x)
@@ -308,7 +317,7 @@ int main()
                 if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float)
                 {
                     const std::array<float, 4> values{0.5f, 0.25f, 0.75f, 1};
-                    const auto* floats = reinterpret_cast<const float*>(pixels + y * targetTexture.GetRowPitch() + x * pixelBytes);
+                    const auto* floats = reinterpret_cast<const float*>(pixels + y * targetMip.RowPitch + x * pixelBytes);
                     for (std::size_t component = 0; component < pixelBytes / sizeof(float); ++component)
                     {
                         const auto expected = inside ? values[component] : 0;
@@ -319,7 +328,7 @@ int main()
                 for (std::size_t component = 0; component < pixelBytes; ++component)
                 {
                     const auto expected = inside ? color[component] : 0;
-                    const auto actual = pixels[y * targetTexture.GetRowPitch() + x * pixelBytes + component];
+                    const auto actual = pixels[y * targetMip.RowPitch + x * pixelBytes + component];
                     if (std::abs(static_cast<int>(actual) - expected) > (inside && format != TextureFormat::Rgba16Float && format != TextureFormat::R16Float && format != TextureFormat::Rg16Float ? 1 : 0)) throw std::runtime_error("Graphics pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + ": " + std::to_string(actual) + " " + caseName);
                 }
             }

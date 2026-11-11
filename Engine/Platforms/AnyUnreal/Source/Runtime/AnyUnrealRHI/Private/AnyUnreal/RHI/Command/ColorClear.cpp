@@ -4,10 +4,10 @@
 
 namespace AnyUnreal::RHI
 {
-    void WriteColorClear(CommandBuffer& commands, const LinearTexture2D& texture, const std::array<float, 4>& color)
+    void WriteColorClear(CommandBuffer& commands, const LinearTexture2D& texture, const std::array<float, 4>& color, std::uint32_t mipLevel)
     {
         const auto values = EncodeTextureClear(texture.GetFormat(), color);
-        const auto storage = texture.GetMipRange(0);
+        const auto storage = texture.GetMipRange(mipLevel);
         WritePatternFill(commands, storage.data(), storage.size(), values);
     }
 }
