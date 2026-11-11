@@ -18,6 +18,8 @@ namespace AnyUnreal::RHI
         const GraphicsShaders& GetShaders() const;
         const VertexDeclaration* GetVertexDeclaration() const;
         std::uint32_t GetNativePrimitiveType() const;
+        std::uint32_t GetVertexCount(std::uint32_t primitiveCount) const;
+        void RecordColorState(CommandBuffer& commands, uint32 stencilReference, const FLinearColor& blendFactor) const;
 
     private:
         FGraphicsPipelineStateInitializer description;

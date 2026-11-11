@@ -17,6 +17,8 @@ namespace AnyUnreal::RHI
         void RHISetStencilRef(uint32 reference) override;
         void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
         void RHIEndRenderPass() override;
+        void RHISetBlendFactor(const FLinearColor& factor) override;
+        void RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount) override;
         void RHISetStreamSource(uint32 streamIndex, FRHIBuffer* vertexBuffer, uint32 offset) override;
         void RHISetViewport(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) override;
         void RHISetMultipleViewports(uint32 count, const FViewportBounds* data) override;
@@ -27,6 +29,16 @@ namespace AnyUnreal::RHI
         void ValidateFinalization() const override;
 
     private:
+        struct Draw
+        {
+            TRefCountPtr<GraphicsPipeline> pipeline;
+            std::unique_ptr<ShaderBindings> vertexBindings;
+            std::unique_ptr<ShaderBindings> pixelBindings;
+            std::unique_ptr<VertexBufferTable> vertexBuffers;
+        };
+
+        std::vector<Draw> draws;
+        FLinearColor blendFactor{1, 1, 1, 1};
         TRefCountPtr<GraphicsPipeline> pipeline;
         std::unique_ptr<ShaderParameters> vertexParameters;
         std::unique_ptr<ShaderParameters> pixelParameters;

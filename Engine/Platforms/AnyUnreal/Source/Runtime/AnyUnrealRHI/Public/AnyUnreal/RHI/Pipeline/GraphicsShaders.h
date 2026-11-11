@@ -13,7 +13,7 @@ namespace AnyUnreal::RHI
         GraphicsShaders(VertexShader& vertex, PixelShader* pixel, std::uint32_t primitiveType);
         VertexShader& GetVertexShader() const;
         PixelShader* GetPixelShader() const;
-        void Record(CommandBuffer& commands, ShaderBindings& vertexBindings, ShaderBindings* pixelBindings, const VertexBufferTable& vertexBuffers) const;
+        void Record(CommandBuffer& commands, ShaderBindings& vertexBindings, ShaderBindings* pixelBindings, const VertexBufferTable& vertexBuffers, Shader::UserDataInputs vertexInputs = {}) const;
 
     private:
         TRefCountPtr<VertexShader> vertex;

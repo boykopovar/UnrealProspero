@@ -4,12 +4,61 @@
 #include <stdexcept>
 #include <limits>
 #include <utility>
+#include <cmath>
+#include "prx/libSceAgc/DcbDraw/include/DrawIndexed.hpp"
+#include "prx/libSceAgc/DcbDraw/include/Instancing.hpp"
 
 namespace AnyUnreal::RHI
 {
     GraphicsContext::GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : ComputeContext(initialCommandBytes, addressHigh)
     {
         RecordCommands([](CommandBuffer& commands) { WriteScissor(commands, {0, 0, 32767, 32767}); });
+    }
+
+    void GraphicsContext::RHISetBlendFactor(const FLinearColor& factor)
+    {
+        RecordCommands([&](CommandBuffer&)
+        {
+            if (!std::isfinite(factor.R) || !std::isfinite(factor.G) || !std::isfinite(factor.B) || !std::isfinite(factor.A)) throw std::invalid_argument("Blend factor must be finite");
+            blendFactor = factor;
+        });
+    }
+
+    void GraphicsContext::RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!pipeline || !activeRenderPass) throw std::runtime_error("Draw requires a graphics pipeline and render pass");
+            activeRenderPass->ValidatePipeline(pipeline->GetDescription());
+            const auto vertexCount = pipeline->GetVertexCount(primitiveCount);
+            if (vertexCount == 0 || instanceCount == 0) return;
+            if (baseVertexIndex > std::numeric_limits<uint32>::max() - (vertexCount - 1)) throw std::overflow_error("Draw vertex index exceeds the hardware field");
+            const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
+            const auto* declaration = pipeline->GetVertexDeclaration();
+            if (declaration)
+            {
+                for (const auto& element : declaration->GetElements())
+                {
+                    const auto index = layout.UsesVertexBuffersPerAttribute() ? element.AttributeIndex : element.StreamIndex;
+                    if (index >= 32 || (layout.GetVertexBufferUsageMask() & (uint32{1} << index)) == 0) continue;
+                    const auto snapshot = vertexStreams.Capture(element.StreamIndex);
+                    const std::uint64_t lastIndex = element.bUseInstanceIndex ? instanceCount - 1 : static_cast<std::uint64_t>(baseVertexIndex) + vertexCount - 1;
+                    const auto end = snapshot.Offset + lastIndex * element.Stride + element.Offset + VertexDeclaration::GetElementSize(element.Type);
+                    if (end > snapshot.Storage->Size()) throw std::out_of_range("Draw vertex fetch exceeds its buffer");
+                }
+            }
+            auto vertexBuffers = declaration ? vertexStreams.CaptureTable(*declaration, layout) : std::make_unique<VertexBufferTable>(0, std::span<const VertexBufferBinding>{}, layout.GetAddressHigh());
+            auto vertexBindings = vertexParameters->CreateBindings();
+            auto pixelBindings = pixelParameters ? pixelParameters->CreateBindings() : nullptr;
+            draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers)});
+            const auto& draw = draws.back();
+            Shader::UserDataInputs inputs;
+            inputs.BaseVertex = baseVertexIndex;
+            draw.pipeline->GetShaders().Record(commands, *draw.vertexBindings, draw.pixelBindings.get(), *draw.vertexBuffers, inputs);
+            draw.pipeline->RecordColorState(commands, stencilReference, blendFactor);
+            sceAgcDcbSetNumInstances(&commands, instanceCount);
+            sceAgcDcbDrawIndexAuto(&commands, vertexCount, 0);
+        });
     }
 
     void GraphicsContext::ValidateFinalization() const

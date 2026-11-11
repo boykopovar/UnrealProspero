@@ -20,13 +20,12 @@ namespace AnyUnreal::RHI
     VertexShader& GraphicsShaders::GetVertexShader() const { return *vertex; }
     PixelShader* GraphicsShaders::GetPixelShader() const { return pixel.GetReference(); }
 
-    void GraphicsShaders::Record(CommandBuffer& commands, ShaderBindings& vertexBindings, ShaderBindings* pixelBindings, const VertexBufferTable& vertexBuffers) const
+    void GraphicsShaders::Record(CommandBuffer& commands, ShaderBindings& vertexBindings, ShaderBindings* pixelBindings, const VertexBufferTable& vertexBuffers, Shader::UserDataInputs vertexInputs) const
     {
         if (vertexBuffers.GetUsageMask() != vertex->GetCode().GetUserData().GetVertexBufferUsageMask()) throw std::invalid_argument("Vertex descriptors do not match the graphics shader");
         if (&vertexBindings.GetShader() != vertex.GetReference()) throw std::invalid_argument("Vertex bindings do not belong to this graphics pipeline");
         if (static_cast<bool>(pixel) != (pixelBindings != nullptr)) throw std::invalid_argument("Pixel bindings do not match the graphics pipeline stages");
         if (pixelBindings && &pixelBindings->GetShader() != pixel.GetReference()) throw std::invalid_argument("Pixel bindings do not belong to this graphics pipeline");
-        Shader::UserDataInputs vertexInputs;
         vertexBuffers.Apply(vertexInputs);
         vertexInputs = vertexBindings.Finalize(vertexInputs);
         Shader::UserDataInputs pixelInputs;
