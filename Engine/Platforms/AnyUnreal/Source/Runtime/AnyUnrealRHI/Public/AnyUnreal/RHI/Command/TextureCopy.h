@@ -24,6 +24,8 @@ namespace AnyUnreal::RHI
         std::array<std::uint32_t, 3> Source;
         std::array<std::uint32_t, 3> Destination;
         std::array<std::uint32_t, 3> Extent;
+        std::uint32_t SourceMip = 0;
+        std::uint32_t DestinationMip = 0;
     };
 
     ANYUNREALRHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);

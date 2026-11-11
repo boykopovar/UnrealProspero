@@ -54,27 +54,30 @@ void CheckVolumeCopies()
 {
     using namespace AnyUnreal::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
-    for (unsigned mode = 0; mode < 4; ++mode)
+    for (const auto mipLevel : {0u, 1u, 2u})
+    for (unsigned mode = 0; mode < 5; ++mode)
     {
-        LinearTexture3D source(13, 7, 5, format, 2);
+        if (mode == 4 && mipLevel == 0) continue;
+        const auto destinationMip = mode == 4 ? mipLevel - 1 : mipLevel;
+        LinearTexture3D source(13u << mipLevel, 7u << mipLevel, 5u << mipLevel, format, 2, mipLevel + 1);
         auto targetFormat = format;
         if (mode == 3 && format == TextureFormat::Rgba8Srgb) targetFormat = TextureFormat::Rgba8Unorm;
         if (mode == 3 && format == TextureFormat::Bgra8Srgb) targetFormat = TextureFormat::Bgra8Unorm;
-        LinearTexture3D other(17, 9, 7, targetFormat, 2);
-        const auto& destination = mode == 2 ? source : other;
+        LinearTexture3D other(17u << mipLevel, 9u << mipLevel, 7u << mipLevel, targetFormat, 2, mipLevel + 1);
+        const auto& destination = mode == 2 || mode == 4 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto targetBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
         std::fill(targetBytes.begin(), targetBytes.end(), std::byte{0xee});
         for (std::size_t index = 0; index < sourceBytes.size(); ++index) sourceBytes[index] = static_cast<std::byte>((index * 13 + index / source.GetSlicePitch()) % 251);
         const std::vector original(sourceBytes.begin(), sourceBytes.end());
         std::vector expected(targetBytes.begin(), targetBytes.end());
-        const auto region = mode == 0 ? VolumeCopyRegion{{0, 0, 0}, {0, 0, 0}, {13, 7, 5}} : VolumeCopyRegion{{1, 1, 0}, {3, 2, 3}, {5, 3, 2}};
+        const auto region = mode == 0 ? VolumeCopyRegion{{0, 0, 0}, {0, 0, 0}, {13, 7, 5}, mipLevel, destinationMip} : VolumeCopyRegion{{1, 1, 0}, {3, 2, 3}, {5, 3, 2}, mipLevel, destinationMip};
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
         for (std::size_t z = 0; z < region.Extent[2]; ++z)
         for (std::size_t y = 0; y < region.Extent[1]; ++y)
         {
-            const auto from = (z + region.Source[2]) * source.GetSlicePitch() + (y + region.Source[1]) * source.GetRowPitch() + region.Source[0] * pixelBytes;
-            const auto to = (z + region.Destination[2]) * destination.GetSlicePitch() + (y + region.Destination[1]) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
+            const auto from = source.GetMipLayout(mipLevel).Offset + (z + region.Source[2]) * source.GetSlicePitch() + (y + region.Source[1]) * source.GetMipLayout(mipLevel).RowPitch + region.Source[0] * pixelBytes;
+            const auto to = destination.GetMipLayout(destinationMip).Offset + (z + region.Destination[2]) * destination.GetSlicePitch() + (y + region.Destination[1]) * destination.GetMipLayout(destinationMip).RowPitch + region.Destination[0] * pixelBytes;
             std::copy_n(original.begin() + from, region.Extent[0] * pixelBytes, expected.begin() + to);
         }
         CommandStorage storage(16384, 2);
@@ -90,6 +93,17 @@ void CheckVolumeCopies()
             catch (const std::out_of_range&) { rejected = true; }
             if (!rejected || before != commands.cursor_up) throw std::runtime_error("Invalid volume copy changed commands");
         }
+        for (const bool sourceMip : {false, true})
+        {
+            auto invalid = region;
+            if (sourceMip) invalid.SourceMip = source.GetMipCount();
+            else invalid.DestinationMip = destination.GetMipCount();
+            const auto cursor = commands.cursor_up;
+            bool rejected = false;
+            try { WriteTextureCopy(commands, destination, source, invalid); }
+            catch (const std::out_of_range&) { rejected = true; }
+            if (!rejected || cursor != commands.cursor_up) throw std::runtime_error("Invalid volume mip changed commands");
+        }
         const auto before = commands.cursor_up;
         bool rejected = false;
         try { WriteTextureCopy(commands, source, source, {{1, 1, 1}, {2, 2, 2}, {3, 3, 3}}); }
@@ -100,7 +114,7 @@ void CheckVolumeCopies()
         auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(targetBytes.begin(), targetBytes.end(), expected.begin())) throw std::runtime_error("Volume copy changed incorrect pixels or padding");
-        if (mode != 2 && !std::equal(sourceBytes.begin(), sourceBytes.end(), original.begin())) throw std::runtime_error("Volume copy modified its source");
+        if (mode != 2 && mode != 4 && !std::equal(sourceBytes.begin(), sourceBytes.end(), original.begin())) throw std::runtime_error("Volume copy modified its source");
         const std::vector beforeUpload(sourceBytes.begin(), sourceBytes.end());
         for (const auto offset : {std::size_t{0}, std::size_t{1}})
         {
@@ -117,9 +131,10 @@ void CheckVolumeUploads()
 {
     using namespace AnyUnreal::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    for (const auto mipLevel : {0u, 1u, 2u})
     for (const bool pendingWrite : {false, true})
     {
-        LinearTexture3D destination(13, 7, 5, format, 2);
+        LinearTexture3D destination(13u << mipLevel, 7u << mipLevel, 5u << mipLevel, format, 2, mipLevel + 1);
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
         const auto rowBytes = 5 * pixelBytes;
         const auto rowPitch = rowBytes + 11;
@@ -135,7 +150,7 @@ void CheckVolumeUploads()
         for (std::size_t z = 0; z < 2; ++z)
         for (std::size_t y = 0; y < 3; ++y)
         {
-            const auto target = (z + 2) * destination.GetSlicePitch() + (y + 1) * destination.GetRowPitch() + 3 * pixelBytes;
+            const auto target = destination.GetMipLayout(mipLevel).Offset + (z + 2) * destination.GetSlicePitch() + (y + 1) * destination.GetMipLayout(mipLevel).RowPitch + 3 * pixelBytes;
             std::copy_n(snapshot.begin() + z * slicePitch + y * rowPitch, rowBytes, expected.begin() + target);
         }
         CommandStorage storage(16384, 2);
@@ -143,14 +158,14 @@ void CheckVolumeUploads()
         sceAgcDcbContextStateOp(&commands, 0);
         const auto before = commands.cursor_up;
         bool rejected = false;
-        try { upload.Record(commands, destination, 12, 1, 2); }
+        try { upload.Record(commands, destination, 12, 1, 2, mipLevel); }
         catch (const std::out_of_range&) { rejected = true; }
         if (!rejected || before != commands.cursor_up) throw std::runtime_error("Invalid volume upload changed commands");
         if (pendingWrite) WriteBufferFill(commands, destination.GetStorage().Data(), bytes.size(), 0xa5a5a5a5u);
-        upload.Record(commands, destination, 3, 1, 2);
+        upload.Record(commands, destination, 3, 1, 2, mipLevel);
         const auto recorded = commands.cursor_up;
         rejected = false;
-        try { upload.Record(commands, destination, 3, 1, 2); }
+        try { upload.Record(commands, destination, 3, 1, 2, mipLevel); }
         catch (const std::runtime_error&) { rejected = true; }
         if (!rejected || recorded != commands.cursor_up) throw std::runtime_error("Repeated volume upload changed commands");
         BufferAllocation fenceStorage(8, 2);

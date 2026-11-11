@@ -18,9 +18,11 @@ namespace AnyUnreal::RHI
     void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
     {
         if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Volume copy formats are incompatible");
-        const std::array sourceSize{source.GetWidth(), source.GetHeight(), source.GetDepth()};
-        const std::array destinationSize{destination.GetWidth(), destination.GetHeight(), destination.GetDepth()};
-        bool overlap = source.GetStorage().Data() == destination.GetStorage().Data();
+        const auto& sourceMip = source.GetMipLayout(region.SourceMip);
+        const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
+        const std::array sourceSize{sourceMip.Width, sourceMip.Height, sourceMip.Depth};
+        const std::array destinationSize{destinationMip.Width, destinationMip.Height, destinationMip.Depth};
+        bool overlap = source.GetStorage().Data() == destination.GetStorage().Data() && region.SourceMip == region.DestinationMip;
         for (std::size_t axis = 0; axis < 3; ++axis)
         {
             const auto size = region.Extent[axis];
@@ -40,8 +42,8 @@ namespace AnyUnreal::RHI
         {
             for (std::uint32_t y = 0; y < region.Extent[1]; ++y)
             {
-                const auto from = source.GetMipLayout(0).Offset + (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * source.GetRowPitch() + region.Source[0] * pixelBytes;
-                const auto to = destination.GetMipLayout(0).Offset + (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
+                const auto from = sourceMip.Offset + (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * sourceMip.RowPitch + region.Source[0] * pixelBytes;
+                const auto to = destinationMip.Offset + (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destinationMip.RowPitch + region.Destination[0] * pixelBytes;
                 WriteBufferCopy(commands, destinationStorage.GetRange(to, rowBytes).data(), sourceStorage.GetRange(from, rowBytes).data(), rowBytes);
             }
         }
