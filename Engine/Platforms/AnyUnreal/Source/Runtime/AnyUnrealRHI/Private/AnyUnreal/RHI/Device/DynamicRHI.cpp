@@ -371,6 +371,12 @@ namespace AnyUnreal::RHI
         pendingCommandLists.clear();
     }
 
+    IRHIComputeContext* DynamicRHI::RHIGetCommandContext(ERHIPipeline pipeline)
+    {
+        if (pipeline != ERHIPipeline::Graphics) throw std::runtime_error("Async compute command contexts are not implemented");
+        return new GraphicsContext(65536, addressHigh);
+    }
+
     FDynamicRHI::FRHIFinalizeContextsResult DynamicRHI::RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args)
     {
         if (args.UploadContext || args.Contexts[ERHIPipeline::AsyncCompute]) throw std::runtime_error("Upload and async compute context finalization is not implemented");

@@ -38,6 +38,7 @@ namespace AnyUnreal::RHI
         FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHICommandListBase& commandList, FRHIViewableResource* resource, const FRHIViewDesc& description) override;
         void RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info) override;
         void RHIReleaseTransition(FRHITransition* transition) override;
+        IRHIComputeContext* RHIGetCommandContext(ERHIPipeline pipeline) override;
         FRHIFinalizeContextsResult RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args) override;
         void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
         void RHIProcessDeleteQueue() override;
