@@ -6,6 +6,7 @@
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
+#include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -149,6 +150,8 @@ int main()
         secondMemory.Upload(inputOffset, std::as_bytes(std::span(values)));
         const std::array<std::uint32_t, 3> dispatchGroups{iteration == 3 ? 0u : 1u, 1u, 1u};
         memory.Upload(2048, std::as_bytes(std::span(dispatchGroups)));
+        auto* fillOutput = reinterpret_cast<std::uint32_t*>(memory.GetRange(3072, 64).data());
+        std::fill_n(fillOutput, 16, 0x12345678u);
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
         std::vector<RHI::GpuMemoryRange> ranges{
@@ -180,9 +183,14 @@ int main()
         const auto tableRanges = descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
+        RHI::WriteBufferFill(commands, fillOutput + 4, 32, static_cast<std::uint32_t>(iteration));
         if (iteration == 1) RHI::WriteComputeDispatch(commands, shader, layout, inputs, 1, 1, 1);
         else RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), 2048);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
+        for (unsigned index = 0; index < 16; ++index)
+        {
+            if (fillOutput[index] != (index >= 4 && index < 12 ? iteration : 0x12345678u)) throw std::runtime_error("GPU fill changed data outside its range or failed to write its value");
+        }
         for (unsigned index = 0; index < 64; ++index)
         {
             const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? input[index] : index) * 3 + 1;
