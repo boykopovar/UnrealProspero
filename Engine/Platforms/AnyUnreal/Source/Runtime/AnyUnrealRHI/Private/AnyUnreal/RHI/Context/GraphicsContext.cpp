@@ -53,9 +53,9 @@ namespace AnyUnreal::RHI
         {
             if (activeRenderPass) throw std::runtime_error("Texture copy cannot execute inside a render pass");
             if (!source || !destination) throw std::invalid_argument("Texture copy requires source and destination textures");
-            if (info.SourceSliceIndex != 0 || info.DestSliceIndex != 0 || info.NumSlices != 1) throw std::invalid_argument("Texture copy requires the available slice");
             if (source->GetDesc().Dimension == ETextureDimension::Texture3D || destination->GetDesc().Dimension == ETextureDimension::Texture3D)
             {
+                if (info.SourceSliceIndex != 0 || info.DestSliceIndex != 0 || info.NumSlices != 1) throw std::invalid_argument("Texture copy requires the available slice");
                 if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z < 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z < 0) throw std::invalid_argument("Invalid volume copy position");
                 auto from = static_cast<TextureResource*>(source)->CaptureVolume();
                 auto to = static_cast<TextureResource*>(destination)->CaptureVolume();
@@ -96,25 +96,9 @@ namespace AnyUnreal::RHI
             auto destinationStorage = static_cast<TextureResource*>(destination)->Capture();
             const bool whole = info.Size == FIntVector::ZeroValue;
             if (!whole && (info.Size.X <= 0 || info.Size.Y <= 0 || info.Size.Z < 0 || info.Size.Z > 1)) throw std::invalid_argument("Invalid two-dimensional texture copy size");
-            if (info.NumMips == 0 || info.SourceMipIndex >= sourceStorage->GetMipCount() || info.DestMipIndex >= destinationStorage->GetMipCount() || info.NumMips > sourceStorage->GetMipCount() - info.SourceMipIndex || info.NumMips > destinationStorage->GetMipCount() - info.DestMipIndex) throw std::out_of_range("Texture copy exceeds its mip chain");
-            if (sourceStorage == destinationStorage && info.SourceMipIndex != info.DestMipIndex && info.SourceMipIndex < info.DestMipIndex + info.NumMips && info.DestMipIndex < info.SourceMipIndex + info.NumMips) throw std::invalid_argument("Texture copy mip ranges overlap");
             const auto& firstMip = sourceStorage->GetMipLayout(info.SourceMipIndex);
-            TextureCopyRegion region{static_cast<uint32>(info.SourcePosition.X), static_cast<uint32>(info.SourcePosition.Y), static_cast<uint32>(info.DestPosition.X), static_cast<uint32>(info.DestPosition.Y), whole ? firstMip.Width : static_cast<uint32>(info.Size.X), whole ? firstMip.Height : static_cast<uint32>(info.Size.Y), info.SourceMipIndex, info.DestMipIndex};
-            std::vector<TextureCopyRegion> regions;
-            regions.reserve(info.NumMips);
-            for (uint32 index = 0; index < info.NumMips; ++index)
-            {
-                ValidateTextureCopy(*destinationStorage, *sourceStorage, region);
-                regions.push_back(region);
-                region.SourceX /= 2;
-                region.SourceY /= 2;
-                region.DestinationX /= 2;
-                region.DestinationY /= 2;
-                region.Width = std::max(region.Width / 2, 1u);
-                region.Height = std::max(region.Height / 2, 1u);
-                ++region.SourceMip;
-                ++region.DestinationMip;
-            }
+            const TextureCopyRegion firstRegion{static_cast<uint32>(info.SourcePosition.X), static_cast<uint32>(info.SourcePosition.Y), static_cast<uint32>(info.DestPosition.X), static_cast<uint32>(info.DestPosition.Y), whole ? firstMip.Width : static_cast<uint32>(info.Size.X), whole ? firstMip.Height : static_cast<uint32>(info.Size.Y), info.SourceMipIndex, info.DestMipIndex, info.SourceSliceIndex, info.DestSliceIndex};
+            const auto regions = BuildTextureCopyRegions(*destinationStorage, *sourceStorage, firstRegion, info.NumMips, info.NumSlices);
             copiedTextures.reserve(copiedTextures.size() + 2);
             copiedTextures.push_back(sourceStorage);
             copiedTextures.push_back(destinationStorage);

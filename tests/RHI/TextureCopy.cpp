@@ -295,6 +295,12 @@ void CheckMipCopies()
                 region.DestinationLayer = 2;
             }
         }
+        if (mode == 2)
+        {
+            const auto& firstMip = source.GetMipLayout(2);
+            regions = BuildTextureCopyRegions(destination, source, {0, 0, 0, 0, firstMip.Width, firstMip.Height, 2, 1, array ? 1u : 0u, array ? 2u : 0u}, 4, array ? 2u : 1u);
+            if (regions.size() != (array ? 8u : 4u)) throw std::runtime_error("Texture copy plan omitted subresources");
+        }
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
         for (const auto& region : regions)
         {

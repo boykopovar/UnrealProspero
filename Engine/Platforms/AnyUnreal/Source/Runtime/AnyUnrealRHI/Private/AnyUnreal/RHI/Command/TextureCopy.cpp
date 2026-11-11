@@ -2,6 +2,7 @@
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include <stdexcept>
+#include <algorithm>
 
 namespace AnyUnreal::RHI
 {
@@ -68,6 +69,37 @@ namespace AnyUnreal::RHI
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
         if (sourceStorage.Data() == destinationStorage.Data() && region.SourceMip == region.DestinationMip && region.SourceLayer == region.DestinationLayer && region.SourceX < region.DestinationX + region.Width && region.DestinationX < region.SourceX + region.Width && region.SourceY < region.DestinationY + region.Height && region.DestinationY < region.SourceY + region.Height) throw std::invalid_argument("Texture copy regions overlap");
+    }
+
+    std::vector<TextureCopyRegion> BuildTextureCopyRegions(const LinearTexture2D& destination, const LinearTexture2D& source, TextureCopyRegion firstRegion, std::uint32_t mipCount, std::uint32_t layerCount)
+    {
+        if (mipCount == 0 || firstRegion.SourceMip >= source.GetMipCount() || firstRegion.DestinationMip >= destination.GetMipCount() || mipCount > source.GetMipCount() - firstRegion.SourceMip || mipCount > destination.GetMipCount() - firstRegion.DestinationMip) throw std::out_of_range("Texture copy exceeds its mip chain");
+        if (layerCount == 0 || firstRegion.SourceLayer >= source.GetArrayLayers() || firstRegion.DestinationLayer >= destination.GetArrayLayers() || layerCount > source.GetArrayLayers() - firstRegion.SourceLayer || layerCount > destination.GetArrayLayers() - firstRegion.DestinationLayer) throw std::out_of_range("Texture copy exceeds its array layers");
+        const bool mipOverlap = firstRegion.SourceMip < firstRegion.DestinationMip + mipCount && firstRegion.DestinationMip < firstRegion.SourceMip + mipCount;
+        const bool layerOverlap = firstRegion.SourceLayer < firstRegion.DestinationLayer + layerCount && firstRegion.DestinationLayer < firstRegion.SourceLayer + layerCount;
+        if (source.GetStorage().Data() == destination.GetStorage().Data() && mipOverlap && layerOverlap && (firstRegion.SourceMip != firstRegion.DestinationMip || firstRegion.SourceLayer != firstRegion.DestinationLayer)) throw std::invalid_argument("Texture copy subresource ranges overlap");
+        std::vector<TextureCopyRegion> regions;
+        regions.reserve(static_cast<std::size_t>(mipCount) * layerCount);
+        for (std::uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            for (std::uint32_t layer = 0; layer < layerCount; ++layer)
+            {
+                auto region = firstRegion;
+                region.SourceLayer += layer;
+                region.DestinationLayer += layer;
+                ValidateTextureCopy(destination, source, region);
+                regions.push_back(region);
+            }
+            firstRegion.SourceX /= 2;
+            firstRegion.SourceY /= 2;
+            firstRegion.DestinationX /= 2;
+            firstRegion.DestinationY /= 2;
+            firstRegion.Width = std::max(firstRegion.Width / 2, 1u);
+            firstRegion.Height = std::max(firstRegion.Height / 2, 1u);
+            ++firstRegion.SourceMip;
+            ++firstRegion.DestinationMip;
+        }
+        return regions;
     }
 
     void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)

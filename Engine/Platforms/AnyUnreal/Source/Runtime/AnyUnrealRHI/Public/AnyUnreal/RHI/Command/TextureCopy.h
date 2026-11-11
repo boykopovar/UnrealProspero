@@ -32,6 +32,7 @@ namespace AnyUnreal::RHI
 
     ANYUNREALRHI_API void ValidateTextureCopy(const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);
     ANYUNREALRHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);
+    ANYUNREALRHI_API std::vector<TextureCopyRegion> BuildTextureCopyRegions(const LinearTexture2D& destination, const LinearTexture2D& source, TextureCopyRegion firstRegion, std::uint32_t mipCount, std::uint32_t layerCount);
     ANYUNREALRHI_API void ValidateTextureCopy(const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
     ANYUNREALRHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
 }
