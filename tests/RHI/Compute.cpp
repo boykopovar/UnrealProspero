@@ -106,7 +106,8 @@ int main()
     auto* base = static_cast<std::byte*>(memory.Data());
     auto* fence = std::construct_at(reinterpret_cast<std::uint64_t*>(base + 64), 0);
     auto* output = reinterpret_cast<std::uint32_t*>(base + 256);
-    auto* input = static_cast<std::uint32_t*>(secondMemory.Data());
+    constexpr std::size_t inputOffset = 256;
+    auto* input = reinterpret_cast<std::uint32_t*>(secondMemory.GetRange(inputOffset, 64 * sizeof(std::uint32_t)).data());
     auto* words = reinterpret_cast<std::uint32_t*>(base + 4096);
     std::vector<Shaders::RuntimeBinding> bindings;
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
@@ -128,7 +129,7 @@ int main()
             output[index] = 0xffffffff;
             values[index] = index + static_cast<std::uint32_t>(iteration * 7);
         }
-        secondMemory.Upload(0, std::as_bytes(std::span(values)));
+        secondMemory.Upload(inputOffset, std::as_bytes(std::span(values)));
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);
