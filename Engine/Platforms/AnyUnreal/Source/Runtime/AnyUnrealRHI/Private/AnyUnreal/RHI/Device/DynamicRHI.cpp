@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
+#include "AnyUnreal/RHI/State/RasterizerState.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "RHICommandList.h"
@@ -25,6 +26,11 @@ namespace AnyUnreal::RHI
     FRHITextureInitializer DynamicRHI::RHICreateTextureInitializer(FRHICommandListBase& commandList, const FRHITextureCreateDesc& description)
     {
         return CreateTextureInitializer(commandList, description, addressHigh);
+    }
+
+    FRasterizerStateRHIRef DynamicRHI::RHICreateRasterizerState(const FRasterizerStateInitializerRHI& initializer)
+    {
+        return new RasterizerState(initializer);
     }
 
     FSamplerStateRHIRef DynamicRHI::RHICreateSamplerState(const FSamplerStateInitializerRHI& initializer)
