@@ -63,7 +63,7 @@ namespace UnrealProspero::Cook
         void GetTextureFormats(const UTexture* texture, TArray<TArray<FName>>& formats) const override
         {
             if (!texture) throw std::invalid_argument("Texture is null");
-            if constexpr (!TProperties::IsServerOnly()) GetDefaultTextureFormatNamePerLayer(formats.AddDefaulted_GetRef(), this->GetTargetPlatformSettings(), this, texture, false, 4, true);
+            if constexpr (!TProperties::IsServerOnly()) GetDefaultTextureFormatNamePerLayer(formats.AddDefaulted_GetRef(), this->GetTargetPlatformSettings(), this, texture, true, 4, true);
         }
 #endif
 

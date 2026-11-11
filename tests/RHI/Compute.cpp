@@ -52,6 +52,20 @@ namespace
         return std::nullopt;
     }
 
+    std::array<std::byte, 16> bc6Block(unsigned endpoint)
+    {
+        if (endpoint > 1023) throw std::out_of_range("BC6 test endpoint exceeds ten bits");
+        std::array<std::byte, 16> result{};
+        result[0] = std::byte{3};
+        for (unsigned component = 0; component < 6; ++component)
+        for (unsigned bit = 0; bit < 10; ++bit)
+        {
+            const auto position = 5 + component * 10 + bit;
+            if ((endpoint & (1u << bit)) != 0) result[position / 8] |= static_cast<std::byte>(1u << (position % 8));
+        }
+        return result;
+    }
+
     void uploadCompressed(UnrealProspero::RHI::LinearTexture2D& texture, std::string_view operation)
     {
         const auto blockBytes = UnrealProspero::RHI::DescribeTextureFormat(texture.GetFormat()).BlockBytes;
@@ -63,15 +77,10 @@ namespace
             const bool middle = block == 1;
             if (operation.starts_with("bc6"))
             {
-                data[0] = std::byte{3};
                 const bool signedFormat = operation == "bc6-signed";
                 const auto endpoint = white ? (signedFormat ? 511u : 1023u) : middle ? (signedFormat ? 256u : 512u) : 0u;
-                for (unsigned component = 0; component < 6; ++component)
-                for (unsigned bit = 0; bit < 10; ++bit)
-                {
-                    const auto position = 5 + component * 10 + bit;
-                    if ((endpoint & (1u << bit)) != 0) data[position / 8] |= static_cast<std::byte>(1u << (position % 8));
-                }
+                const auto encoded = bc6Block(endpoint);
+                std::copy(encoded.begin(), encoded.end(), data);
             }
             else if (operation.starts_with("bc7"))
             {
@@ -225,6 +234,7 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const auto compressed = compressedFormat(operation);
+    const bool compressedVolume = operation == "volume-bc6";
     const bool integerWrite = operation == "uint-texture-write" || operation == "sint-texture-write";
     const bool sintTexture = operation == "sint-texture" || operation == "sint-texture-write";
     const bool integerTexture = operation == "uint-texture" || sintTexture || integerWrite;
@@ -234,10 +244,10 @@ int main()
     const bool cubeView = operation == "cube-view" || operation == "cube-array-view";
     const bool cubeRead = operation == "cube-texture" || cubeView || cubeArray;
     const bool withSampler = cubeRead || operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!compressed && !integerTexture && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
+    if (!compressedVolume && !compressed && !integerTexture && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
     const bool volumeMipView = operation == "volume-mip-view";
     const bool volumeMipRead = operation == "volume-mip-texture" || volumeMipView;
-    const bool volumeRead = operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
+    const bool volumeRead = compressedVolume || operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
     const bool arrayView = operation == "array-view";
     const bool arrayRead = operation == "array-texture" || arrayView;
     const bool mipView = operation == "mip-view" || arrayView || cubeView || layerView;
@@ -335,7 +345,18 @@ int main()
     std::unique_ptr<RHI::LinearTexture3D> volume;
     if (volumeRead)
     {
-        if (volumeMipRead)
+        if (compressedVolume)
+        {
+            volume = std::make_unique<RHI::LinearTexture3D>(5, 3, 5, RHI::TextureFormat::Bc6Ufloat, layout.GetAddressHigh());
+            std::array<std::byte, 160> blocks{};
+            for (unsigned block = 0; block < 10; ++block)
+            {
+                const auto encoded = bc6Block(block % 3 == 0 ? 0u : block % 3 == 1 ? 512u : 1023u);
+                std::copy(encoded.begin(), encoded.end(), blocks.begin() + block * 16);
+            }
+            volume->Upload(blocks, 32, 32);
+        }
+        else if (volumeMipRead)
         {
             const auto extent = volumeMipView ? 16u : 8u;
             volume = std::make_unique<RHI::LinearTexture3D>(extent, extent, extent, RHI::TextureFormat::R32Float, layout.GetAddressHigh(), volumeMipView ? 5u : 4u);
@@ -607,6 +628,11 @@ int main()
                 if (operation.starts_with("bc6")) expected = block == 2 ? 16703520u : block == 1 ? (operation == "bc6-signed" ? 390u : 386u) : 0u;
             }
             if (volumeRead) expected = index * 3 + 1;
+            if (compressedVolume)
+            {
+                const auto block = (index / 15) * 2 + (index % 5) / 4;
+                expected = block % 3 == 0 ? 0u : block % 3 == 1 ? 1u : 65504u;
+            }
             if (volumeMipRead)
             {
                 const auto level = index % 4;

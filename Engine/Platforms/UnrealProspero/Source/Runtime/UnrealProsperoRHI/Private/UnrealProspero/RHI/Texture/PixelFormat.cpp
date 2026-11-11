@@ -69,7 +69,7 @@ namespace UnrealProspero::RHI
             if (format.BlockSizeX != info.BlockWidth || format.BlockSizeY != info.BlockHeight || format.BlockBytes != info.BlockBytes) throw std::runtime_error("Texture format block layout does not match Unreal");
             if (info.BlockWidth > 1)
             {
-                format.Capabilities = Caps::Texture2D | Caps::TextureCube | Caps::TextureMipmaps | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
+                format.Capabilities = Caps::Texture2D | Caps::Texture3D | Caps::TextureCube | Caps::TextureMipmaps | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
                 continue;
             }
             const bool integer = mapping.Linear == TextureFormat::R32Uint || mapping.Linear == TextureFormat::R32Sint;

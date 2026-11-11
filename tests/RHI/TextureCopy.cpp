@@ -212,15 +212,18 @@ void CheckVolumeCopies()
 void CheckVolumeUploads()
 {
     using namespace UnrealProspero::RHI;
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float, TextureFormat::Bc1Unorm, TextureFormat::Bc2Srgb, TextureFormat::Bc3Unorm, TextureFormat::Bc4Snorm, TextureFormat::Bc5Unorm, TextureFormat::Bc6Ufloat, TextureFormat::Bc7Srgb})
     for (const auto mipLevel : {0u, 1u, 2u})
     for (const bool pendingWrite : {false, true})
     {
         LinearTexture3D destination(13u << mipLevel, 7u << mipLevel, 5u << mipLevel, format, 2, mipLevel + 1);
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
-        const auto rowBytes = 5 * pixelBytes;
+        const auto info = DescribeTextureFormat(format);
+        const auto x = info.BlockWidth == 1 ? 3u : 8u;
+        const auto y = info.BlockHeight == 1 ? 1u : 4u;
+        const auto rows = (3 + info.BlockHeight - 1) / info.BlockHeight;
+        const auto rowBytes = ((5 + info.BlockWidth - 1) / info.BlockWidth) * info.BlockBytes;
         const auto rowPitch = rowBytes + 11;
-        const auto slicePitch = rowPitch * 3 + 17;
+        const auto slicePitch = rowPitch * rows + 17;
         std::vector<std::byte> source(slicePitch * 2);
         for (std::size_t i = 0; i < source.size(); ++i) source[i] = static_cast<std::byte>(i % 251);
         const auto snapshot = source;
@@ -230,10 +233,10 @@ void CheckVolumeUploads()
         std::fill(bytes.begin(), bytes.end(), std::byte{0x5a});
         std::vector<std::byte> expected(bytes.size(), pendingWrite ? std::byte{0xa5} : std::byte{0x5a});
         for (std::size_t z = 0; z < 2; ++z)
-        for (std::size_t y = 0; y < 3; ++y)
+        for (std::size_t row = 0; row < rows; ++row)
         {
-            const auto target = destination.GetMipLayout(mipLevel).Offset + (z + 2) * destination.GetSlicePitch() + (y + 1) * destination.GetMipLayout(mipLevel).RowPitch + 3 * pixelBytes;
-            std::copy_n(snapshot.begin() + z * slicePitch + y * rowPitch, rowBytes, expected.begin() + target);
+            const auto target = destination.GetMipLayout(mipLevel).Offset + (z + 2) * destination.GetSlicePitch() + (row + y / info.BlockHeight) * destination.GetMipLayout(mipLevel).RowPitch + x / info.BlockWidth * info.BlockBytes;
+            std::copy_n(snapshot.begin() + z * slicePitch + row * rowPitch, rowBytes, expected.begin() + target);
         }
         CommandStorage storage(16384, 2);
         auto& commands = storage.Get();
@@ -244,10 +247,10 @@ void CheckVolumeUploads()
         catch (const std::out_of_range&) { rejected = true; }
         if (!rejected || before != commands.cursor_up) throw std::runtime_error("Invalid volume upload changed commands");
         if (pendingWrite) WriteBufferFill(commands, destination.GetStorage().Data(), bytes.size(), 0xa5a5a5a5u);
-        upload.Record(commands, destination, 3, 1, 2, mipLevel);
+        upload.Record(commands, destination, x, y, 2, mipLevel);
         const auto recorded = commands.cursor_up;
         rejected = false;
-        try { upload.Record(commands, destination, 3, 1, 2, mipLevel); }
+        try { upload.Record(commands, destination, x, y, 2, mipLevel); }
         catch (const std::runtime_error&) { rejected = true; }
         if (!rejected || recorded != commands.cursor_up) throw std::runtime_error("Repeated volume upload changed commands");
         BufferAllocation fenceStorage(8, 2);
@@ -255,7 +258,7 @@ void CheckVolumeUploads()
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(bytes.begin(), bytes.end(), expected.begin())) throw std::runtime_error("Volume upload corrupted slices, pixels or padding");
     }
-    std::cout << "Volume uploads verified for eleven formats and pending GPU writes\n";
+    std::cout << "Volume uploads verified for uncompressed and BC formats and pending GPU writes\n";
 }
 
 void CheckMipCopies()
