@@ -15,7 +15,7 @@ namespace AnyUnreal::RHI
         }
     }
 
-    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
+    void ValidateTextureCopy(const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
     {
         if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Volume copy formats are incompatible");
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
@@ -32,6 +32,13 @@ namespace AnyUnreal::RHI
             overlap = overlap && region.Source[axis] < region.Destination[axis] + size && region.Destination[axis] < region.Source[axis] + size;
         }
         if (overlap) throw std::invalid_argument("Volume copy regions overlap");
+    }
+
+    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
+    {
+        ValidateTextureCopy(destination, source, region);
+        const auto& sourceMip = source.GetMipLayout(region.SourceMip);
+        const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, source.GetFormat());
         const auto rowBytes = region.Extent[0] * pixelBytes;
         const auto& sourceStorage = source.GetStorage();

@@ -56,21 +56,39 @@ namespace AnyUnreal::RHI
             if (info.SourceSliceIndex != 0 || info.DestSliceIndex != 0 || info.NumSlices != 1) throw std::invalid_argument("Texture copy requires the available slice");
             if (source->GetDesc().Dimension == ETextureDimension::Texture3D || destination->GetDesc().Dimension == ETextureDimension::Texture3D)
             {
-                if (info.SourceMipIndex != 0 || info.DestMipIndex != 0 || info.NumMips != 1) throw std::out_of_range("Volume copy selects unavailable mips");
                 if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z < 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z < 0) throw std::invalid_argument("Invalid volume copy position");
                 auto from = static_cast<TextureResource*>(source)->CaptureVolume();
                 auto to = static_cast<TextureResource*>(destination)->CaptureVolume();
                 const bool whole = info.Size == FIntVector::ZeroValue;
                 if (!whole && (info.Size.X <= 0 || info.Size.Y <= 0 || info.Size.Z <= 0)) throw std::invalid_argument("Invalid volume copy size");
-                const VolumeCopyRegion region{
+                if (info.NumMips == 0 || info.SourceMipIndex >= from->GetMipCount() || info.DestMipIndex >= to->GetMipCount() || info.NumMips > from->GetMipCount() - info.SourceMipIndex || info.NumMips > to->GetMipCount() - info.DestMipIndex) throw std::out_of_range("Volume copy exceeds its mip chain");
+                if (from == to && info.SourceMipIndex != info.DestMipIndex && info.SourceMipIndex < info.DestMipIndex + info.NumMips && info.DestMipIndex < info.SourceMipIndex + info.NumMips) throw std::invalid_argument("Volume copy mip ranges overlap");
+                const auto& firstMip = from->GetMipLayout(info.SourceMipIndex);
+                VolumeCopyRegion region{
                     {static_cast<uint32>(info.SourcePosition.X), static_cast<uint32>(info.SourcePosition.Y), static_cast<uint32>(info.SourcePosition.Z)},
                     {static_cast<uint32>(info.DestPosition.X), static_cast<uint32>(info.DestPosition.Y), static_cast<uint32>(info.DestPosition.Z)},
-                    {whole ? from->GetWidth() : static_cast<uint32>(info.Size.X), whole ? from->GetHeight() : static_cast<uint32>(info.Size.Y), whole ? from->GetDepth() : static_cast<uint32>(info.Size.Z)}
+                    {whole ? firstMip.Width : static_cast<uint32>(info.Size.X), whole ? firstMip.Height : static_cast<uint32>(info.Size.Y), whole ? firstMip.Depth : static_cast<uint32>(info.Size.Z)},
+                    info.SourceMipIndex, info.DestMipIndex
                 };
+                std::vector<VolumeCopyRegion> regions;
+                regions.reserve(info.NumMips);
+                for (uint32 index = 0; index < info.NumMips; ++index)
+                {
+                    ValidateTextureCopy(*to, *from, region);
+                    regions.push_back(region);
+                    for (std::size_t axis = 0; axis < 3; ++axis)
+                    {
+                        region.Source[axis] /= 2;
+                        region.Destination[axis] /= 2;
+                        region.Extent[axis] = std::max(region.Extent[axis] / 2, 1u);
+                    }
+                    ++region.SourceMip;
+                    ++region.DestinationMip;
+                }
                 copiedVolumes.reserve(copiedVolumes.size() + 2);
                 copiedVolumes.push_back(from);
                 copiedVolumes.push_back(to);
-                WriteTextureCopy(commands, *to, *from, region);
+                for (const auto& copy : regions) WriteTextureCopy(commands, *to, *from, copy);
                 return;
             }
             if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z != 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z != 0) throw std::invalid_argument("Invalid two-dimensional texture copy position");
@@ -104,7 +122,7 @@ namespace AnyUnreal::RHI
         });
     }
 
-    void GraphicsContext::UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z)
+    void GraphicsContext::UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z, uint32 mipLevel)
     {
         RecordCommands([&](CommandBuffer& commands)
         {
@@ -112,7 +130,7 @@ namespace AnyUnreal::RHI
             if (!destination || !upload) throw std::invalid_argument("Volume upload requires storage and data");
             copiedVolumes.push_back(destination);
             volumeUploads.push_back(upload);
-            upload->Record(commands, *destination, x, y, z);
+            upload->Record(commands, *destination, x, y, z, mipLevel);
         });
     }
 

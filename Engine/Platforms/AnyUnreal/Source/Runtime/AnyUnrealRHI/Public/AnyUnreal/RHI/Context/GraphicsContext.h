@@ -25,7 +25,7 @@ namespace AnyUnreal::RHI
         void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
         void RHIEndRenderPass() override;
         void RHICopyTexture(FRHITexture* source, FRHITexture* destination, const FRHICopyTextureInfo& info) override;
-        void UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z);
+        void UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z, uint32 mipLevel);
         void UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel);
         void RHISetBlendFactor(const FLinearColor& factor) override;
         void RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount) override;
