@@ -52,7 +52,7 @@ namespace AnyUnreal::RHI
             const auto& entry = info.ColorRenderTargets[index];
             if (entry.ResolveTarget) throw std::runtime_error("Render pass resolves are not implemented");
             if (!entry.RenderTarget) continue;
-            if (entry.MipIndex != 0 || (entry.ArraySlice != -1 && entry.ArraySlice != 0)) throw std::out_of_range("Color render pass subresource does not exist");
+            if (entry.ArraySlice != -1 && entry.ArraySlice != 0) throw std::out_of_range("Color render pass subresource does not exist");
             switch (GetLoadAction(entry.Action))
             {
             case ERenderTargetLoadAction::ENoAction:
@@ -71,6 +71,8 @@ namespace AnyUnreal::RHI
             const auto& description = texture.GetDesc();
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
             targets[index] = texture.Capture();
+            const auto& mip = targets[index]->GetMipLayout(entry.MipIndex);
+            mips[index] = entry.MipIndex;
             if (GetLoadAction(entry.Action) == ERenderTargetLoadAction::EClear)
             {
                 if (description.ClearValue.ColorBinding != EClearBinding::EColorBound) throw std::invalid_argument("Color clear requires a color clear binding");
@@ -79,13 +81,13 @@ namespace AnyUnreal::RHI
             }
             for (uint32 previous = 0; previous < index; ++previous)
             {
-                if (targets[previous] == targets[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
+                if (targets[previous] == targets[index] && mips[previous] == mips[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
             }
             formats[index] = description.Format;
             srgb[index] = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB);
             targetCount = index + 1;
-            width = std::min(width, targets[index]->GetWidth());
-            height = std::min(height, targets[index]->GetHeight());
+            width = std::min(width, mip.Width);
+            height = std::min(height, mip.Height);
         }
         if (targetCount == 0 && !depthTarget) throw std::runtime_error("Attachmentless render passes are not implemented");
     }
@@ -116,8 +118,8 @@ namespace AnyUnreal::RHI
         {
             if (targets[index])
             {
-                if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index]);
-                WriteColorTarget(commands, index, *targets[index]);
+                if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index], mips[index]);
+                WriteColorTarget(commands, index, *targets[index], mips[index]);
             }
             else DisableColorTarget(commands, index);
         }
