@@ -51,6 +51,16 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output)
+    {
+        validate(texture, rectangle, FReadSurfaceDataFlags());
+        if (texture.GetFormat() != TextureFormat::Rgba16Float) throw std::invalid_argument("Half-float surface read requires an RGBA16 float texture");
+        TArray<FFloat16Color> result;
+        result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
+        if (result.Num() != 0) ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData());
+        output = MoveTemp(result);
+    }
+
     void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FColor>& output)
     {
         validate(texture, rectangle, flags);
@@ -58,7 +68,11 @@ namespace AnyUnreal::RHI
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
         if (result.Num() != 0)
         {
-            if (texture.GetFormat() == TextureFormat::Rgba32Float)
+            if (texture.GetFormat() == TextureFormat::Rgba16Float)
+            {
+                ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData(), flags.GetLinearToGamma());
+            }
+            else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
                 auto values = readFloats(texture, rectangle);
                 ConvertRawR32G32B32A32DataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags.GetLinearToGamma());
@@ -80,7 +94,11 @@ namespace AnyUnreal::RHI
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
         if (result.Num() != 0)
         {
-            if (texture.GetFormat() == TextureFormat::Rgba32Float)
+            if (texture.GetFormat() == TextureFormat::Rgba16Float)
+            {
+                ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData(), flags);
+            }
+            else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
                 auto values = readFloats(texture, rectangle);
                 ConvertRawR32G32B32A32DataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags);

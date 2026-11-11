@@ -25,6 +25,7 @@ namespace AnyUnreal::RHI
             case PF_R8: return TextureFormat::R8Unorm;
             case PF_R8G8: return TextureFormat::Rg8Unorm;
             case PF_R32_FLOAT: return TextureFormat::R32Float;
+            case PF_FloatRGBA: return TextureFormat::Rgba16Float;
             case PF_A32B32G32R32F: return TextureFormat::Rgba32Float;
             default: throw std::runtime_error("Texture pixel format is not implemented");
             }

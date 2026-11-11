@@ -4,12 +4,14 @@
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
 #include "Containers/Array.h"
 #include "Math/Color.h"
+#include "Math/Float16Color.h"
 #include "Math/IntRect.h"
 #include "RHIResources.h"
 #include "RHITypes.h"
 
 namespace AnyUnreal::RHI
 {
+    ANYUNREALRHI_API void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output);
     ANYUNREALRHI_API void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FColor>& output);
     ANYUNREALRHI_API void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FLinearColor>& output);
 }
