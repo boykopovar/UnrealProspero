@@ -157,12 +157,14 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
     const bool volumeMipView = operation == "volume-mip-view";
     const bool volumeMipRead = operation == "volume-mip-texture" || volumeMipView;
     const bool volumeRead = operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
-    const bool mipView = operation == "mip-view";
-    const bool mipRead = operation == "mip-texture" || mipView;
+    const bool arrayView = operation == "array-view";
+    const bool arrayRead = operation == "array-texture" || arrayView;
+    const bool mipView = operation == "mip-view" || arrayView;
+    const bool mipRead = operation == "mip-texture" || mipView || arrayRead;
     const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
     const bool textureWrite = operation == "texture-write" || operation == "volume-write";
@@ -204,7 +206,7 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u);
+        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, arrayRead ? 5u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (textureView)
@@ -228,14 +230,15 @@ int main()
         else if (!mipRead) texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
         if (mipRead)
         {
+            for (std::uint32_t layer = 0; layer < texture->GetArrayLayers(); ++layer)
             for (std::uint32_t level = 0; level < texture->GetMipCount(); ++level)
             {
                 const auto& mip = texture->GetMipLayout(level);
                 std::vector<float> pixels(mip.Width * mip.Height);
-                for (std::size_t pixel = 0; pixel < pixels.size(); ++pixel) pixels[pixel] = static_cast<float>(level * 100 + pixel * 3 + 1);
-                texture->Upload(std::as_bytes(std::span(pixels)), mip.RowBytes, level);
+                for (std::size_t pixel = 0; pixel < pixels.size(); ++pixel) pixels[pixel] = static_cast<float>(layer * 1000 + level * 100 + pixel * 3 + 1);
+                texture->Upload(std::as_bytes(std::span(pixels)), mip.RowBytes, level, layer);
                 std::vector<float> copied(pixels.size());
-                texture->CopyRowsTo(std::as_writable_bytes(std::span(copied)), mip.RowBytes, level);
+                texture->CopyRowsTo(std::as_writable_bytes(std::span(copied)), mip.RowBytes, level, layer);
                 if (copied != pixels) throw std::runtime_error("Mip upload or readback changed texels");
             }
         }
@@ -321,7 +324,7 @@ int main()
     if (texture)
     {
         const auto original = texture->GetDescriptor();
-        const auto view = texture->CreateViewDescriptor(textureView, mipView ? 1u : 0u);
+        const auto view = arrayRead ? texture->CreateArrayViewDescriptor(false, arrayView ? 2u : 0u, 3, mipView ? 1u : 0u) : texture->CreateViewDescriptor(textureView, mipView ? 1u : 0u);
         if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
         descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
     }
@@ -526,6 +529,7 @@ int main()
                 const auto width = 8u >> level;
                 expected = (level + (mipView ? 1u : 0u)) * 100 + ((index / 4) % (width * width)) * 3 + 1;
             }
+            if (arrayRead) expected += ((index / 4) % 3 + (arrayView ? 2u : 0u)) * 1000;
             if (depthRead) expected = iteration == 1 ? 1 : 0;
             if (textureWrite) expected = ((index + 1) % 64) * 3 + 1;
             if (withSampler)
