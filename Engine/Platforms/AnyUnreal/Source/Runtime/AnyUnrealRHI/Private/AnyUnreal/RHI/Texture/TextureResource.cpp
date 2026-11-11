@@ -254,8 +254,8 @@ namespace AnyUnreal::RHI
             }
             if (data.size() != required * storage->GetArrayLayers()) throw std::invalid_argument("Initial texture data does not match its mip chain");
             std::size_t offset = 0;
-            for (std::uint32_t layer = 0; layer < storage->GetArrayLayers(); ++layer)
             for (std::uint32_t level = 0; level < storage->GetMipCount(); ++level)
+            for (std::uint32_t layer = 0; layer < storage->GetArrayLayers(); ++layer)
             {
                 const auto& mip = storage->GetMipLayout(level);
                 const auto size = mip.RowBytes * mip.Height;
