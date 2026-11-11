@@ -69,6 +69,7 @@ namespace AnyUnreal::Shader
         const auto sourceStage = fields.Get("source_stage");
         if (!((stage == ShaderStage::Vertex && sourceStage == 1) || (stage == ShaderStage::Pixel && sourceStage == 5) || (stage == ShaderStage::Compute && sourceStage == 6))) throw std::invalid_argument("AGC binding metadata has the wrong shader stage");
         UserDataLayout result;
+        result.stage = stage;
         result.count = fields.Get("user_sgpr_count");
         result.addressHigh = fields.Get("address32_hi");
         result.pushConstantSize = fields.Get("push_constant_size");
@@ -152,4 +153,5 @@ namespace AnyUnreal::Shader
     std::uint32_t UserDataLayout::GetCount() const { return count; }
     std::uint32_t UserDataLayout::GetAddressHigh() const { return addressHigh; }
     std::uint32_t UserDataLayout::GetPushConstantSize() const { return pushConstantSize; }
+    ShaderStage UserDataLayout::GetStage() const { return stage; }
 }
