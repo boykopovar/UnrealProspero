@@ -94,7 +94,7 @@ namespace AnyUnreal::RHI
     {
         if (!initialized || shutDown) throw std::runtime_error("Texture memory statistics require an initialized device");
         FTextureMemoryStats result;
-        result.NonStreamingMemorySize = BufferAllocation::GetTextureAllocationBytes();
+        result.NonStreamingMemorySize = BufferAllocation::GetNonStreamingTextureAllocationBytes();
         statistics = result;
     }
 
