@@ -43,8 +43,8 @@ namespace
     std::optional<UnrealProspero::RHI::TextureFormat> compressedFormat(std::string_view operation)
     {
         using Format = UnrealProspero::RHI::TextureFormat;
-        const std::array names{"bc1", "bc1-srgb", "bc2", "bc2-srgb", "bc3", "bc3-srgb", "bc4", "bc5", "bc7", "bc7-srgb"};
-        const std::array formats{Format::Bc1Unorm, Format::Bc1Srgb, Format::Bc2Unorm, Format::Bc2Srgb, Format::Bc3Unorm, Format::Bc3Srgb, Format::Bc4Unorm, Format::Bc5Unorm, Format::Bc7Unorm, Format::Bc7Srgb};
+        const std::array names{"bc1", "bc1-srgb", "bc2", "bc2-srgb", "bc3", "bc3-srgb", "bc4", "bc5", "bc6", "bc6-signed", "bc7", "bc7-srgb"};
+        const std::array formats{Format::Bc1Unorm, Format::Bc1Srgb, Format::Bc2Unorm, Format::Bc2Srgb, Format::Bc3Unorm, Format::Bc3Srgb, Format::Bc4Unorm, Format::Bc5Unorm, Format::Bc6Ufloat, Format::Bc6Sfloat, Format::Bc7Unorm, Format::Bc7Srgb};
         for (std::size_t index = 0; index < names.size(); ++index)
         {
             if (operation == names[index]) return formats[index];
@@ -61,7 +61,19 @@ namespace
             auto* data = blocks.data() + block * blockBytes;
             const bool white = block == 2;
             const bool middle = block == 1;
-            if (operation.starts_with("bc7"))
+            if (operation.starts_with("bc6"))
+            {
+                data[0] = std::byte{3};
+                const bool signedFormat = operation == "bc6-signed";
+                const auto endpoint = white ? (signedFormat ? 511u : 1023u) : middle ? (signedFormat ? 256u : 512u) : 0u;
+                for (unsigned component = 0; component < 6; ++component)
+                for (unsigned bit = 0; bit < 10; ++bit)
+                {
+                    const auto position = 5 + component * 10 + bit;
+                    if ((endpoint & (1u << bit)) != 0) data[position / 8] |= static_cast<std::byte>(1u << (position % 8));
+                }
+            }
+            else if (operation.starts_with("bc7"))
             {
                 data[0] = white ? std::byte{0xc0} : std::byte{0x40};
                 if (middle)
@@ -590,6 +602,7 @@ int main()
                 const bool rgb565 = operation.starts_with("bc1") || operation.starts_with("bc2") || operation.starts_with("bc3");
                 const auto middle = operation.ends_with("-srgb") ? (rgb565 ? 59u : 55u) : (rgb565 ? 132u : 128u);
                 expected = block == 2 ? 255 : block == 1 ? middle : 0;
+                if (operation.starts_with("bc6")) expected = block == 2 ? 16703520u : block == 1 ? (operation == "bc6-signed" ? 390u : 386u) : 0u;
             }
             if (volumeRead) expected = index * 3 + 1;
             if (volumeMipRead)

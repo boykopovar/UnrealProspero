@@ -23,6 +23,7 @@ namespace UnrealProspero::RHI
             FormatMapping{PF_DXT5, TextureFormat::Bc3Unorm, TextureFormat::Bc3Srgb},
             FormatMapping{PF_BC4, TextureFormat::Bc4Unorm, std::nullopt},
             FormatMapping{PF_BC5, TextureFormat::Bc5Unorm, std::nullopt},
+            FormatMapping{PF_BC6H, TextureFormat::Bc6Ufloat, std::nullopt},
             FormatMapping{PF_BC7, TextureFormat::Bc7Unorm, TextureFormat::Bc7Srgb},
             FormatMapping{PF_G8, TextureFormat::R8Unorm, std::nullopt},
             FormatMapping{PF_R8, TextureFormat::R8Unorm, std::nullopt},
