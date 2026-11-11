@@ -377,8 +377,15 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void DynamicRHI::RHIEndFrame(const FRHIEndFrameArgs& arguments)
+    {
+        if (arguments.bProfileNextFrame) throw std::runtime_error("GPU frame timing capture is not implemented");
+        RHIProcessDeleteQueue();
+    }
+
     void DynamicRHI::RHIProcessDeleteQueue()
     {
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 

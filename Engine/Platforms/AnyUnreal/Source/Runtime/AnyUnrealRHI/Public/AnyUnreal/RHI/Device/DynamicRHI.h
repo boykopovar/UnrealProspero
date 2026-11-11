@@ -44,6 +44,7 @@ namespace AnyUnreal::RHI
         FRHIFinalizeContextsResult RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args) override;
         void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
         void RHIProcessDeleteQueue() override;
+        void RHIEndFrame(const FRHIEndFrameArgs& arguments) override;
         void RHIBlockUntilGPUIdle() override;
         FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType type) override;
         bool RHIGetRenderQueryResult(FRHIRenderQuery* query, uint64& result, bool wait, uint32 gpuIndex = INDEX_NONE) override;
