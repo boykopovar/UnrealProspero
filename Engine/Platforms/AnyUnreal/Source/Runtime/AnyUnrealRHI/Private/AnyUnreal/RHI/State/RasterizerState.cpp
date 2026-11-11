@@ -26,7 +26,7 @@ namespace AnyUnreal::RHI
         case ERasterizerDepthClipMode::DepthClamp: break;
         default: throw std::invalid_argument("Unknown rasterizer depth clipping mode");
         }
-        if (!std::isfinite(description.DepthBias) || !std::isfinite(description.SlopeScaleDepthBias)) throw std::invalid_argument("Rasterizer depth bias must be finite");
+        if (!std::isfinite(description.DepthBias) || !std::isfinite(description.SlopeScaleDepthBias * 16.0f)) throw std::invalid_argument("Rasterizer depth bias must be finite and representable");
     }
 
     bool RasterizerState::GetInitializer(FRasterizerStateInitializerRHI& result)

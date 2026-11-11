@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Pipeline/GraphicsPipeline.h"
 #include "AnyUnreal/RHI/Command/ColorBlend.h"
 #include "AnyUnreal/RHI/Command/DepthStencil.h"
+#include "AnyUnreal/RHI/Command/DepthBias.h"
 #include "AnyUnreal/RHI/Command/Rasterization.h"
 #include "prx/libSceAgc/DcbState/include/Registers.hpp"
 #include <bit>
@@ -93,7 +94,8 @@ namespace AnyUnreal::RHI
         const bool hasDepth = description.DepthStencilTargetFormat == PF_ShadowDepth && description.DepthStencilAccess.IsUsingDepth();
         if (description.DepthStencilAccess.IsUsingStencil()) throw std::invalid_argument("Graphics pipeline has no stencil plane");
         if (hasDepth && depthStencil->GetDescription().bEnableDepthWrite && !description.DepthStencilAccess.IsDepthWrite()) throw std::invalid_argument("Depth write is enabled on a read-only attachment");
-        if (hasDepth && (rasterizer->GetDescription().DepthBias != 0 || rasterizer->GetDescription().SlopeScaleDepthBias != 0)) throw std::runtime_error("Depth bias is not implemented");
+        const auto& raster = rasterizer->GetDescription();
+        const bool depthBias = hasDepth && (raster.DepthBias != 0 || raster.SlopeScaleDepthBias != 0);
         if (blend->GetDescription().bUseAlphaToCoverage) throw std::runtime_error("Alpha to coverage is not implemented");
         for (uint32 index = 0; index < description.RenderTargetsEnabled; ++index)
         {
@@ -110,7 +112,8 @@ namespace AnyUnreal::RHI
         }
         WriteColorBlendRegisters(commands, *blend, description.RenderTargetsEnabled);
         WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, hasDepth, false, description.bDepthBounds);
-        WriteRasterizationRegisters(commands, *rasterizer, 0x240, 0x1080000, false);
+        if (hasDepth) WriteDepthBias(commands, raster.DepthBias, raster.SlopeScaleDepthBias);
+        WriteRasterizationRegisters(commands, *rasterizer, 0x240, 0x1080000, depthBias);
         const std::array registers{
             ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0010u : 0u},
             ShaderRegister{0x206, 0x43f}, ShaderRegister{0x292, 0x22}, ShaderRegister{0x2f9, 0x2d},
