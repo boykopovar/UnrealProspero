@@ -11,6 +11,7 @@
 #include "AnyUnreal/RHI/State/RasterizerState.h"
 #include "AnyUnreal/RHI/State/DepthStencilState.h"
 #include "AnyUnreal/RHI/State/BlendState.h"
+#include "AnyUnreal/RHI/State/VertexDeclaration.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "RHICommandList.h"
@@ -23,6 +24,11 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FVertexDeclarationRHIRef DynamicRHI::RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements)
+    {
+        return new VertexDeclaration(elements);
     }
 
     FRHITextureInitializer DynamicRHI::RHICreateTextureInitializer(FRHICommandListBase& commandList, const FRHITextureCreateDesc& description)

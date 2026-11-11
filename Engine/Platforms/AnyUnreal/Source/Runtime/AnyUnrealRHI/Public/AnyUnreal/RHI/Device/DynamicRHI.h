@@ -11,6 +11,7 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API DynamicRHI : public FDynamicRHI
     {
     public:
+        FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
         FPixelShaderRHIRef RHICreatePixelShader(const FRHICreateShaderDesc& description) override;
         FComputeShaderRHIRef RHICreateComputeShader(const FRHICreateShaderDesc& description) override;
