@@ -7,7 +7,7 @@ endif()
 
 set(common_root "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/AnyUnreal/Source/Runtime/AnyUnrealShaderCommon")
 enable_testing()
-add_executable(ShaderBinary Binary.cpp "${common_root}/Private/AnyUnreal/Shader/ShaderBinary.cpp")
+add_executable(ShaderBinary Binary.cpp "${common_root}/Private/AnyUnreal/Shader/ConstantData.cpp" "${common_root}/Private/AnyUnreal/Shader/ShaderBinary.cpp")
 target_include_directories(ShaderBinary PRIVATE "${common_root}/Public")
 target_compile_definitions(ShaderBinary PRIVATE ANYUNREALSHADERCOMMON_API=)
 target_compile_features(ShaderBinary PRIVATE cxx_std_20)

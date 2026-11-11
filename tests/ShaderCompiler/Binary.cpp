@@ -1,4 +1,5 @@
 #include "AnyUnreal/Shader/ShaderBinary.h"
+#include "AnyUnreal/Shader/ConstantData.h"
 #include <algorithm>
 #include <array>
 #include <iostream>
@@ -35,6 +36,28 @@ int main()
         {ResourceKind::ShaderResource, 2, 0, 2, 2, 0, 32, 0, "sampled-image"},
         {ResourceKind::Sampler, 7, 0, 7, 1, 64, 16, 0, "sampler"}
     }};
+    ConstantData constants(shader.Bindings);
+    require(!constants.Contains(0));
+    const std::array<std::byte, 8> source{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}, std::byte{5}, std::byte{6}, std::byte{7}, std::byte{8}};
+    constants.Write(0, 65528, source, 0, source.size());
+    const auto snapshot = constants;
+    constants.Write(0, 65530, source, 4, 4);
+    require(snapshot.GetBlocks().at(0).Data[65530] == std::byte{3});
+    require(constants.GetBlocks().at(0).Data[65530] == std::byte{5});
+    require(constants.GetBlocks().at(0).Data[65528] == std::byte{1});
+    require(constants.GetBlocks().at(0).Data[0] == std::byte{0});
+    const auto beforeInvalidWrite = constants.GetBlocks().at(0).Data;
+    const auto rejectRange = [](auto action)
+    {
+        try { action(); }
+        catch (const std::out_of_range&) { return; }
+        throw std::runtime_error("Invalid constant range was accepted");
+    };
+    rejectRange([&] { constants.Write(0, 65532, source, 0, 8); });
+    rejectRange([&] { constants.Write(0, 0, source, 7, 2); });
+    rejectRange([&] { constants.Write(0, 0, source, 0, 0); });
+    reject([&] { constants.Write(1, 0, source, 0, 4); });
+    require(constants.GetBlocks().at(0).Data == beforeInvalidWrite);
     const auto bytes = EncodeShaderBinary(shader);
     require(bytes[0] == 'A' && bytes[1] == 'U' && bytes[2] == 'G' && bytes[3] == 'S');
     const auto decoded = DecodeShaderBinary(bytes);
