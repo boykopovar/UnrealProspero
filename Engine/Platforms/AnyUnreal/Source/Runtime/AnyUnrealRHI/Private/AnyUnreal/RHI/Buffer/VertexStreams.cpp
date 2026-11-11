@@ -46,8 +46,13 @@ namespace AnyUnreal::RHI
             }
             if (!selected) throw std::invalid_argument("Vertex declaration does not provide a shader descriptor");
             auto snapshot = Capture(selected->StreamIndex);
-            captured.push_back({index, std::move(snapshot.Storage), snapshot.Offset, selected->Stride});
+            if (layout.UsesDynamicVertexInput())
+            {
+                if (selected->Offset >= snapshot.Storage->Size() - snapshot.Offset) throw std::out_of_range("Vertex attribute offset exceeds its buffer");
+                captured.push_back({index, std::move(snapshot.Storage), snapshot.Offset + selected->Offset, selected->Stride, VertexDeclaration::GetElementFormat(selected->Type), 1, selected->bUseInstanceIndex != 0});
+            }
+            else captured.push_back({index, std::move(snapshot.Storage), snapshot.Offset, selected->Stride});
         }
-        return std::make_unique<VertexBufferTable>(mask, captured, layout.GetAddressHigh());
+        return std::make_unique<VertexBufferTable>(mask, captured, layout.GetAddressHigh(), layout.UsesDynamicVertexInput());
     }
 }

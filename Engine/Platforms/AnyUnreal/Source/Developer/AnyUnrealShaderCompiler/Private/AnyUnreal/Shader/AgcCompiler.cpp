@@ -52,6 +52,7 @@ namespace AnyUnreal::Shader
             if (character == 0 || character == TEXT('"') || character == TEXT('\\') || FChar::IsWhitespace(character)) throw std::invalid_argument("Shader entry point cannot be represented as an ADK argument");
         }
         FString arguments = FString::Printf(TEXT("spirv --input shader.spv --header header.bin --code code.bin --metadata bindings.adk --stage %s --target %s --entry %s --omit-implicit-primitive-id true"), stageName(stage), targetName(target), *entryPoint);
+        if (stage == SF_Vertex) arguments += TEXT(" --dynamic-vertex-input");
         for (const auto& descriptor : descriptors)
         {
             if (descriptor.Type.empty()) throw std::invalid_argument("Shader descriptor type is empty");

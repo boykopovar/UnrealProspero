@@ -57,6 +57,7 @@ int main()
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
     for (unsigned vertexFormat = 0; vertexFormat < (dynamic ? 2u : 1u); ++vertexFormat)
+    for (unsigned instanceMode = 0; instanceMode < (dynamic ? 4u : 1u); ++instanceMode)
     for (const auto indirect : {false, true})
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
@@ -68,7 +69,12 @@ int main()
         LinearTexture2D targetTexture(width, height, format, aperture);
         const auto& output = targetTexture.GetStorage();
         auto positions = std::make_shared<BufferAllocation>(52 + baseVertex * 12, aperture);
-        auto colors = std::make_shared<BufferAllocation>(80 + baseVertex * 16, aperture);
+        auto colors = std::make_shared<BufferAllocation>(128, aperture);
+        std::fill_n(static_cast<std::byte*>(colors->Data()), colors->Size(), std::byte{});
+        const auto instanceCount = instanceMode ? 3u : 1u;
+        const auto firstInstance = instanceMode ? 2u : 0u;
+        const auto divisor = instanceMode == 2 ? 2u : instanceMode == 3 ? 0u : 1u;
+        const auto lastColorIndex = firstInstance + (divisor == 0 ? 0u : (instanceCount - 1) / divisor);
         BufferAllocation fenceStorage(8, aperture);
         BufferAllocation indexStorage(16, aperture);
         BufferAllocation argumentStorage(32, aperture);
@@ -76,12 +82,12 @@ int main()
         {
             if (indexStride)
             {
-                const std::array arguments{3u, 1u, 1u, baseVertex - 1, 0u};
+                const std::array arguments{3u, instanceCount, 1u, baseVertex - 1, firstInstance};
                 argumentStorage.Upload(4, std::as_bytes(std::span(arguments)));
             }
             else
             {
-                const std::array arguments{3u, 1u, baseVertex, 0u};
+                const std::array arguments{3u, instanceCount, baseVertex, firstInstance};
                 argumentStorage.Upload(4, std::as_bytes(std::span(arguments)));
             }
         }
@@ -100,11 +106,12 @@ int main()
         const std::array<float, 12> colorValues{0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1};
         positions->Upload(16 + baseVertex * 12, std::as_bytes(std::span(positionValues)));
         const auto colorStride = vertexFormat == 0 ? 16u : 8u;
-        if (vertexFormat == 0) colors->Upload(32 + baseVertex * colorStride, std::as_bytes(std::span(colorValues)));
+        const auto colorOffset = 32 + (instanceMode ? lastColorIndex : baseVertex) * colorStride;
+        if (vertexFormat == 0) colors->Upload(colorOffset, std::as_bytes(std::span(colorValues).first(instanceMode ? 4 : 12)));
         else
         {
             const std::array<std::uint16_t, 12> halfColors{0x3800, 0x3400, 0x3a00, 0x3c00, 0x3800, 0x3400, 0x3a00, 0x3c00, 0x3800, 0x3400, 0x3a00, 0x3c00};
-            colors->Upload(32 + baseVertex * colorStride, std::as_bytes(std::span(halfColors)));
+            colors->Upload(colorOffset, std::as_bytes(std::span(halfColors).first(instanceMode ? 4 : 12)));
         }
         const auto rejectTable = [&](std::uint32_t mask, std::span<const VertexBufferBinding> bindings)
         {
@@ -136,7 +143,7 @@ int main()
         const std::weak_ptr<BufferAllocation> positionLifetime = positions;
         const std::weak_ptr<BufferAllocation> colorLifetime = colors;
         const auto colorFormat = !dynamic ? VertexFormat::Untyped : vertexFormat == 0 ? VertexFormat::Float4 : VertexFormat::Half4;
-        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{dynamic ? 1u : 7u, colors, 32, colorStride, colorFormat}, VertexBufferBinding{dynamic ? 0u : 3u, positions, 16, 12, dynamic ? VertexFormat::Float3 : VertexFormat::Untyped}}, aperture, dynamic);
+        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{dynamic ? 1u : 7u, colors, 32, colorStride, colorFormat, divisor, instanceMode != 0}, VertexBufferBinding{dynamic ? 0u : 3u, positions, 16, 12, dynamic ? VertexFormat::Float3 : VertexFormat::Untyped}}, aperture, dynamic);
         positions.reset();
         colors.reset();
         if (positionLifetime.expired() || colorLifetime.expired()) throw std::runtime_error("Vertex table did not retain source buffers");
@@ -167,9 +174,10 @@ int main()
         Shaders::UserDataInputs vertexInputs;
         descriptors.Apply(vertexInputs);
         vertexInputs.BaseVertex = indirect ? 19u : indexStride ? baseVertex - 1 : baseVertex;
+        vertexInputs.StartInstance = firstInstance;
         WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
         WriteShaderRegisters(commands, pixel, pixelLayout, {});
-        sceAgcDcbSetNumInstances(&commands, 1);
+        sceAgcDcbSetNumInstances(&commands, instanceCount);
         if (indirect) WriteIndirectDraw(commands, vertexLayout, argumentStorage, 4, indexStride ? &indexStorage : nullptr, indexStride);
         else if (indexStride)
         {

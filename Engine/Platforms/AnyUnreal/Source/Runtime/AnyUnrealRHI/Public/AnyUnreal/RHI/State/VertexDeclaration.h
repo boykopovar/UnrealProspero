@@ -3,6 +3,7 @@
 
 #include "RHIResources.h"
 #include "RHI.h"
+#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 
 namespace AnyUnreal::RHI
 {
@@ -13,6 +14,7 @@ namespace AnyUnreal::RHI
         bool GetInitializer(FVertexDeclarationElementList& initializer) override;
         const FVertexDeclarationElementList& GetElements() const;
         static uint32 GetElementSize(EVertexElementType type);
+        static VertexFormat GetElementFormat(EVertexElementType type);
 
     private:
         FVertexDeclarationElementList elements;
