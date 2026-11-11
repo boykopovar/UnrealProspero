@@ -15,6 +15,7 @@
 #include "AnyUnreal/RHI/State/DepthStencilState.h"
 #include "AnyUnreal/RHI/State/BlendState.h"
 #include "AnyUnreal/RHI/State/VertexDeclaration.h"
+#include "AnyUnreal/RHI/State/BoundShaderState.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "AnyUnreal/RHI/Texture/SurfaceData.h"
@@ -25,6 +26,11 @@
 
 namespace AnyUnreal::RHI
 {
+    FBoundShaderStateRHIRef DynamicRHI::RHICreateBoundShaderState(FRHIVertexDeclaration* declaration, FRHIVertexShader* vertex, FRHIPixelShader* pixel, FRHIGeometryShader* geometry)
+    {
+        return new BoundShaderState(declaration, vertex, pixel, geometry);
+    }
+
     DynamicRHI::DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh) : target(target), addressHigh(addressHigh)
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
