@@ -4,6 +4,7 @@
 #include "AnyUnreal/Shader/ConstantData.h"
 #include <algorithm>
 #include <string_view>
+#include <string>
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
@@ -88,9 +89,10 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write") throw std::invalid_argument("Unknown compute operation");
+    const bool textureWrite = operation == "texture-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = operation == "texture" || textureView || withSampler;
+    const bool withTexture = operation == "texture" || textureView || withSampler || textureWrite;
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -128,7 +130,7 @@ int main()
     {
         texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
         std::array<float, 64> texels;
-        for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(index * 3 + 1);
+        for (unsigned index = 0; index < texels.size(); ++index) texels[index] = textureWrite ? 0.0f : static_cast<float>(index * 3 + 1);
         if (textureView)
         {
             std::array<std::uint32_t, 64> colors;
@@ -140,11 +142,11 @@ int main()
         try { texture->Upload(std::as_bytes(std::span(texels)), 16 * sizeof(float)); }
         catch (const std::invalid_argument&) { invalidPitchRejected = true; }
         if (!invalidPitchRejected || texture->GetRowPitch() != 256) throw std::runtime_error("Texture upload accepted incomplete rows or used an invalid row pitch");
-        bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
+        bindings.push_back({textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, textureWrite ? "storage-image" : "sampled-image"});
     }
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
     if (withSampler) bindings.push_back({Shaders::ResourceKind::Sampler, 0, 0, 1, 1, 32, 16, 0, "sampler"});
-    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, withSampler ? 2u : readWrite || withTexture ? 1u : 0u, 1, withSampler ? 48u : withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, 0, withSampler ? 2u : readWrite || withTexture ? 1u : 0u, 1, withSampler ? 48u : withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
@@ -153,14 +155,14 @@ int main()
     try { descriptors.Apply(inputs); }
     catch (const std::runtime_error&) { rejected = true; }
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
-    descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
+    descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, output, 64 * sizeof(std::uint32_t));
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
     if (texture)
     {
         const auto original = texture->GetDescriptor();
         const auto view = texture->CreateViewDescriptor(textureView);
         if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
-        descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
+        descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
     }
     if (withSampler)
     {
@@ -286,6 +288,7 @@ int main()
         {
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
             auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
+            if (textureWrite) expected = ((index + 1) % 64) * 3 + 1;
             if (withSampler)
             {
                 auto sourceIndex = index;
@@ -295,7 +298,7 @@ int main()
                 if (operation == "sample-border") expected = 0;
                 if (operation == "sample-linear") expected = (index * 3 + 1) * 3 + ((index / 8) * 8 + (index + 1) % 8) * 3 + 1;
             }
-            if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output does not match the shader");
+            if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output mismatch at " + std::to_string(index) + ": actual=" + std::to_string(output[index]) + ", expected=" + std::to_string(iteration == 3 ? 0xffffffff : expected) + ", iteration=" + std::to_string(iteration));
         }
     }
     std::cout << "GPU compute output verified for direct, indirect and zero-sized indirect dispatches\n";

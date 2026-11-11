@@ -43,7 +43,7 @@ def main():
                 run_check(executable, (header, code, stage, metadata), environment, f"{target}/{header.parent.name}", log, options.log)
                 count += 1
             if compute:
-                for name, operation in (("Write.comp.hlsl", "write"), ("ReadWrite.comp.hlsl", "read-write"), ("Constants.comp.hlsl", "constants"), ("TextureLoad.comp.hlsl", "texture"), ("TextureView.comp.hlsl", "texture-view"), *(("TextureSample.comp.hlsl", operation) for operation in ("sample-wrap", "sample-clamp", "sample-mirror", "sample-border", "sample-linear"))):
+                for name, operation in (("Write.comp.hlsl", "write"), ("ReadWrite.comp.hlsl", "read-write"), ("Constants.comp.hlsl", "constants"), ("TextureWrite.comp.hlsl", "texture-write"), ("TextureLoad.comp.hlsl", "texture"), ("TextureView.comp.hlsl", "texture-view"), *(("TextureSample.comp.hlsl", operation) for operation in ("sample-wrap", "sample-clamp", "sample-mirror", "sample-border", "sample-linear"))):
                     directory = shaders / target / name
                     arguments = [(directory / file).resolve(strict=True) for file in ("header.bin", "code.bin", "bindings.adk")]
                     run_check(compute, (*arguments, operation), environment, f"{target}/dispatch/{name}", log, options.log)
