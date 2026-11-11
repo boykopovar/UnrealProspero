@@ -1,4 +1,4 @@
-#include "AnyUnreal/RHI/Descriptor/Buffer.h"
+#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 #include <limits>
 #include <stdexcept>
 

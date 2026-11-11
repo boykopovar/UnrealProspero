@@ -1,5 +1,5 @@
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
-#include "AnyUnreal/RHI/Descriptor/Buffer.h"
+#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI

@@ -18,7 +18,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ComputeDispatch.cpp"
         "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/ShaderBinary.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Tables.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Buffer.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
