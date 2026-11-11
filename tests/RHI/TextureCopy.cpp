@@ -17,6 +17,15 @@
 void CheckVolumeMipData()
 {
     using namespace AnyUnreal::RHI;
+    const std::array<std::size_t, 4> mipSizes{17920, 8960, 3840, 1280};
+    for (std::uint32_t level = 0; level < mipSizes.size(); ++level)
+    {
+        if (LinearTexture3D::CalculateDataSize(13, 7, 5, TextureFormat::R32Float, 4, level) != mipSizes[level]) throw std::runtime_error("Volume mip allocation size does not match its slice layout");
+    }
+    bool invalidMip = false;
+    try { LinearTexture3D::CalculateDataSize(13, 7, 5, TextureFormat::R32Float, 4, 4); }
+    catch (const std::out_of_range&) { invalidMip = true; }
+    if (!invalidMip) throw std::runtime_error("Volume allocation accepted an unavailable mip");
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
     for (const auto dimensions : {std::array{13u, 7u, 5u}, std::array{1u, 1u, 8u}})
     {

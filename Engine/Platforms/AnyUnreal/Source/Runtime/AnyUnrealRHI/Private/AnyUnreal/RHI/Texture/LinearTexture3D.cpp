@@ -6,11 +6,12 @@
 
 namespace AnyUnreal::RHI
 {
-    std::size_t LinearTexture3D::CalculateDataSize(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t mipCount)
+    std::size_t LinearTexture3D::CalculateDataSize(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
     {
         if (width == 0 || height == 0 || depth == 0 || width > DeviceLimits::Texture3D || height > DeviceLimits::Texture3D || depth > DeviceLimits::Texture3D) throw std::out_of_range("Volume texture dimensions exceed the hardware range");
         const auto levels = CalculateLinearMipLayout(width, height, depth, LinearTexture2D::CalculateRowBytes(1, format), mipCount);
-        const auto size = (levels.front().Offset + levels.front().Size) * depth;
+        if (firstMip >= levels.size()) throw std::out_of_range("Volume allocation selects an unavailable mip");
+        const auto size = (levels[firstMip].Offset + levels[firstMip].Size) * depth;
         BufferAllocation::CalculateAllocationSize(size);
         return size;
     }

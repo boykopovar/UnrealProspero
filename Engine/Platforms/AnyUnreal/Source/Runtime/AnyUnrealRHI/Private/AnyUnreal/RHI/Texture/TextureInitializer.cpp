@@ -6,7 +6,7 @@ namespace AnyUnreal::RHI
     class TextureInitializer final : public FRHITextureInitializer
     {
     public:
-        TextureInitializer(FRHICommandListBase& commandList, TRefCountPtr<TextureResource> texture, bool initialize) : FRHITextureInitializer(commandList, texture.GetReference(), initialize ? texture->getAllocation().Data() : nullptr, initialize ? texture->getAllocation().Size() : 0, [texture, initialize](FRHICommandListBase&) -> FTextureRHIRef
+        TextureInitializer(FRHICommandListBase& commandList, TRefCountPtr<TextureResource> texture, bool initialize) : FRHITextureInitializer(commandList, texture.GetReference(), initialize ? texture->getInitializationRange().data() : nullptr, initialize ? texture->getInitializationRange().size() : 0, [texture, initialize](FRHICommandListBase&) -> FTextureRHIRef
         {
             if (initialize) texture->finishInitialization();
             return FTextureRHIRef(texture.GetReference());

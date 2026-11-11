@@ -45,6 +45,7 @@ namespace AnyUnreal::RHI
     private:
         friend class TextureInitializer;
         void finishInitialization();
+        std::span<std::byte> getInitializationRange();
         const BufferAllocation& getAllocation() const;
         std::size_t getRowPitch() const;
         void uploadInitialData(std::span<const std::byte> data);
@@ -53,6 +54,7 @@ namespace AnyUnreal::RHI
         std::shared_ptr<DepthTexture2D> depthStorage;
         std::shared_ptr<LinearTexture3D> volumeStorage;
         bool initialized;
+        std::vector<std::byte> volumeInitialData;
         FCriticalSection lockMutex;
         std::map<std::uint32_t, LockedData> lockedMips;
         std::optional<std::vector<std::byte>> mappedData;
