@@ -37,6 +37,21 @@ namespace AnyUnreal::RHI
     protected:
         ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
 
+        template<typename TFunction>
+        void RecordCommands(TFunction&& function)
+        {
+            requireWritable();
+            try
+            {
+                function(commands);
+            }
+            catch (...)
+            {
+                failed = true;
+                throw;
+            }
+        }
+
     private:
         friend class CommandList;
         Packet finalize();
