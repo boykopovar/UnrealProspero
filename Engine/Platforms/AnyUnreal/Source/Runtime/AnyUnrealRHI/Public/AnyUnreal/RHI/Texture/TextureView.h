@@ -21,10 +21,10 @@ namespace AnyUnreal::RHI
     public:
         TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 8>& GetDescriptor() const { return descriptor; }
-        const BufferAllocation* GetStorage() const { return &storage->GetStorage(); }
+        const BufferAllocation* GetStorage() const { return storage.get(); }
 
     private:
-        std::shared_ptr<const LinearTexture2D> storage;
+        std::shared_ptr<const BufferAllocation> storage;
         std::array<std::uint32_t, 8> descriptor;
     };
 }

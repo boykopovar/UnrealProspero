@@ -23,7 +23,7 @@ namespace AnyUnreal::RHI
     {
     public:
         static std::size_t CalculateRowBytes(std::uint32_t width, TextureFormat format);
-        static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data);
+        static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb = false);
         static std::size_t CalculateRowPitch(std::uint32_t width, TextureFormat format);
         static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format);
         LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize);

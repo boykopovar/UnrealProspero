@@ -14,7 +14,8 @@ namespace AnyUnreal::RHI
             const auto requiredFlag = unorderedAccess ? ETextureCreateFlags::UAV : ETextureCreateFlags::ShaderResource;
             if (!EnumHasAnyFlags(resource.Flags, requiredFlag)) throw std::invalid_argument("Texture does not allow the requested view access");
             if (unorderedAccess && view.MipRange.Num != 1) throw std::invalid_argument("Texture UAV must select exactly one mip level");
-            if (view.Dimension != FRHIViewDesc::EDimension::Texture2D) throw std::runtime_error("Texture view dimension is not implemented");
+            const auto expectedDimension = resource.Dimension == ETextureDimension::Texture3D ? FRHIViewDesc::EDimension::Texture3D : FRHIViewDesc::EDimension::Texture2D;
+            if (view.Dimension != expectedDimension) throw std::invalid_argument("Texture view dimension does not match its resource");
             const bool depth = resource.Format == PF_ShadowDepth;
             if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed && !(depth && view.Plane == ERHITexturePlane::Depth)) throw std::runtime_error("Texture view plane is not implemented");
             if (view.Format != PF_Unknown && view.Format != resource.Format && !(depth && view.Format == PF_R32_FLOAT)) throw std::runtime_error("Texture view format reinterpretation is not implemented");
@@ -28,7 +29,7 @@ namespace AnyUnreal::RHI
         description.Texture.SRV.GetViewInfo(&texture);
     }
 
-    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), storage(texture.Capture()), descriptor(storage->CreateViewDescriptor(true))
+    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true))
     {
         description.Texture.UAV.GetViewInfo(&texture);
     }

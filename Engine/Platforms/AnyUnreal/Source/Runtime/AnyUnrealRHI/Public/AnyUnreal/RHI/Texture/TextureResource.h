@@ -2,6 +2,7 @@
 #define ANYUNREAL_RHI_TEXTURE_RESOURCE_H
 
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
+#include "AnyUnreal/RHI/Texture/LinearTexture3D.h"
 #include "AnyUnreal/RHI/Texture/DepthTexture2D.h"
 #include "RHITextureInitializer.h"
 #include "HAL/CriticalSection.h"
@@ -32,6 +33,7 @@ namespace AnyUnreal::RHI
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
         std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
+        std::shared_ptr<const LinearTexture3D> CaptureVolume() const;
         std::shared_ptr<const BufferAllocation> CaptureStorage() const;
         std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb) const;
         const BufferAllocation& GetStorage() const;
@@ -40,9 +42,13 @@ namespace AnyUnreal::RHI
     private:
         friend class TextureInitializer;
         void finishInitialization();
+        const BufferAllocation& getAllocation() const;
+        std::size_t getRowPitch() const;
+        void uploadInitialData(std::span<const std::byte> data);
         FRHITextureSubresourceInitializer getSubresource(FRHITextureInitializer::FSubresourceIndex index);
         std::shared_ptr<LinearTexture2D> storage;
         std::shared_ptr<DepthTexture2D> depthStorage;
+        std::shared_ptr<LinearTexture3D> volumeStorage;
         bool initialized;
         FCriticalSection lockMutex;
         std::optional<LockedData> lockedData;

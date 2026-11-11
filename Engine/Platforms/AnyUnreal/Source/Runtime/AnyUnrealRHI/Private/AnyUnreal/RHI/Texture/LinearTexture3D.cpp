@@ -49,7 +49,12 @@ namespace AnyUnreal::RHI
 
     std::array<std::uint32_t, 8> LinearTexture3D::GetDescriptor() const
     {
-        auto result = LinearTexture2D::CreateDescriptor(width, height, format, storage.Data());
+        return CreateViewDescriptor(false);
+    }
+
+    std::array<std::uint32_t, 8> LinearTexture3D::CreateViewDescriptor(bool disableSrgb) const
+    {
+        auto result = LinearTexture2D::CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
         result[3] = (result[3] & 0x0fffffffu) | (10u << 28);
         result[4] = depth - 1;
         return result;

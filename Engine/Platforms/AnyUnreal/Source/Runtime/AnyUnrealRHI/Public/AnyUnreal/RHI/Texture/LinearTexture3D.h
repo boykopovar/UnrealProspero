@@ -13,6 +13,7 @@ namespace AnyUnreal::RHI
         void Upload(std::span<const std::byte> source, std::size_t sourceRowPitch, std::size_t sourceSlicePitch);
         void CopyTo(std::span<std::byte> destination, std::size_t destinationRowPitch, std::size_t destinationSlicePitch) const;
         std::array<std::uint32_t, 8> GetDescriptor() const;
+        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb) const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetRowPitch() const;
         std::size_t GetSlicePitch() const;

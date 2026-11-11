@@ -33,10 +33,13 @@ namespace AnyUnreal::RHI
 
         void validateDescription(const FRHITextureDesc& description)
         {
-            if (description.Dimension != ETextureDimension::Texture2D || description.Depth != 1 || description.ArraySize != 1 || description.NumMips != 1 || description.NumSamples != 1) throw std::runtime_error("Texture creation currently requires a single-mip non-multisampled 2D texture");
+            const bool volume = description.Dimension == ETextureDimension::Texture3D;
+            if ((!volume && description.Dimension != ETextureDimension::Texture2D) || (!volume && description.Depth != 1) || description.ArraySize != 1 || description.NumMips != 1 || description.NumSamples != 1) throw std::runtime_error("Texture creation requires a single-mip non-multisampled 2D or 3D texture");
+            if (volume && (description.Depth == 0 || description.Depth > 2048 || description.Extent.X > 2048 || description.Extent.Y > 2048)) throw std::invalid_argument("Volume texture extent exceeds hardware limits");
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
+            if (volume && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Volume render targets are not implemented");
             if (description.Format == PF_ShadowDepth)
             {
                 constexpr auto depthFlags = Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
@@ -86,18 +89,19 @@ namespace AnyUnreal::RHI
     {
         validateDescription(description);
         if (description.Format == PF_ShadowDepth) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y);
+        if (description.Dimension == ETextureDimension::Texture3D) return BufferAllocation::CalculateAllocationSize(LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, format(description)));
         return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, format(description)));
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
         if (description.Format == PF_ShadowDepth) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh);
+        else if (description.Dimension == ETextureDimension::Texture3D) volumeStorage = std::make_shared<LinearTexture3D>(description.Extent.X, description.Extent.Y, description.Depth, format(description), addressHigh);
         else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh, CalculateAlignment(description));
         if (description.InitAction == ERHITextureInitAction::BulkData)
         {
             const auto size = description.BulkData->GetResourceBulkDataSize();
-            if (size != storage->GetRowBytes() * description.Extent.Y) throw std::invalid_argument("Texture bulk data size does not match its extent");
-            storage->Upload({static_cast<const std::byte*>(description.BulkData->GetResourceBulkData()), size}, storage->GetRowBytes());
+            uploadInitialData({static_cast<const std::byte*>(description.BulkData->GetResourceBulkData()), size});
             description.BulkData->Discard();
         }
     }
@@ -106,13 +110,13 @@ namespace AnyUnreal::RHI
     {
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("Initial texture data conflicts with its initialization action");
         if (!initialData) throw std::invalid_argument("Initial texture data is null");
-        if (!storage) throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
-        const auto pitch = storage->GetRowBytes();
-        storage->Upload({static_cast<const std::byte*>(initialData), pitch * storage->GetHeight()}, pitch);
+        const auto size = LinearTexture2D::CalculateRowBytes(description.Extent.X, format(description)) * description.Extent.Y * description.Depth;
+        uploadInitialData({static_cast<const std::byte*>(initialData), size});
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
     {
+        if (description.Dimension != ETextureDimension::Texture2D) throw std::invalid_argument("External 2D storage requires a 2D texture description");
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
         if (!storage || storage->GetWidth() != static_cast<uint32>(description.Extent.X) || storage->GetHeight() != static_cast<uint32>(description.Extent.Y) || storage->GetFormat() != format(description)) throw std::invalid_argument("External texture storage does not match its description");
         if (reinterpret_cast<std::uintptr_t>(storage->GetStorage().Data()) % CalculateAlignment(description) != 0) throw std::invalid_argument("External texture storage does not meet its alignment");
@@ -165,25 +169,58 @@ namespace AnyUnreal::RHI
         return result;
     }
 
-    std::size_t TextureResource::GetAllocationSize() const { return depthStorage ? depthStorage->GetStorage().AllocationSize() : storage->GetStorage().AllocationSize(); }
+    std::size_t TextureResource::GetAllocationSize() const { return getAllocation().AllocationSize(); }
 
     std::shared_ptr<const BufferAllocation> TextureResource::CaptureStorage() const
     {
         const auto& allocation = GetStorage();
         if (depthStorage) return {depthStorage, &allocation};
+        if (volumeStorage) return {volumeStorage, &allocation};
         return {storage, &allocation};
     }
 
     std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb) const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
-        return depthStorage ? depthStorage->GetDescriptor() : storage->CreateViewDescriptor(disableSrgb);
+        if (depthStorage) return depthStorage->GetDescriptor();
+        if (volumeStorage) return volumeStorage->CreateViewDescriptor(disableSrgb);
+        return storage->CreateViewDescriptor(disableSrgb);
     }
 
     const BufferAllocation& TextureResource::GetStorage() const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        return getAllocation();
+    }
+
+    const BufferAllocation& TextureResource::getAllocation() const
+    {
+        if (volumeStorage) return volumeStorage->GetStorage();
         return depthStorage ? depthStorage->GetStorage() : storage->GetStorage();
+    }
+
+    std::size_t TextureResource::getRowPitch() const
+    {
+        if (depthStorage) throw std::runtime_error("Linear initialization of a depth texture is not implemented");
+        return volumeStorage ? volumeStorage->GetRowPitch() : storage->GetRowPitch();
+    }
+
+    void TextureResource::uploadInitialData(std::span<const std::byte> data)
+    {
+        const auto& description = GetDesc();
+        const auto rowBytes = LinearTexture2D::CalculateRowBytes(description.Extent.X, format(description));
+        const auto sliceBytes = rowBytes * description.Extent.Y;
+        if (data.size() != sliceBytes * description.Depth) throw std::invalid_argument("Initial texture data size does not match its extent");
+        if (volumeStorage) volumeStorage->Upload(data, rowBytes, sliceBytes);
+        else if (storage) storage->Upload(data, rowBytes);
+        else throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
+    }
+
+    std::shared_ptr<const LinearTexture3D> TextureResource::CaptureVolume() const
+    {
+        if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        if (!volumeStorage) throw std::invalid_argument("Texture does not contain volume storage");
+        return volumeStorage;
     }
 
     std::shared_ptr<const DepthTexture2D> TextureResource::CaptureDepth() const
@@ -204,7 +241,8 @@ namespace AnyUnreal::RHI
     {
         if (initialized) throw std::runtime_error("Texture is not awaiting initialization");
         if (index.FaceIndex != 0 || index.ArrayIndex != 0 || index.MipIndex != 0) throw std::out_of_range("Texture subresource does not exist");
-        return {storage->GetStorage().Data(), storage->GetStorage().Size(), storage->GetRowPitch()};
+        const auto& allocation = getAllocation();
+        return {allocation.Data(), allocation.Size(), getRowPitch()};
     }
 
     void TextureResource::finishInitialization()

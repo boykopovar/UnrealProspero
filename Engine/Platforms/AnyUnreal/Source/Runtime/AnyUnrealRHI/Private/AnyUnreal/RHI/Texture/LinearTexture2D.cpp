@@ -57,12 +57,14 @@ namespace AnyUnreal::RHI
         descriptor = CreateDescriptor(width, height, format, storage.Data());
     }
 
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data)
+    std::array<std::uint32_t, 8> LinearTexture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb)
     {
         dimension(width);
         dimension(height);
         const auto address = reinterpret_cast<std::uintptr_t>(data);
         if (address == 0 || address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");
+        if (disableSrgb && format == TextureFormat::Rgba8Srgb) format = TextureFormat::Rgba8Unorm;
+        if (disableSrgb && format == TextureFormat::Bgra8Srgb) format = TextureFormat::Bgra8Unorm;
         const auto info = describe(format);
         return {
             static_cast<std::uint32_t>(address >> 8),
@@ -92,9 +94,7 @@ namespace AnyUnreal::RHI
     const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }
     std::array<std::uint32_t, 8> LinearTexture2D::CreateViewDescriptor(bool disableSrgb) const
     {
-        auto result = descriptor;
-        if (disableSrgb && ((result[1] >> 20) & 0x1ffu) == describe(TextureFormat::Rgba8Srgb).Code) result[1] = (result[1] & ~(0x1ffu << 20)) | (describe(TextureFormat::Rgba8Unorm).Code << 20);
-        return result;
+        return CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
     }
 
     const BufferAllocation& LinearTexture2D::GetStorage() const { return storage; }
