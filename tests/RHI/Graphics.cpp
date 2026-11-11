@@ -6,6 +6,9 @@
 #include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/ColorTarget.h"
 #include "AnyUnreal/RHI/Command/ColorClear.h"
+#if ANYUNREAL_TEST_OCCLUSION
+#include "AnyUnreal/RHI/Query/OcclusionSnapshot.h"
+#endif
 #include "AnyUnreal/RHI/Command/IndirectDraw.h"
 #include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -179,6 +182,12 @@ int main()
         vertexInputs.StartInstance = firstInstance;
         WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
         WriteShaderRegisters(commands, pixel, pixelLayout, {});
+#if ANYUNREAL_TEST_OCCLUSION
+        OcclusionSnapshot occlusion(aperture);
+        std::uint64_t sampleCount = 123;
+        if (occlusion.TryGetResult(sampleCount, false) || sampleCount != 123) throw std::runtime_error("Unrecorded query returned a result");
+        occlusion.Begin(commands);
+#endif
         sceAgcDcbSetNumInstances(&commands, instanceCount);
         if (indirect) WriteIndirectDraw(commands, vertexLayout, argumentStorage, 4, indexStride ? &indexStorage : nullptr, indexStride);
         else if (indexStride)
@@ -187,7 +196,14 @@ int main()
             sceAgcDcbDrawIndex(&commands, 3, static_cast<std::byte*>(indexStorage.Data()) + indexStride, 0);
         }
         else sceAgcDcbDrawIndexAuto(&commands, 3, 0);
+#if ANYUNREAL_TEST_OCCLUSION
+        occlusion.End(commands);
+        if (occlusion.TryGetResult(sampleCount, false) || sampleCount != 123) throw std::runtime_error("Unsubmitted query returned a result");
+#endif
         SubmitAndWait(commands, fence, 1, 10000000);
+#if ANYUNREAL_TEST_OCCLUSION
+        const auto expectedSamples = static_cast<std::uint64_t>(width - 2 * (width / 8)) * (height - 2 * (height / 8)) * instanceCount;
+#endif
         std::array<std::uint8_t, 16> color{};
         switch (format)
         {
@@ -226,6 +242,9 @@ int main()
                 }
             }
         }
+#if ANYUNREAL_TEST_OCCLUSION
+        if (!occlusion.TryGetResult(sampleCount, true) || sampleCount != expectedSamples) throw std::runtime_error("Occlusion sample count mismatch: " + std::to_string(sampleCount) + " expected " + std::to_string(expectedSamples) + " format " + std::to_string(static_cast<int>(format)) + " indirect " + std::to_string(indirect));
+#endif
     }
     std::cout << "Vertex buffer draw and scissor pixels verified\n";
     return 0;
