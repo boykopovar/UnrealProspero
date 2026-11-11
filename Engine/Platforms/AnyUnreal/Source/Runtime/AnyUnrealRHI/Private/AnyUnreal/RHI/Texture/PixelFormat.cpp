@@ -20,6 +20,10 @@ namespace AnyUnreal::RHI
             FormatMapping{PF_G8, TextureFormat::R8Unorm, std::nullopt},
             FormatMapping{PF_R8, TextureFormat::R8Unorm, std::nullopt},
             FormatMapping{PF_R8G8, TextureFormat::Rg8Unorm, std::nullopt},
+            FormatMapping{PF_R16F, TextureFormat::R16Float, std::nullopt},
+            FormatMapping{PF_R16F_FILTER, TextureFormat::R16Float, std::nullopt},
+            FormatMapping{PF_G16R16F, TextureFormat::Rg16Float, std::nullopt},
+            FormatMapping{PF_G16R16F_FILTER, TextureFormat::Rg16Float, std::nullopt},
             FormatMapping{PF_R32_FLOAT, TextureFormat::R32Float, std::nullopt},
             FormatMapping{PF_FloatRGBA, TextureFormat::Rgba16Float, std::nullopt},
             FormatMapping{PF_A32B32G32R32F, TextureFormat::Rgba32Float, std::nullopt}

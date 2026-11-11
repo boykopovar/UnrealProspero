@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Texture/SurfaceData.h"
+#include "AnyUnreal/RHI/Texture/HalfPixels.h"
 #include "RHISurfaceDataConversion.h"
 #include <cstring>
 #include <limits>
@@ -20,6 +21,14 @@ namespace AnyUnreal::RHI
         {
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * (texture.GetRowBytes() / texture.GetWidth());
             return static_cast<uint8*>(texture.GetStorage().Data()) + offset;
+        }
+
+        std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const LinearTexture2D& texture, FIntRect rectangle)
+        {
+            const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * pixelBytes;
+            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
+            return ExpandHalfPixels(texture.GetStorage().GetRange(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
         }
 
         std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle)
@@ -54,7 +63,7 @@ namespace AnyUnreal::RHI
 
     void ReadVolumeHalfColors(const LinearTexture3D& texture, FIntRect rectangle, FIntPoint zRange, TArray<FFloat16Color>& output)
     {
-        if (texture.GetFormat() != TextureFormat::Rgba16Float) throw std::invalid_argument("Half-float volume read requires an RGBA16 float texture");
+        if (!IsHalfTextureFormat(texture.GetFormat())) throw std::invalid_argument("Volume read requires a half-float texture");
         if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > texture.GetWidth() || static_cast<uint32>(rectangle.Max.Y) > texture.GetHeight()) throw std::out_of_range("Volume read rectangle exceeds its texture");
         if (zRange.X < 0 || zRange.Y < zRange.X || static_cast<uint32>(zRange.Y) > texture.GetDepth()) throw std::out_of_range("Volume read slices exceed its texture");
         const auto slicePixels = static_cast<std::size_t>(rectangle.Width()) * rectangle.Height();
@@ -64,9 +73,14 @@ namespace AnyUnreal::RHI
         result.SetNumUninitialized(static_cast<int32>(pixels));
         if (pixels != 0)
         {
-            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + static_cast<std::size_t>(rectangle.Min.X) * 8;
-            auto* data = static_cast<uint8*>(texture.GetStorage().Data()) + offset;
-            for (int32 z = zRange.X; z < zRange.Y; ++z) ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), data + static_cast<std::size_t>(z) * texture.GetSlicePitch(), static_cast<uint32>(texture.GetRowPitch()), result.GetData() + static_cast<std::size_t>(z - zRange.X) * slicePixels);
+            const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + static_cast<std::size_t>(rectangle.Min.X) * pixelBytes;
+            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
+            for (int32 z = zRange.X; z < zRange.Y; ++z)
+            {
+                auto values = ExpandHalfPixels(texture.GetStorage().GetRange(offset + static_cast<std::size_t>(z) * texture.GetSlicePitch(), bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
+                ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData() + static_cast<std::size_t>(z - zRange.X) * slicePixels);
+            }
         }
         output = MoveTemp(result);
     }
@@ -74,10 +88,14 @@ namespace AnyUnreal::RHI
     void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output)
     {
         validate(texture, rectangle, FReadSurfaceDataFlags());
-        if (texture.GetFormat() != TextureFormat::Rgba16Float) throw std::invalid_argument("Half-float surface read requires an RGBA16 float texture");
+        if (!IsHalfTextureFormat(texture.GetFormat())) throw std::invalid_argument("Surface read requires a half-float texture");
         TArray<FFloat16Color> result;
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
-        if (result.Num() != 0) ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData());
+        if (result.Num() != 0)
+        {
+            auto values = readHalfPixels(texture, rectangle);
+            ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData());
+        }
         output = MoveTemp(result);
     }
 
@@ -88,9 +106,10 @@ namespace AnyUnreal::RHI
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
         if (result.Num() != 0)
         {
-            if (texture.GetFormat() == TextureFormat::Rgba16Float)
+            if (IsHalfTextureFormat(texture.GetFormat()))
             {
-                ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData(), flags.GetLinearToGamma());
+                auto values = readHalfPixels(texture, rectangle);
+                ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags.GetLinearToGamma());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
@@ -114,9 +133,10 @@ namespace AnyUnreal::RHI
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
         if (result.Num() != 0)
         {
-            if (texture.GetFormat() == TextureFormat::Rgba16Float)
+            if (IsHalfTextureFormat(texture.GetFormat()))
             {
-                ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), source(texture, rectangle), static_cast<uint32>(texture.GetRowPitch()), result.GetData(), flags);
+                auto values = readHalfPixels(texture, rectangle);
+                ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags);
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
