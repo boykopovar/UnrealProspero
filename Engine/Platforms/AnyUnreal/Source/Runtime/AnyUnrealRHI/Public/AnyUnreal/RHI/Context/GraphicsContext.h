@@ -4,6 +4,7 @@
 #include "AnyUnreal/RHI/Context/ComputeContext.h"
 #include "AnyUnreal/RHI/Buffer/VertexStreams.h"
 #include "AnyUnreal/RHI/Pipeline/GraphicsPipeline.h"
+#include "AnyUnreal/RHI/Pass/RenderPass.h"
 
 namespace AnyUnreal::RHI
 {
@@ -14,6 +15,8 @@ namespace AnyUnreal::RHI
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilReference, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
         void RHISetStencilRef(uint32 reference) override;
+        void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
+        void RHIEndRenderPass() override;
         void RHISetStreamSource(uint32 streamIndex, FRHIBuffer* vertexBuffer, uint32 offset) override;
         void RHISetViewport(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) override;
         void RHISetMultipleViewports(uint32 count, const FViewportBounds* data) override;
@@ -21,6 +24,7 @@ namespace AnyUnreal::RHI
 
     protected:
         GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
+        void ValidateFinalization() const override;
 
     private:
         TRefCountPtr<GraphicsPipeline> pipeline;
@@ -28,6 +32,8 @@ namespace AnyUnreal::RHI
         std::unique_ptr<ShaderParameters> pixelParameters;
         uint32 stencilReference = 0;
         VertexStreams vertexStreams;
+        std::vector<std::unique_ptr<RenderPass>> renderPasses;
+        RenderPass* activeRenderPass = nullptr;
     };
 }
 

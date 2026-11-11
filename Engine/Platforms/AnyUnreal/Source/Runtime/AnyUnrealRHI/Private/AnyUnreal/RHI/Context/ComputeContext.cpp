@@ -21,6 +21,7 @@ namespace AnyUnreal::RHI
     Packet ComputeContext::finalize()
     {
         requireWritable();
+        ValidateFinalization();
         finalized = true;
         completion.Write(commands);
         return {commands.bottom, static_cast<std::uint32_t>(commands.cursor_up - commands.bottom), 0, {}};

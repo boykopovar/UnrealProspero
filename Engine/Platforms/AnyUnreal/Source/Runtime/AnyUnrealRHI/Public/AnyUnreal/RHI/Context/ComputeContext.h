@@ -37,6 +37,8 @@ namespace AnyUnreal::RHI
     protected:
         ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
         void ApplyStaticUniformBuffers(ShaderParameters& shaderParameters) const;
+        virtual void ValidateFinalization() const {}
+        std::uint32_t GetAddressHigh() const { return addressHigh; }
 
         template<typename TFunction>
         void RecordCommands(TFunction&& function)

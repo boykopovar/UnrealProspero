@@ -12,6 +12,33 @@ namespace AnyUnreal::RHI
         RecordCommands([](CommandBuffer& commands) { WriteScissor(commands, {0, 0, 32767, 32767}); });
     }
 
+    void GraphicsContext::ValidateFinalization() const
+    {
+        if (activeRenderPass) throw std::runtime_error("Cannot finalize commands inside a render pass");
+    }
+
+    void GraphicsContext::RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR*)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (activeRenderPass) throw std::runtime_error("A render pass is already active");
+            auto pass = std::make_unique<RenderPass>(info, GetAddressHigh());
+            renderPasses.push_back(std::move(pass));
+            activeRenderPass = renderPasses.back().get();
+            activeRenderPass->Begin(commands);
+        });
+    }
+
+    void GraphicsContext::RHIEndRenderPass()
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!activeRenderPass) throw std::runtime_error("No render pass is active");
+            activeRenderPass->End(commands);
+            activeRenderPass = nullptr;
+        });
+    }
+
     void GraphicsContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilReference, bool applyAdditionalState)
     {
         RecordCommands([&](CommandBuffer&)
