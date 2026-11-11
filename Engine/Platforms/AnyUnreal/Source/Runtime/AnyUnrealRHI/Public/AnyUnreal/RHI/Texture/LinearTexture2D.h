@@ -26,6 +26,7 @@ namespace AnyUnreal::RHI
         const std::array<std::uint32_t, 8>& GetDescriptor() const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetRowPitch() const;
+        std::size_t GetRowBytes() const;
 
     private:
         std::uint32_t width;

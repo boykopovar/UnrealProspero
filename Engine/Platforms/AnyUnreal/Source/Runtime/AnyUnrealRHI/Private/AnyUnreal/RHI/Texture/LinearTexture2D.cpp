@@ -58,4 +58,5 @@ namespace AnyUnreal::RHI
     const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }
     const BufferAllocation& LinearTexture2D::GetStorage() const { return storage; }
     std::size_t LinearTexture2D::GetRowPitch() const { return rowPitch; }
+    std::size_t LinearTexture2D::GetRowBytes() const { return rowBytes; }
 }

@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
+#include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
@@ -18,6 +19,11 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FRHITextureInitializer DynamicRHI::RHICreateTextureInitializer(FRHICommandListBase& commandList, const FRHITextureCreateDesc& description)
+    {
+        return CreateTextureInitializer(commandList, description, addressHigh);
     }
 
     FSamplerStateRHIRef DynamicRHI::RHICreateSamplerState(const FSamplerStateInitializerRHI& initializer)
