@@ -44,24 +44,7 @@ namespace AnyUnreal::RHI
 
     std::vector<LinearTexture2D::MipLayout> LinearTexture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
     {
-        dimension(width);
-        dimension(height);
-        if (mipCount == 0 || mipCount > static_cast<std::uint32_t>(std::bit_width(std::max(width, height)))) throw std::invalid_argument("Texture mip count exceeds its dimensions");
-        const auto pixelBytes = describe(format).Bytes;
-        std::vector<MipLayout> levels(mipCount);
-        std::size_t offset = 0;
-        for (auto level = mipCount; level-- != 0;)
-        {
-            const auto divisor = std::uint32_t{1} << level;
-            const auto paddedWidth = (width + divisor - 1) / divisor;
-            const auto paddedHeight = (height + divisor - 1) / divisor;
-            const auto rowPitch = CalculateRowPitch(paddedWidth, format);
-            const auto size = rowPitch * paddedHeight;
-            const auto mipWidth = std::max(width >> level, 1u);
-            levels[level] = {mipWidth, std::max(height >> level, 1u), mipWidth * pixelBytes, rowPitch, offset, size};
-            offset += size;
-        }
-        return levels;
+        return CalculateLinearMipLayout(width, height, 1, describe(format).Bytes, mipCount);
     }
 
     std::size_t LinearTexture2D::CalculateRowBytes(std::uint32_t width, TextureFormat format)

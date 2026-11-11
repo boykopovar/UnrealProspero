@@ -188,6 +188,12 @@ int main()
 {
     {
         using namespace AnyUnreal::RHI;
+        const auto volumeLevels = CalculateLinearMipLayout(13, 7, 5, 4, 4);
+        const std::size_t volumeOffsets[]{1792, 768, 256, 0};
+        const std::uint32_t volumeDepths[]{5, 2, 1, 1};
+        for (std::size_t level = 0; level < volumeLevels.size(); ++level) if (volumeLevels[level].Offset != volumeOffsets[level] || volumeLevels[level].Depth != volumeDepths[level]) throw std::runtime_error("Volume mip slice layout is incorrect");
+        const auto deepLevels = CalculateLinearMipLayout(1, 1, 8, 4, 4);
+        if (deepLevels.front().Offset + deepLevels.front().Size != 1024 || deepLevels.back().Depth != 1) throw std::runtime_error("Depth-dominant mip layout is incorrect");
         const auto levels = LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, 3);
         const std::size_t tailSizes[]{2560, 1280, 512};
         for (std::uint32_t firstMip = 0; firstMip < 3; ++firstMip) if (LinearTexture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, firstMip) != tailSizes[firstMip]) throw std::runtime_error("Texture mip tail size is incorrect");

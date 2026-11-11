@@ -19,6 +19,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/SamplerDescriptor.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/Upload.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/Readback.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
@@ -51,6 +52,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorTarget.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/VertexBufferTable.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/GraphicsShaderLink.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
@@ -87,6 +89,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     target_sources(TextureCopyCheck PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/TextureUpload.cpp" "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp")
@@ -103,6 +106,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
@@ -117,6 +121,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/Clock.cpp"
@@ -133,6 +138,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
     list(APPEND test_targets DrawArgumentsCheck)
     adk_add_executable(MemoryAccountingCheck MemoryAccounting.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
