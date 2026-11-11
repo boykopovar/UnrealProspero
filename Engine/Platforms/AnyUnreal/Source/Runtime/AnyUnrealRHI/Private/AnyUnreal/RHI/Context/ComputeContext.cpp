@@ -111,6 +111,26 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void ComputeContext::UploadBuffer(FRHIBuffer* destination, std::size_t offset, std::span<const std::byte> source)
+    {
+        requireWritable();
+        if (!destination) throw std::invalid_argument("Buffer upload destination is null");
+        auto storage = static_cast<Buffer*>(destination)->Capture();
+        const auto range = storage->GetRange(offset, source.size());
+        try
+        {
+            auto upload = std::make_shared<Upload>(source, addressHigh);
+            copiedBuffers.push_back(std::move(storage));
+            uploads.push_back(upload);
+            upload->Record(commands, range);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
     void ComputeContext::RHICopyToStagingBuffer(FRHIBuffer* source, FRHIStagingBuffer* destination, uint32 offset, uint32 size)
     {
         requireWritable();
