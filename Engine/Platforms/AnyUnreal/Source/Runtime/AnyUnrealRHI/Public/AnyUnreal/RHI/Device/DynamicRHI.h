@@ -2,7 +2,9 @@
 #define ANYUNREAL_RHI_DYNAMIC_RHI_H
 
 #include "AnyUnreal/Shader/ShaderBinary.h"
+#include "AnyUnreal/RHI/Command/CommandList.h"
 #include <DynamicRHI.h>
+#include <vector>
 
 namespace AnyUnreal::RHI
 {
@@ -21,6 +23,9 @@ namespace AnyUnreal::RHI
         void RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info) override;
         void RHIReleaseTransition(FRHITransition* transition) override;
         FRHIFinalizeContextsResult RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args) override;
+        void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
+        void RHIProcessDeleteQueue() override;
+        void RHIBlockUntilGPUIdle() override;
 
     protected:
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);
@@ -29,6 +34,8 @@ namespace AnyUnreal::RHI
     private:
         Shader::AgcTarget target;
         std::uint32_t addressHigh;
+        std::vector<std::unique_ptr<CommandList>> pendingCommandLists;
+        bool submissionFailed = false;
     };
 }
 

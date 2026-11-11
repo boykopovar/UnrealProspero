@@ -6,6 +6,7 @@
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include <stdexcept>
+#include <set>
 
 namespace AnyUnreal::RHI
 {
@@ -82,6 +83,42 @@ namespace AnyUnreal::RHI
     {
         if (!transition) throw std::invalid_argument("Transition storage is null");
         DestroyBufferTransition(*transition);
+    }
+
+    void DynamicRHI::RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args)
+    {
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        std::set<IRHIPlatformCommandList*> uniqueLists;
+        for (const auto& list : pendingCommandLists) uniqueLists.insert(list.get());
+        for (auto* list : args.CommandLists)
+        {
+            if (!list || !uniqueLists.insert(list).second) throw std::invalid_argument("Command list submission contains a null or duplicate list");
+        }
+        const auto first = pendingCommandLists.size();
+        pendingCommandLists.reserve(first + args.CommandLists.Num());
+        for (auto* list : args.CommandLists) pendingCommandLists.emplace_back(static_cast<CommandList*>(list));
+        args.CommandLists.Reset();
+        try
+        {
+            for (auto index = first; index < pendingCommandLists.size(); ++index) pendingCommandLists[index]->Submit();
+        }
+        catch (...)
+        {
+            submissionFailed = true;
+            throw;
+        }
+    }
+
+    void DynamicRHI::RHIProcessDeleteQueue()
+    {
+        std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
+    }
+
+    void DynamicRHI::RHIBlockUntilGPUIdle()
+    {
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        for (const auto& list : pendingCommandLists) list->Wait(10000000);
+        pendingCommandLists.clear();
     }
 
     FDynamicRHI::FRHIFinalizeContextsResult DynamicRHI::RHIFinalizeContexts(FRHIFinalizeContextsArgs&& args)
