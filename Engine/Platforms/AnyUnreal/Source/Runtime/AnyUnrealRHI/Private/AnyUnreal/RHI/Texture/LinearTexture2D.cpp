@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
+#include "AnyUnreal/RHI/Device/DeviceLimits.h"
 #include <stdexcept>
 #include <cstring>
 
@@ -34,7 +35,7 @@ namespace AnyUnreal::RHI
 
         std::uint32_t dimension(std::uint32_t value)
         {
-            if (value == 0 || value > 16384) throw std::out_of_range("Texture dimension exceeds the hardware range");
+            if (value == 0 || value > DeviceLimits::Texture2D) throw std::out_of_range("Texture dimension exceeds the hardware range");
             return value;
         }
     }

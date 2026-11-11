@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Device/DeviceLimits.h"
 #include "AnyUnreal/RHI/Device/ShaderPlatform.h"
 #include "AnyUnreal/RHI/Texture/PixelFormat.h"
 #include "AnyUnreal/RHI/Shader/GeometryShader.h"
@@ -40,7 +41,7 @@ namespace AnyUnreal::RHI
     FTextureRHIRef DynamicRHI::RHIAsyncCreateTexture2D(uint32 width, uint32 height, uint8 format, uint32 mipCount, ETextureCreateFlags flags, ERHIAccess initialState, void** initialMipData, uint32 initialMipCount, const TCHAR* debugName, FGraphEventRef& completionEvent)
     {
         if (!initialized || shutDown) throw std::runtime_error("Texture creation requires an initialized device");
-        if (width == 0 || height == 0 || width > 16384 || height > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
+        if (width == 0 || height == 0 || width > DeviceLimits::Texture2D || height > DeviceLimits::Texture2D) throw std::invalid_argument("Texture extent exceeds hardware limits");
         if (format == PF_Unknown || format >= PF_MAX) throw std::invalid_argument("Invalid texture format");
         if (mipCount == 0 && width == 1 && height == 1) mipCount = 1;
         if (mipCount != 1) throw std::runtime_error("Texture mip chains are not implemented");
@@ -107,6 +108,7 @@ namespace AnyUnreal::RHI
         Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
         ConfigureShaderPlatform(platform);
         ConfigurePixelFormats();
+        ConfigureDeviceLimits();
         ConfigureTransitionStorage();
         initialized = true;
     }

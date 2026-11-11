@@ -1,0 +1,17 @@
+#include "AnyUnreal/RHI/Device/DeviceLimits.h"
+#include "RHIGlobals.h"
+#include <stdexcept>
+
+namespace AnyUnreal::RHI
+{
+    void ConfigureDeviceLimits()
+    {
+        const int32 dispatchLimit = GMaxComputeDispatchDimension;
+        if (dispatchLimit <= 0) throw std::runtime_error("RHI compute dispatch limit must be positive");
+        GMaxTextureDimensions = DeviceLimits::Texture2D;
+        GMaxShadowDepthBufferSizeX = DeviceLimits::Texture2D;
+        GMaxShadowDepthBufferSizeY = DeviceLimits::Texture2D;
+        GMaxVolumeTextureDimensions = DeviceLimits::Texture3D;
+        GRHIMaxDispatchThreadGroupsPerDimension = FIntVector(dispatchLimit, dispatchLimit, dispatchLimit);
+    }
+}

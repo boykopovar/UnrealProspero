@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Texture/LinearTexture3D.h"
+#include "AnyUnreal/RHI/Device/DeviceLimits.h"
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -7,7 +8,7 @@ namespace AnyUnreal::RHI
 {
     std::size_t LinearTexture3D::CalculateDataSize(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format)
     {
-        if (width == 0 || height == 0 || depth == 0 || width > 2048 || height > 2048 || depth > 2048) throw std::out_of_range("Volume texture dimensions exceed the hardware range");
+        if (width == 0 || height == 0 || depth == 0 || width > DeviceLimits::Texture3D || height > DeviceLimits::Texture3D || depth > DeviceLimits::Texture3D) throw std::out_of_range("Volume texture dimensions exceed the hardware range");
         const auto size = LinearTexture2D::CalculateRowPitch(width, format) * height * depth;
         BufferAllocation::CalculateAllocationSize(size);
         return size;
