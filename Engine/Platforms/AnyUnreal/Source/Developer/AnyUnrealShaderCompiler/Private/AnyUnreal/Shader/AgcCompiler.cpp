@@ -136,7 +136,7 @@ namespace AnyUnreal::Shader
     {
         const auto vertex = normalizeInput(vertexWords, vertexEntryPoint);
         const auto geometry = normalizeInput(geometryWords, geometryEntryPoint);
-        const FString arguments = FString::Printf(TEXT("shader-pipeline --input-format spirv --vertex vertex.spv --geometry geometry.spv --output compiled --target %s --entry main --omit-implicit-primitive-id true"), targetName(target));
+        const FString arguments = FString::Printf(TEXT("shader-pipeline --input-format spirv --vertex vertex.spv --geometry geometry.spv --output compiled --target %s --entry main --dynamic-vertex-input --omit-implicit-primitive-id true"), targetName(target));
         const std::array inputs{ShaderInput{TEXT("vertex.spv"), vertex}, ShaderInput{TEXT("geometry.spv"), geometry}};
         const std::array outputs{ShaderOutput{TEXT("compiled/geometry.header"), TEXT("compiled/geometry.code"), TEXT("compiled/geometry.adk")}};
         auto results = runCompiler(arguments, inputs, outputs, descriptors, executable, workingRoot);

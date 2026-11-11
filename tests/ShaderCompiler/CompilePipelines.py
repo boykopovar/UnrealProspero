@@ -48,6 +48,11 @@ def main():
             raise RuntimeError(f"Invalid pipeline input was not rejected cleanly: {result.stderr}")
     for target in ("windows", "linux", "ps5"):
         run([adk, "shader-pipeline", "--input-format", "spirv", "--vertex", output / "VertexStreams.vert.hlsl.spv", "--geometry", output / "VertexStreams.geom.hlsl.spv", "--output", output / (target + "-geometry-streams"), "--target", target, "--vertex-attribute", "0,3,r32g32b32_float,0,12,4,0", "--vertex-attribute", "1,7,r32g32b32a32_float,0,16,4,0"])
+        dynamic = output / (target + "-geometry-dynamic")
+        run([adk, "shader-pipeline", "--input-format", "spirv", "--vertex", output / "VertexStreams.vert.hlsl.spv", "--geometry", output / "VertexStreams.geom.hlsl.spv", "--output", dynamic, "--target", target, "--dynamic-vertex-input"])
+        fields = dict(line.split("=", 1) for line in (dynamic / "geometry.adk").read_text().splitlines()[1:])
+        if fields["dynamic_vertex_input"] != "1" or fields["vertex_buffer_descriptor_stride"] != "32" or fields["vertex_buffer_usage_mask"] != "3" or fields["merged_es_source_stage"] != "1":
+            raise RuntimeError("Merged geometry lost its dynamic vertex inputs")
         for pipeline in ("geometry", "tessellation"):
             directory = output / (target + "-" + pipeline)
             arguments = [adk, "shader-pipeline", "--input-format", "spirv", "--vertex", output / "Triangle.vert.hlsl.spv", "--output", directory, "--target", target]
