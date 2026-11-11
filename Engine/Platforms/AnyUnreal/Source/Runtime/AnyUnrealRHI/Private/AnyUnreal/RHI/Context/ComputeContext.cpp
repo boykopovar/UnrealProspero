@@ -45,7 +45,10 @@ namespace AnyUnreal::RHI
         if (!pipeline || !parameters) throw std::runtime_error("Compute dispatch requires a pipeline");
         try
         {
-            auto bindings = parameters->CreateBindings();
+            auto dispatchParameters = *parameters;
+            const auto staticBindings = staticUniforms.Resolve(pipeline->GetShader());
+            dispatchParameters.SetResources({staticBindings.data(), static_cast<int32>(staticBindings.size())});
+            auto bindings = dispatchParameters.CreateBindings();
             bindings->Finalize();
             dispatches.push_back({pipeline, std::move(bindings)});
             pipeline->RecordDispatch(commands, *dispatches.back().bindings, groupX, groupY, groupZ);
@@ -55,5 +58,17 @@ namespace AnyUnreal::RHI
             failed = true;
             throw;
         }
+    }
+
+    void ComputeContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers)
+    {
+        requireWritable();
+        staticUniforms.Replace(uniformBuffers);
+    }
+
+    void ComputeContext::RHISetStaticUniformBuffer(FUniformBufferStaticSlot slot, FRHIUniformBuffer* uniformBuffer)
+    {
+        requireWritable();
+        staticUniforms.Set(slot, uniformBuffer);
     }
 }
