@@ -22,9 +22,11 @@ namespace AnyUnreal::RHI
     public:
         VertexBufferTable(std::uint32_t usageMask, std::span<const VertexBufferBinding> bindings, std::uint32_t addressHigh);
         void Apply(Shader::UserDataInputs& inputs) const;
+        std::uint32_t GetUsageMask() const;
         std::vector<GpuMemoryRange> GetMemoryRanges() const;
 
     private:
+        std::uint32_t usageMask;
         std::vector<std::shared_ptr<BufferAllocation>> sources;
         std::unique_ptr<BufferAllocation> table;
     };

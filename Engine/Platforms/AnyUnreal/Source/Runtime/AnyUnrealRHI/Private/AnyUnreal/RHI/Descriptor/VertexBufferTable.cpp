@@ -6,7 +6,7 @@
 
 namespace AnyUnreal::RHI
 {
-    VertexBufferTable::VertexBufferTable(std::uint32_t usageMask, std::span<const VertexBufferBinding> bindings, std::uint32_t addressHigh)
+    VertexBufferTable::VertexBufferTable(std::uint32_t usageMask, std::span<const VertexBufferBinding> bindings, std::uint32_t addressHigh) : usageMask(usageMask)
     {
         if (bindings.size() != static_cast<std::size_t>(std::popcount(usageMask))) throw std::invalid_argument("Vertex bindings do not match the shader usage mask");
         std::array<const VertexBufferBinding*, 32> indexed{};
@@ -34,6 +34,8 @@ namespace AnyUnreal::RHI
             table->Upload(0, bytes);
         }
     }
+
+    std::uint32_t VertexBufferTable::GetUsageMask() const { return usageMask; }
 
     void VertexBufferTable::Apply(Shader::UserDataInputs& inputs) const
     {
