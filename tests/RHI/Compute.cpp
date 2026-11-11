@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
+#include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -73,10 +74,6 @@ namespace
         }
     }
 
-    bool APS5_VABI exhausted(CommandBuffer*, std::uint32_t, void*)
-    {
-        throw std::length_error("Compute test command buffer exhausted");
-    }
 }
 
 int main()
@@ -116,7 +113,6 @@ int main()
     auto* output = reinterpret_cast<std::uint32_t*>(base + 256);
     constexpr std::size_t inputOffset = 256;
     auto* input = reinterpret_cast<std::uint32_t*>(secondMemory.GetRange(inputOffset, 64 * sizeof(std::uint32_t)).data());
-    auto* words = reinterpret_cast<std::uint32_t*>(base + 4096);
     std::vector<Shaders::RuntimeBinding> bindings;
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
     bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite ? 1u : 0u, 1, readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
@@ -154,7 +150,8 @@ int main()
         memory.Upload(2048, std::as_bytes(std::span(dispatchGroups)));
         auto* fillOutput = reinterpret_cast<std::uint32_t*>(memory.GetRange(3072, 64).data());
         std::fill_n(fillOutput, 16, 0x12345678u);
-        CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
+        RHI::CommandStorage commandStorage(64, layout.GetAddressHigh());
+        auto& commands = commandStorage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
         std::vector<RHI::GpuMemoryRange> ranges{
             {memory.Data(), memory.Size()},
