@@ -1,0 +1,79 @@
+#include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
+#include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
+#include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
+#include "AnyUnreal/RHI/Transition/BufferTransition.h"
+#include <stdexcept>
+
+namespace AnyUnreal::RHI
+{
+    DynamicRHI::DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh) : target(target), addressHigh(addressHigh)
+    {
+        if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
+        if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FVertexShaderRHIRef DynamicRHI::RHICreateVertexShader(const FRHICreateShaderDesc& description)
+    {
+        return new VertexShader(description.Code, FShaderHash{}, target);
+    }
+
+    FPixelShaderRHIRef DynamicRHI::RHICreatePixelShader(const FRHICreateShaderDesc& description)
+    {
+        return new PixelShader(description.Code, FShaderHash{}, target);
+    }
+
+    FComputeShaderRHIRef DynamicRHI::RHICreateComputeShader(const FRHICreateShaderDesc& description)
+    {
+        return new ComputeShader(description.Code, FShaderHash{}, target);
+    }
+
+    FComputePipelineStateRHIRef DynamicRHI::RHICreateComputePipelineState(const FComputePipelineStateInitializer& initializer)
+    {
+        if (!initializer.ComputeShader) throw std::invalid_argument("Compute pipeline requires a shader");
+        if (!initializer.SpecializationConstants.IsEmpty() || initializer.ComputeShader->HasSpecializationConstants()) throw std::runtime_error("Shader specialization constants are not implemented");
+        return new ComputePipeline(*static_cast<ComputeShader*>(initializer.ComputeShader));
+    }
+
+    FUniformBufferRHIRef DynamicRHI::RHICreateUniformBuffer(const void* contents, const FRHIUniformBufferLayout* layout, EUniformBufferUsage usage, EUniformBufferValidation validation)
+    {
+        return new UniformBuffer(layout, contents, usage, validation, addressHigh);
+    }
+
+    FRHIBufferInitializer DynamicRHI::RHICreateBufferInitializer(FRHICommandListBase& commandList, const FRHIBufferCreateDesc& description)
+    {
+        return CreateBufferInitializer(commandList, description, addressHigh);
+    }
+
+    FShaderResourceViewRHIRef DynamicRHI::RHICreateShaderResourceView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
+    {
+        if (!resource || resource->GetType() != RRT_Buffer) throw std::runtime_error("Shader resource views require a buffer; texture views are not implemented");
+        return new BufferShaderResourceView(*static_cast<Buffer*>(resource), description);
+    }
+
+    FUnorderedAccessViewRHIRef DynamicRHI::RHICreateUnorderedAccessView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
+    {
+        if (!resource || resource->GetType() != RRT_Buffer) throw std::runtime_error("Unordered access views require a buffer; texture views are not implemented");
+        return new BufferUnorderedAccessView(*static_cast<Buffer*>(resource), description);
+    }
+
+    void DynamicRHI::ConfigureTransitionStorage()
+    {
+        GRHITransitionPrivateData_SizeInBytes = sizeof(TransitionData);
+        GRHITransitionPrivateData_AlignInBytes = alignof(TransitionData);
+    }
+
+    void DynamicRHI::RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info)
+    {
+        if (!transition) throw std::invalid_argument("Transition storage is null");
+        if (GRHITransitionPrivateData_SizeInBytes != sizeof(TransitionData) || GRHITransitionPrivateData_AlignInBytes != alignof(TransitionData)) throw std::runtime_error("Transition storage is not configured");
+        InitializeBufferTransition(*transition, info, addressHigh);
+    }
+
+    void DynamicRHI::RHIReleaseTransition(FRHITransition* transition)
+    {
+        if (!transition) throw std::invalid_argument("Transition storage is null");
+        DestroyBufferTransition(*transition);
+    }
+}

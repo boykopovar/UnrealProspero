@@ -1,0 +1,33 @@
+#ifndef ANYUNREAL_RHI_DYNAMIC_RHI_H
+#define ANYUNREAL_RHI_DYNAMIC_RHI_H
+
+#include "AnyUnreal/Shader/ShaderBinary.h"
+#include <DynamicRHI.h>
+
+namespace AnyUnreal::RHI
+{
+    class ANYUNREALRHI_API DynamicRHI : public FDynamicRHI
+    {
+    public:
+        FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
+        FPixelShaderRHIRef RHICreatePixelShader(const FRHICreateShaderDesc& description) override;
+        FComputeShaderRHIRef RHICreateComputeShader(const FRHICreateShaderDesc& description) override;
+        FComputePipelineStateRHIRef RHICreateComputePipelineState(const FComputePipelineStateInitializer& initializer) override;
+        FUniformBufferRHIRef RHICreateUniformBuffer(const void* contents, const FRHIUniformBufferLayout* layout, EUniformBufferUsage usage, EUniformBufferValidation validation) override;
+        FRHIBufferInitializer RHICreateBufferInitializer(FRHICommandListBase& commandList, const FRHIBufferCreateDesc& description) override;
+        FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHICommandListBase& commandList, FRHIViewableResource* resource, const FRHIViewDesc& description) override;
+        FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHICommandListBase& commandList, FRHIViewableResource* resource, const FRHIViewDesc& description) override;
+        void RHICreateTransition(FRHITransition* transition, const FRHITransitionCreateInfo& info) override;
+        void RHIReleaseTransition(FRHITransition* transition) override;
+
+    protected:
+        DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);
+        void ConfigureTransitionStorage();
+
+    private:
+        Shader::AgcTarget target;
+        std::uint32_t addressHigh;
+    };
+}
+
+#endif
