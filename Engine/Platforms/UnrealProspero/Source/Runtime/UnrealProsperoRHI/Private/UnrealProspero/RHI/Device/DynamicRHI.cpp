@@ -227,12 +227,15 @@ namespace UnrealProspero::RHI
         const auto& mip = destination->GetMipLayout(mipIndex);
         if (!sourceData || region.SrcX < 0 || region.SrcY < 0 || region.Width == 0 || region.Height == 0) throw std::invalid_argument("Invalid texture update source");
         if (region.DestX >= mip.Width || region.DestY >= mip.Height || region.Width > mip.Width - region.DestX || region.Height > mip.Height - region.DestY) throw std::out_of_range("Texture update exceeds its destination");
-        const auto pixelBytes = mip.RowBytes / mip.Width;
-        const auto rowBytes = region.Width * pixelBytes;
-        const auto columnOffset = static_cast<std::size_t>(region.SrcX) * pixelBytes;
+        const auto info = DescribeTextureFormat(destination->GetFormat());
+        if (region.SrcX % info.BlockWidth != 0 || region.SrcY % info.BlockHeight != 0 || region.DestX % info.BlockWidth != 0 || region.DestY % info.BlockHeight != 0) throw std::invalid_argument("Texture update origin is not block aligned");
+        if ((region.Width % info.BlockWidth != 0 && region.Width != mip.Width - region.DestX) || (region.Height % info.BlockHeight != 0 && region.Height != mip.Height - region.DestY)) throw std::invalid_argument("Texture update splits a compressed block");
+        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, destination->GetFormat());
+        const auto rows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
+        const auto columnOffset = static_cast<std::size_t>(region.SrcX) / info.BlockWidth * info.BlockBytes;
         if (columnOffset > sourcePitch || rowBytes > sourcePitch - columnOffset) throw std::invalid_argument("Texture update source pitch is too small");
-        const auto sourceOffset = static_cast<std::size_t>(region.SrcY) * sourcePitch + columnOffset;
-        const auto sourceBytes = (region.Height - 1) * static_cast<std::size_t>(sourcePitch) + rowBytes;
+        const auto sourceOffset = static_cast<std::size_t>(region.SrcY) / info.BlockHeight * sourcePitch + columnOffset;
+        const auto sourceBytes = (rows - 1) * static_cast<std::size_t>(sourcePitch) + rowBytes;
         if (sourceOffset > static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max()) - sourceBytes) throw std::overflow_error("Texture update source exceeds pointer range");
         auto upload = std::make_shared<TextureUpload>(region.Width, region.Height, destination->GetFormat(), std::span{reinterpret_cast<const std::byte*>(sourceData) + sourceOffset, sourceBytes}, sourcePitch, addressHigh);
         commandList.EnqueueLambda([destination = std::move(destination), upload = std::move(upload), x = region.DestX, y = region.DestY, mipIndex](FRHICommandListBase& executingList)

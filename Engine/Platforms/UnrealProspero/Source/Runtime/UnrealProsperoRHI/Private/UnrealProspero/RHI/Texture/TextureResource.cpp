@@ -39,6 +39,8 @@ namespace UnrealProspero::RHI
                 if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior");
                 return;
             }
+            const auto formatInfo = DescribeTextureFormat(ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)));
+            if (formatInfo.BlockWidth > 1 && (volume || EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable | Flags::Presentable))) throw std::invalid_argument("Compressed textures require sampled 2D, array or cube storage");
             if ((volume || array || cube) && EnumHasAnyFlags(description.Flags, Flags::Streamable)) throw std::invalid_argument("Only 2D textures can use the streaming pool");
             constexpr auto supported = Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
             if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8) throw std::invalid_argument("Presentable texture format is not supported");
@@ -164,7 +166,7 @@ namespace UnrealProspero::RHI
         if (GetDesc().Dimension != ETextureDimension::Texture2D) throw std::invalid_argument("Mapped readback requires a 2D texture");
         if (!EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::CPUReadback)) throw std::invalid_argument("Texture was not created for CPU readback");
         const auto texture = Capture();
-        std::vector<std::byte> data(texture->GetRowBytes() * texture->GetHeight());
+        std::vector<std::byte> data(texture->GetRowBytes() * texture->GetMipLayout(0).RowCount);
         texture->CopyRowsTo(data, texture->GetRowBytes());
         mappedData = std::move(data);
         return mappedData->data();

@@ -18,6 +18,12 @@ namespace UnrealProspero::RHI
         constexpr std::array mappings{
             FormatMapping{PF_R8G8B8A8, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb},
             FormatMapping{PF_B8G8R8A8, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb},
+            FormatMapping{PF_DXT1, TextureFormat::Bc1Unorm, TextureFormat::Bc1Srgb},
+            FormatMapping{PF_DXT3, TextureFormat::Bc2Unorm, TextureFormat::Bc2Srgb},
+            FormatMapping{PF_DXT5, TextureFormat::Bc3Unorm, TextureFormat::Bc3Srgb},
+            FormatMapping{PF_BC4, TextureFormat::Bc4Unorm, std::nullopt},
+            FormatMapping{PF_BC5, TextureFormat::Bc5Unorm, std::nullopt},
+            FormatMapping{PF_BC7, TextureFormat::Bc7Unorm, TextureFormat::Bc7Srgb},
             FormatMapping{PF_G8, TextureFormat::R8Unorm, std::nullopt},
             FormatMapping{PF_R8, TextureFormat::R8Unorm, std::nullopt},
             FormatMapping{PF_R8G8, TextureFormat::Rg8Unorm, std::nullopt},
@@ -58,6 +64,13 @@ namespace UnrealProspero::RHI
         {
             auto& format = GPixelFormats[mapping.Pixel];
             format.Supported = true;
+            const auto info = DescribeTextureFormat(mapping.Linear);
+            if (format.BlockSizeX != info.BlockWidth || format.BlockSizeY != info.BlockHeight || format.BlockBytes != info.BlockBytes) throw std::runtime_error("Texture format block layout does not match Unreal");
+            if (info.BlockWidth > 1)
+            {
+                format.Capabilities = Caps::Texture2D | Caps::TextureCube | Caps::TextureMipmaps | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
+                continue;
+            }
             const bool integer = mapping.Linear == TextureFormat::R32Uint || mapping.Linear == TextureFormat::R32Sint;
             format.Capabilities = integer ? colorCaps & ~(Caps::TextureCube | Caps::RenderTarget | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable) : colorCaps;
         }
