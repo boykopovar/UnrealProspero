@@ -6,7 +6,7 @@
 
 namespace AnyUnreal::Shader
 {
-    std::vector<std::uint8_t> EncodeCompiledShader(const SpirvCompilation& spirv, const AgcCompilation& agc, ShaderStage stage, AgcTarget target)
+    std::vector<std::uint8_t> EncodeCompiledShader(const SpirvCompilation& spirv, const AgcCompilation& agc, ShaderStage stage, AgcTarget target, const ShaderIdentity& vertexIdentity)
     {
         TArray<uint8> resourceTable;
         FMemoryWriter writer(resourceTable, true);
@@ -14,6 +14,7 @@ namespace AnyUnreal::Shader
         writer << table;
         if (writer.IsError()) throw std::runtime_error("Cannot serialize Unreal shader resource table");
         ShaderBinaryView binary{stage, target, agc.Header, agc.Code, agc.Metadata, {resourceTable.GetData(), static_cast<std::size_t>(resourceTable.Num())}, {}};
+        binary.VertexIdentity = vertexIdentity;
         binary.Bindings.reserve(spirv.Parameters.size());
         for (const auto& parameter : spirv.Parameters)
         {

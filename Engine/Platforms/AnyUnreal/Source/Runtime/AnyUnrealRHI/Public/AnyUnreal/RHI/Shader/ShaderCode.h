@@ -14,6 +14,7 @@ namespace AnyUnreal::RHI
         ShaderCode(const ShaderCode&) = delete;
         ShaderCode& operator=(const ShaderCode&) = delete;
         const Shader::ShaderBinaryView& GetBinary() const;
+        void ValidateVertex(const ShaderCode& vertex) const;
         const FShaderResourceTable& GetResourceTable() const;
         const Shader::UserDataLayout& GetUserData() const;
         const std::vector<ResourceTableBinding>& GetResourceBindings() const;
@@ -22,6 +23,7 @@ namespace AnyUnreal::RHI
     private:
         std::vector<std::uint8_t> storage;
         Shader::ShaderBinaryView binary;
+        Shader::ShaderIdentity identity{};
         Shader::UserDataLayout userData;
         FShaderResourceTable resourceTable;
         std::vector<ResourceTableBinding> resourceBindings;

@@ -2,6 +2,7 @@
 #include "AnyUnreal/Shader/PipelineDescriptors.h"
 #include "AnyUnreal/Shader/ShaderOutput.h"
 #include "ShaderCompilerCore.h"
+#include "Misc/SecureHash.h"
 #include <array>
 #include <stdexcept>
 
@@ -26,7 +27,9 @@ namespace AnyUnreal::Shader
             const auto vertexAgc = CompileAgc(vertexSpirv.Words, vertexSpirv.Descriptors, SF_Vertex, target, vertex.Input.EntryPointName, executable, workingRoot);
             const auto geometryAgc = CompileGeometryAgc(vertexSpirv.Words, geometrySpirv.Words, descriptors, target, vertex.Input.EntryPointName, geometry.Input.EntryPointName, executable, workingRoot);
             const auto vertexBytes = EncodeCompiledShader(vertexSpirv, vertexAgc, ShaderStage::Vertex, target);
-            const auto geometryBytes = EncodeCompiledShader(geometrySpirv, geometryAgc, ShaderStage::Geometry, target);
+            ShaderIdentity vertexIdentity;
+            FSHA1::HashBuffer(vertexBytes.data(), vertexBytes.size(), vertexIdentity.data());
+            const auto geometryBytes = EncodeCompiledShader(geometrySpirv, geometryAgc, ShaderStage::Geometry, target, vertexIdentity);
             vertex.Output.ShaderCode.GetWriteAccess().Append(vertexBytes.data(), static_cast<int32>(vertexBytes.size()));
             geometry.Output.ShaderCode.GetWriteAccess().Append(geometryBytes.data(), static_cast<int32>(geometryBytes.size()));
             vertex.Output.SerializeShaderCodeValidation();

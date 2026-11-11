@@ -86,12 +86,34 @@ int main()
     std::fill(invalidOptional.end() - 4, invalidOptional.end(), 0);
     reject([&] { DecodeUnrealShaderCode(invalidOptional); });
     for (std::size_t size = 0; size < bytes.size(); ++size) reject([&] { DecodeShaderBinary(std::span(bytes).first(size)); });
-    for (std::size_t offset : {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 52, 60, 68})
+    for (std::size_t offset : {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 52, 56, 60, 64, 72, 76, 80, 88})
     {
         auto corrupt = bytes;
         std::fill_n(corrupt.begin() + offset, 4, 255);
         reject([&] { DecodeShaderBinary(corrupt); });
     }
+    auto vertex = shader;
+    vertex.Stage = ShaderStage::Vertex;
+    auto geometry = shader;
+    geometry.Stage = ShaderStage::Geometry;
+    reject([&] { EncodeShaderBinary(geometry); });
+    ShaderIdentity identity{};
+    identity[0] = 42;
+    identity[19] = 17;
+    geometry.VertexIdentity = identity;
+    const auto geometryBytes = EncodeShaderBinary(geometry);
+    const auto decodedGeometry = DecodeShaderBinary(geometryBytes);
+    require(decodedGeometry.VertexIdentity == identity);
+    ValidateGeometryVertex(decodedGeometry, vertex, identity);
+    auto wrongIdentity = identity;
+    ++wrongIdentity[19];
+    reject([&] { ValidateGeometryVertex(decodedGeometry, vertex, wrongIdentity); });
+    auto wrongTarget = vertex;
+    wrongTarget.Target = AgcTarget::Windows;
+    reject([&] { ValidateGeometryVertex(decodedGeometry, wrongTarget, identity); });
+    reject([&] { ValidateGeometryVertex(decodedGeometry, shader, identity); });
+    vertex.VertexIdentity = identity;
+    reject([&] { EncodeShaderBinary(vertex); });
     auto trailing = bytes;
     trailing.push_back(0);
     reject([&] { DecodeShaderBinary(trailing); });

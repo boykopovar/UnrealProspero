@@ -1,6 +1,7 @@
 #ifndef ANYUNREAL_SHADER_BINARY_H
 #define ANYUNREAL_SHADER_BINARY_H
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -45,6 +46,8 @@ namespace AnyUnreal::Shader
         std::string Type;
     };
 
+    using ShaderIdentity = std::array<std::uint8_t, 20>;
+
     struct ShaderBinaryView
     {
         ShaderStage Stage;
@@ -54,8 +57,10 @@ namespace AnyUnreal::Shader
         std::span<const std::uint8_t> Metadata;
         std::span<const std::uint8_t> ResourceTable;
         std::vector<RuntimeBinding> Bindings;
+        ShaderIdentity VertexIdentity{};
     };
 
+    ANYUNREALSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);
     ANYUNREALSHADERCOMMON_API void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings);
     ANYUNREALSHADERCOMMON_API std::vector<std::uint8_t> EncodeShaderBinary(const ShaderBinaryView& shader);
     ANYUNREALSHADERCOMMON_API ShaderBinaryView DecodeShaderBinary(std::span<const std::uint8_t> bytes);

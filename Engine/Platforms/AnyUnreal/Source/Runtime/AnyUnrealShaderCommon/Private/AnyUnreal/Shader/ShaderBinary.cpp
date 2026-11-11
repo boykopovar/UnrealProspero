@@ -1,4 +1,5 @@
 #include "AnyUnreal/Shader/ShaderBinary.h"
+#include <algorithm>
 #include <initializer_list>
 #include <array>
 #include <limits>
@@ -11,7 +12,7 @@ namespace AnyUnreal::Shader
     namespace
     {
         constexpr std::uint32_t magic = 0x53475541;
-        constexpr std::uint32_t version = 1;
+        constexpr std::uint32_t version = 2;
 
         std::uint32_t narrow(std::size_t size)
         {
@@ -55,8 +56,17 @@ namespace AnyUnreal::Shader
         {
             if (shader.Stage > ShaderStage::Geometry || shader.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader stage or target");
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
+            const bool hasVertexIdentity = std::ranges::any_of(shader.VertexIdentity, [](auto value) { return value != 0; });
+            if ((shader.Stage == ShaderStage::Geometry) != hasVertexIdentity) throw std::invalid_argument("Shader has an invalid linked vertex identity");
             ValidateRuntimeBindings(shader.Bindings);
         }
+    }
+
+    void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity)
+    {
+        validate(geometry);
+        validate(vertex);
+        if (geometry.Stage != ShaderStage::Geometry || vertex.Stage != ShaderStage::Vertex || geometry.Target != vertex.Target || geometry.VertexIdentity != identity) throw std::invalid_argument("Geometry shader was compiled for a different vertex shader");
     }
 
     void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings)
@@ -101,6 +111,7 @@ namespace AnyUnreal::Shader
         std::vector<std::uint8_t> result;
         for (auto value : {magic, version, static_cast<std::uint32_t>(shader.Stage), static_cast<std::uint32_t>(shader.Target), narrow(shader.Bindings.size())}) append(result, value);
         for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.ResourceTable}) append(result, narrow(section.size()));
+        result.insert(result.end(), shader.VertexIdentity.begin(), shader.VertexIdentity.end());
         for (const auto& binding : shader.Bindings)
         {
             for (auto value : {static_cast<std::uint32_t>(binding.Kind), binding.ParameterIndex, binding.Set, binding.Binding, binding.Count, binding.Offset, binding.Stride, binding.BlockSize, narrow(binding.Type.size())}) append(result, value);
@@ -124,6 +135,8 @@ namespace AnyUnreal::Shader
         const auto codeSize = reader.Read();
         const auto metadataSize = reader.Read();
         const auto resourceSize = reader.Read();
+        const auto vertexIdentity = reader.Take(result.VertexIdentity.size());
+        std::copy(vertexIdentity.begin(), vertexIdentity.end(), result.VertexIdentity.begin());
         const auto payloadSize = static_cast<std::uint64_t>(headerSize) + codeSize + metadataSize + resourceSize;
         if (payloadSize > reader.Size() || count > (reader.Size() - payloadSize) / 37) throw std::invalid_argument("Invalid shader binary section sizes");
         result.Bindings.reserve(count);

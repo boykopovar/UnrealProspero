@@ -6,7 +6,7 @@
 
 namespace AnyUnreal::Shader
 {
-    ANYUNREALSHADERCOMPILER_API std::vector<std::uint8_t> EncodeCompiledShader(const SpirvCompilation& spirv, const AgcCompilation& agc, ShaderStage stage, AgcTarget target);
+    ANYUNREALSHADERCOMPILER_API std::vector<std::uint8_t> EncodeCompiledShader(const SpirvCompilation& spirv, const AgcCompilation& agc, ShaderStage stage, AgcTarget target, const ShaderIdentity& vertexIdentity = {});
 }
 
 #endif

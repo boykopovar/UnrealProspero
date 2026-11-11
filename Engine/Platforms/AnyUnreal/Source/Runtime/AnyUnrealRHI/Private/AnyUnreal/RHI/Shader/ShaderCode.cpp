@@ -2,6 +2,7 @@
 #include "AnyUnreal/RHI/Shader/AgcHeader.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderCore.h"
+#include "Misc/SecureHash.h"
 #include <bit>
 #include <stdexcept>
 
@@ -42,9 +43,15 @@ namespace AnyUnreal::RHI
         const FShaderCodeReader reader(source);
         const auto binarySize = static_cast<std::size_t>(binary.ResourceTable.data() + binary.ResourceTable.size() - storage.data());
         if (reader.GetActualShaderCodeSize() != binarySize) throw std::invalid_argument("Unreal shader code size does not match its AGC envelope");
+        FSHA1::HashBuffer(storage.data(), binarySize, identity.data());
         readResourceTable(binary.ResourceTable, resourceTable);
         resourceBindings = ReadResourceTableBindings(resourceTable);
         ValidateAgcHeader(binary.Header, binary.Code, binary.Stage);
+    }
+
+    void ShaderCode::ValidateVertex(const ShaderCode& vertex) const
+    {
+        Shader::ValidateGeometryVertex(binary, vertex.binary, vertex.identity);
     }
 
     const Shader::ShaderBinaryView& ShaderCode::GetBinary() const { return binary; }
