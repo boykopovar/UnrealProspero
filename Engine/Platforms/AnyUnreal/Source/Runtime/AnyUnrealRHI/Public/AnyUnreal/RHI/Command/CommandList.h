@@ -9,11 +9,15 @@ namespace AnyUnreal::RHI
     {
     public:
         explicit CommandList(std::unique_ptr<ComputeContext> context);
-        const Packet& GetPacket() const;
+        ~CommandList();
+        void Submit();
+        bool IsComplete() const;
+        void Wait(std::uint64_t timeoutMicroseconds) const;
 
     private:
         std::unique_ptr<ComputeContext> context;
         Packet packet;
+        bool submitted = false;
     };
 }
 

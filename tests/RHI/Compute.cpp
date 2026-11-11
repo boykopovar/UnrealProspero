@@ -9,6 +9,7 @@
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
+#include "AnyUnreal/RHI/Command/Completion.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -131,6 +132,7 @@ int main()
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
     {
         RHI::MemoryBarrier barrier(layout.GetAddressHigh());
+        RHI::Completion completion(layout.GetAddressHigh());
         const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
         if (withConstants)
         {
@@ -188,7 +190,11 @@ int main()
         barrier.Acquire(commands, ranges);
         if (iteration == 1) RHI::WriteComputeDispatch(commands, shader, layout, inputs, 1, 1, 1);
         else RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), 2048);
+        completion.Write(commands);
+        if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
+        completion.Wait(10000000);
+        if (!completion.IsComplete()) throw std::runtime_error("Submitted commands did not report completion");
         for (unsigned index = 0; index < 16; ++index)
         {
             if (fillOutput[index] != (index >= 4 && index < 12 ? iteration : 0x12345678u)) throw std::runtime_error("GPU fill changed data outside its range or failed to write its value");

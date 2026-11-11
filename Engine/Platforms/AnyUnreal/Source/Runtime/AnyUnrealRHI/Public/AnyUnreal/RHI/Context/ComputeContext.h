@@ -7,12 +7,14 @@
 #include "AnyUnreal/RHI/Buffer/StaticUniformBuffers.h"
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
+#include "AnyUnreal/RHI/Command/Completion.h"
 
 namespace AnyUnreal::RHI
 {
     class ANYUNREALRHI_API ComputeContext : public IRHICommandContext
     {
     public:
+        ~ComputeContext() noexcept override = default;
         using IRHICommandContext::RHISetShaderParameters;
         ERHIPipeline GetPipeline() const override { return ERHIPipeline::Graphics; }
         void RHIBeginTransitions(TArrayView<const FRHITransition*> transitions) override;
@@ -44,6 +46,7 @@ namespace AnyUnreal::RHI
         void clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         CommandStorage commandStorage;
+        Completion completion;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ComputeParameters> parameters;

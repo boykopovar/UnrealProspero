@@ -9,7 +9,7 @@
 
 namespace AnyUnreal::RHI
 {
-    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), commands(commandStorage.Get())
+    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(addressHigh), commands(commandStorage.Get())
     {
         sceAgcDcbContextStateOp(&commands, 0);
     }
@@ -18,6 +18,7 @@ namespace AnyUnreal::RHI
     {
         requireWritable();
         finalized = true;
+        completion.Write(commands);
         return {commands.bottom, static_cast<std::uint32_t>(commands.cursor_up - commands.bottom), 0, {}};
     }
 
