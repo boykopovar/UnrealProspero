@@ -37,14 +37,17 @@ namespace AnyUnreal::RHI
 
         static std::vector<MipLayout> CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount);
         static std::size_t CalculateRowBytes(std::uint32_t width, TextureFormat format);
-        static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb = false);
+        static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb = false, std::uint32_t mipCount = 1);
         static std::size_t CalculateRowPitch(std::uint32_t width, TextureFormat format);
-        static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format);
-        LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize);
-        void Upload(std::span<const std::byte> source, std::size_t sourcePitch);
-        void CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch) const;
+        static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount = 1);
+        LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, std::uint32_t mipCount = 1);
+        void Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel = 0);
+        void CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel = 0) const;
         const std::array<std::uint32_t, 8>& GetDescriptor() const;
-        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb) const;
+        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0) const;
+        const MipLayout& GetMipLayout(std::uint32_t mipLevel) const;
+        std::uint32_t GetMipCount() const;
+        std::span<std::byte> GetMipRange(std::uint32_t mipLevel) const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetRowPitch() const;
         std::size_t GetRowBytes() const;
@@ -58,6 +61,7 @@ namespace AnyUnreal::RHI
         TextureFormat format;
         std::size_t rowBytes;
         std::size_t rowPitch;
+        std::vector<MipLayout> mipLayouts;
         BufferAllocation storage;
         std::array<std::uint32_t, 8> descriptor;
     };
