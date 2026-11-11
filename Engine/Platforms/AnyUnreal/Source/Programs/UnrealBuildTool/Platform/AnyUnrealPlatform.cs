@@ -43,6 +43,7 @@ internal sealed class AnyUnrealPlatform : UEBuildPlatform
         AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (moduleName == "RHI")
         {
+            if (!rules.DynamicallyLoadedModuleNames.Contains("AnyUnrealRHI")) rules.DynamicallyLoadedModuleNames.Add("AnyUnrealRHI");
             rules.FilesToGenerate.Add("AnyUnrealRHIShaderPlatform.h", new[]
             {
                 "#ifndef ANYUNREAL_GENERATED_RHI_SHADER_PLATFORM_H",
