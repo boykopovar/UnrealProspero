@@ -31,6 +31,8 @@ namespace AnyUnreal::RHI
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
         std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
+        std::shared_ptr<const BufferAllocation> CaptureStorage() const;
+        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb) const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetAllocationSize() const;
 

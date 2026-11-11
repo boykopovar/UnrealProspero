@@ -38,7 +38,7 @@ namespace AnyUnreal::RHI
             using Flags = ETextureCreateFlags;
             if (description.Format == PF_ShadowDepth)
             {
-                constexpr auto depthFlags = Flags::DepthStencilTargetable | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
+                constexpr auto depthFlags = Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
                 if (!EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable)) throw std::invalid_argument("Depth texture requires depth target usage");
                 if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior");
                 return;
@@ -156,6 +156,19 @@ namespace AnyUnreal::RHI
     }
 
     std::size_t TextureResource::GetAllocationSize() const { return depthStorage ? depthStorage->GetStorage().AllocationSize() : storage->GetStorage().AllocationSize(); }
+
+    std::shared_ptr<const BufferAllocation> TextureResource::CaptureStorage() const
+    {
+        const auto& allocation = GetStorage();
+        if (depthStorage) return {depthStorage, &allocation};
+        return {storage, &allocation};
+    }
+
+    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb) const
+    {
+        if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        return depthStorage ? depthStorage->GetDescriptor() : storage->CreateViewDescriptor(disableSrgb);
+    }
 
     const BufferAllocation& TextureResource::GetStorage() const
     {

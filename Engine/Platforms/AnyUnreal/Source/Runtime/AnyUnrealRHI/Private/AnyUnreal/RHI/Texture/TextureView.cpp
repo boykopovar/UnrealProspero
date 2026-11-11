@@ -15,14 +15,15 @@ namespace AnyUnreal::RHI
             if (!EnumHasAnyFlags(resource.Flags, requiredFlag)) throw std::invalid_argument("Texture does not allow the requested view access");
             if (unorderedAccess && view.MipRange.Num != 1) throw std::invalid_argument("Texture UAV must select exactly one mip level");
             if (view.Dimension != FRHIViewDesc::EDimension::Texture2D) throw std::runtime_error("Texture view dimension is not implemented");
-            if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed) throw std::runtime_error("Texture view plane is not implemented");
-            if (view.Format != PF_Unknown && view.Format != resource.Format) throw std::runtime_error("Texture view format reinterpretation is not implemented");
+            const bool depth = resource.Format == PF_ShadowDepth;
+            if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed && !(depth && view.Plane == ERHITexturePlane::Depth)) throw std::runtime_error("Texture view plane is not implemented");
+            if (view.Format != PF_Unknown && view.Format != resource.Format && !(depth && view.Format == PF_R32_FLOAT)) throw std::runtime_error("Texture view format reinterpretation is not implemented");
             if (view.MipRange.First != 0 || view.MipRange.Num > 1 || view.ArrayRange.First != 0 || view.ArrayRange.Num > 1) throw std::out_of_range("Texture view exceeds the texture subresources");
             return description;
         }
     }
 
-    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.Capture()), descriptor(storage->CreateViewDescriptor(description.Texture.SRV.bDisableSRGB))
+    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(description.Texture.SRV.bDisableSRGB))
     {
         description.Texture.SRV.GetViewInfo(&texture);
     }

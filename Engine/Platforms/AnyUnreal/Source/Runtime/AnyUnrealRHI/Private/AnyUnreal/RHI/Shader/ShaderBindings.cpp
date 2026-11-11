@@ -57,7 +57,7 @@ namespace AnyUnreal::RHI
             switch (resource->GetType())
             {
             case RRT_Texture:
-                allocation = &static_cast<TextureResource*>(resource.GetReference())->Capture()->GetStorage();
+                allocation = &static_cast<TextureResource*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_ShaderResourceView:
                 allocation = static_cast<FRHIShaderResourceView*>(resource.GetReference())->IsBuffer() ? static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage() : static_cast<TextureShaderResourceView*>(resource.GetReference())->GetStorage();
@@ -86,8 +86,8 @@ namespace AnyUnreal::RHI
         case Type::Texture:
         {
             resource = &ResolveTextureResource(resource);
-            const auto texture = static_cast<TextureResource*>(resource)->Capture();
-            descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(texture->GetDescriptor())));
+            const auto descriptor = static_cast<TextureResource*>(resource)->CreateViewDescriptor(false);
+            descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(descriptor)));
             break;
         }
         case Type::Sampler:
