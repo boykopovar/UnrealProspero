@@ -12,42 +12,43 @@ namespace AnyUnreal::RHI
     {
         void validate(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
         {
-            if (flags.GetGPUIndex() != 0 || flags.GetMip() != 0 || flags.GetArrayIndex() != 0 || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
+            if (flags.GetGPUIndex() != 0 || flags.GetArrayIndex() != 0 || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
             if (flags.GetCompressionMode() < RCM_UNorm || flags.GetCompressionMode() > RCM_MinMax) throw std::invalid_argument("Invalid surface range compression mode");
-            if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > texture.GetWidth() || static_cast<uint32>(rectangle.Max.Y) > texture.GetHeight()) throw std::out_of_range("Surface read rectangle exceeds its texture");
+            const auto& mip = texture.GetMipLayout(flags.GetMip());
+            if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > mip.Width || static_cast<uint32>(rectangle.Max.Y) > mip.Height) throw std::out_of_range("Surface read rectangle exceeds its texture");
         }
 
-        uint8* source(const LinearTexture2D& texture, FIntRect rectangle)
+        uint8* source(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel)
         {
-            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * (texture.GetRowBytes() / texture.GetWidth());
-            return reinterpret_cast<uint8*>(texture.GetMipRange(0).data()) + offset;
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * (texture.GetMipLayout(mipLevel).RowBytes / texture.GetMipLayout(mipLevel).Width);
+            return reinterpret_cast<uint8*>(texture.GetMipRange(mipLevel).data()) + offset;
         }
 
-        std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const LinearTexture2D& texture, FIntRect rectangle)
+        std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel)
         {
             const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
-            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * pixelBytes;
-            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
-            return ExpandHalfPixels(texture.GetMipRange(0).subspan(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * pixelBytes;
+            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Width() * pixelBytes;
+            return ExpandHalfPixels(texture.GetMipRange(mipLevel).subspan(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetMipLayout(mipLevel).RowPitch, texture.GetFormat());
         }
 
-        std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle)
+        std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel)
         {
             const auto width = static_cast<std::size_t>(rectangle.Width());
             const auto height = static_cast<std::size_t>(rectangle.Height());
             const auto channels = texture.GetFormat() == TextureFormat::R32Float ? 1u : 4u;
             std::vector<float> values(width * height * channels);
-            const auto* input = source(texture, rectangle);
-            for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * texture.GetRowPitch(), width * channels * sizeof(float));
+            const auto* input = source(texture, rectangle, mipLevel);
+            for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * texture.GetMipLayout(mipLevel).RowPitch, width * channels * sizeof(float));
             return values;
         }
 
-        void readBytes(const LinearTexture2D& texture, FIntRect rectangle, FColor* output)
+        void readBytes(const LinearTexture2D& texture, FIntRect rectangle, FColor* output, std::uint32_t mipLevel)
         {
-            auto* input = source(texture, rectangle);
+            auto* input = source(texture, rectangle, mipLevel);
             const auto width = static_cast<uint32>(rectangle.Width());
             const auto height = static_cast<uint32>(rectangle.Height());
-            const auto pitch = static_cast<uint32>(texture.GetRowPitch());
+            const auto pitch = static_cast<uint32>(texture.GetMipLayout(mipLevel).RowPitch);
             switch (texture.GetFormat())
             {
             case TextureFormat::R8Unorm: ConvertRawR8DataToFColor(width, height, input, pitch, output); break;
@@ -85,15 +86,18 @@ namespace AnyUnreal::RHI
         output = MoveTemp(result);
     }
 
-    void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output)
+    void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output, std::uint32_t mipLevel)
     {
-        validate(texture, rectangle, FReadSurfaceDataFlags());
+        if (mipLevel >= texture.GetMipCount()) throw std::out_of_range("Surface mip does not exist");
+        FReadSurfaceDataFlags flags;
+        flags.SetMip(static_cast<uint8>(mipLevel));
+        validate(texture, rectangle, flags);
         if (!IsHalfTextureFormat(texture.GetFormat())) throw std::invalid_argument("Surface read requires a half-float texture");
         TArray<FFloat16Color> result;
         result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
         if (result.Num() != 0)
         {
-            auto values = readHalfPixels(texture, rectangle);
+            auto values = readHalfPixels(texture, rectangle, flags.GetMip());
             ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData());
         }
         output = MoveTemp(result);
@@ -108,20 +112,20 @@ namespace AnyUnreal::RHI
         {
             if (IsHalfTextureFormat(texture.GetFormat()))
             {
-                auto values = readHalfPixels(texture, rectangle);
+                auto values = readHalfPixels(texture, rectangle, flags.GetMip());
                 ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags.GetLinearToGamma());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
-                auto values = readFloats(texture, rectangle);
+                auto values = readFloats(texture, rectangle, flags.GetMip());
                 ConvertRawR32G32B32A32DataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags.GetLinearToGamma());
             }
             else if (texture.GetFormat() == TextureFormat::R32Float)
             {
-                const auto values = readFloats(texture, rectangle);
+                const auto values = readFloats(texture, rectangle, flags.GetMip());
                 for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(values[index], 0, 0, 1).ToFColor(flags.GetLinearToGamma());
             }
-            else readBytes(texture, rectangle, result.GetData());
+            else readBytes(texture, rectangle, result.GetData(), flags.GetMip());
         }
         output = MoveTemp(result);
     }
@@ -135,24 +139,24 @@ namespace AnyUnreal::RHI
         {
             if (IsHalfTextureFormat(texture.GetFormat()))
             {
-                auto values = readHalfPixels(texture, rectangle);
+                auto values = readHalfPixels(texture, rectangle, flags.GetMip());
                 ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags);
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
-                auto values = readFloats(texture, rectangle);
+                auto values = readFloats(texture, rectangle, flags.GetMip());
                 ConvertRawR32G32B32A32DataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags);
             }
             else if (texture.GetFormat() == TextureFormat::R32Float)
             {
-                const auto values = readFloats(texture, rectangle);
+                const auto values = readFloats(texture, rectangle, flags.GetMip());
                 for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(values[index], 0, 0, 1);
             }
             else
             {
                 TArray<FColor> colors;
                 colors.SetNumUninitialized(result.Num());
-                readBytes(texture, rectangle, colors.GetData());
+                readBytes(texture, rectangle, colors.GetData(), flags.GetMip());
                 for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(colors[index]);
             }
         }
