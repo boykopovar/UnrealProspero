@@ -34,6 +34,8 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck Graphics.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorTarget.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
@@ -59,7 +61,17 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_link_libraries(TextureCopyCheck libc libkernel libSceAgc libSceAgcDriver)
-    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck)
+    adk_add_executable(ColorClearCheck ColorClear.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
+    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck)
     adk_link_libraries(GraphicsCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(ComputeCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(AgcHeaderCheck libc libkernel libSceAgc)

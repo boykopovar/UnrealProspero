@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Pass/RenderPass.h"
 #include "AnyUnreal/RHI/Command/ColorTarget.h"
+#include "AnyUnreal/RHI/Command/ColorClear.h"
 #include "prx/libSceAgc/DcbState/include/Registers.hpp"
 #include <algorithm>
 #include <stdexcept>
@@ -20,8 +21,8 @@ namespace AnyUnreal::RHI
             switch (GetLoadAction(entry.Action))
             {
             case ERenderTargetLoadAction::ENoAction:
-            case ERenderTargetLoadAction::ELoad: break;
-            case ERenderTargetLoadAction::EClear: throw std::runtime_error("Render pass color clears are not implemented");
+            case ERenderTargetLoadAction::ELoad:
+            case ERenderTargetLoadAction::EClear: break;
             default: throw std::invalid_argument("Invalid render pass load action");
             }
             switch (GetStoreAction(entry.Action))
@@ -35,6 +36,12 @@ namespace AnyUnreal::RHI
             const auto& description = texture.GetDesc();
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
             targets[index] = texture.Capture();
+            if (GetLoadAction(entry.Action) == ERenderTargetLoadAction::EClear)
+            {
+                if (description.ClearValue.ColorBinding != EClearBinding::EColorBound) throw std::invalid_argument("Color clear requires a color clear binding");
+                const auto color = description.ClearValue.GetClearColor();
+                clearColors[index] = std::array{color.R, color.G, color.B, color.A};
+            }
             for (uint32 previous = 0; previous < index; ++previous)
             {
                 if (targets[previous] == targets[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
@@ -67,7 +74,11 @@ namespace AnyUnreal::RHI
         WriteMemoryAcquire(commands, getMemoryRanges());
         for (uint32 index = 0; index < targets.size(); ++index)
         {
-            if (targets[index]) WriteColorTarget(commands, index, *targets[index]);
+            if (targets[index])
+            {
+                if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index]);
+                WriteColorTarget(commands, index, *targets[index]);
+            }
             else DisableColorTarget(commands, index);
         }
         sceAgcDcbSetCxRegisterDirect(&commands, {0xc, 0});

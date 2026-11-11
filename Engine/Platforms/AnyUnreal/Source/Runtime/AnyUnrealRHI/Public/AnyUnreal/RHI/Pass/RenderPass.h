@@ -3,6 +3,7 @@
 
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
+#include <optional>
 
 namespace AnyUnreal::RHI
 {
@@ -19,6 +20,7 @@ namespace AnyUnreal::RHI
         std::array<std::shared_ptr<const LinearTexture2D>, MaxSimultaneousRenderTargets> targets{};
         std::array<EPixelFormat, MaxSimultaneousRenderTargets> formats{};
         std::array<bool, MaxSimultaneousRenderTargets> srgb{};
+        std::array<std::optional<std::array<float, 4>>, MaxSimultaneousRenderTargets> clearColors{};
         MemoryBarrier barrier;
         uint32 targetCount = 0;
         uint32 width = 16384;

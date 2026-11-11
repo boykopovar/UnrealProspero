@@ -5,6 +5,7 @@
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/ColorTarget.h"
+#include "AnyUnreal/RHI/Command/ColorClear.h"
 #include "AnyUnreal/RHI/Command/IndirectDraw.h"
 #include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -101,7 +102,7 @@ int main()
             const std::array<std::uint32_t, 4> indices{99, 1, 2, 3};
             indexStorage.Upload(0, std::as_bytes(std::span(indices)));
         }
-        std::fill_n(static_cast<std::uint32_t*>(output.Data()), output.Size() / 4, 0);
+        std::fill_n(static_cast<std::uint32_t*>(output.Data()), output.Size() / 4, 0xa5a5a5a5u);
         const std::array<float, 9> positionValues{-1, -1, 0, 3, -1, 0, -1, 3, 0};
         const std::array<float, 12> colorValues{0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1};
         positions->Upload(16 + baseVertex * 12, std::as_bytes(std::span(positionValues)));
@@ -151,6 +152,7 @@ int main()
         CommandStorage storage(16384, aperture);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
+        WriteColorClear(commands, targetTexture, {});
         const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{indexStorage.Data(), indexStorage.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
         WriteMemoryAcquire(commands, ranges);
         WriteMemoryAcquire(commands, descriptors.GetMemoryRanges());
