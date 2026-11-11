@@ -57,6 +57,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
     set(depth_sources ${graphics_sources}
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthBias.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"

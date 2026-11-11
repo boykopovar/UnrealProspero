@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Command/ColorClear.h"
 #if ANYUNREAL_TEST_DEPTH
 #include "AnyUnreal/RHI/Command/DepthTarget.h"
+#include "AnyUnreal/RHI/Command/DepthBias.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #endif
 #if ANYUNREAL_TEST_OCCLUSION
@@ -73,7 +74,7 @@ int main()
         if (!rejected) throw std::runtime_error("Invalid depth dimensions were accepted");
     }
     if (DepthTexture2D::CalculateDataSize(128, 128) != 65536 || DepthTexture2D::CalculateDataSize(129, 128) != 131072 || DepthTexture2D::CalculateDataSize(129, 129) != 262144) throw std::runtime_error("Depth tile allocation size is incorrect");
-    for (const auto depthMode : {0u, 1u, 2u})
+    for (const auto depthMode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
 #endif
     for (unsigned vertexFormat = 0; vertexFormat < (dynamic ? 2u : 1u); ++vertexFormat)
     for (unsigned instanceMode = 0; instanceMode < (dynamic ? 4u : 1u); ++instanceMode)
@@ -128,7 +129,20 @@ int main()
             indexStorage.Upload(0, std::as_bytes(std::span(indices)));
         }
         std::fill_n(static_cast<std::uint32_t*>(output.Data()), output.Size() / 4, 0xa5a5a5a5u);
-        const std::array<float, 9> positionValues{-1, -1, 0, 3, -1, 0, -1, 3, 0};
+#if ANYUNREAL_TEST_DEPTH
+        const float vertexDepth = depthMode >= 3 ? 0.5f : 0.0f;
+#else
+        constexpr float vertexDepth = 0;
+#endif
+        std::array<float, 9> positionValues{-1, -1, vertexDepth, 3, -1, vertexDepth, -1, 3, vertexDepth};
+#if ANYUNREAL_TEST_DEPTH
+        if (depthMode >= 5)
+        {
+            positionValues[2] = 0.25f;
+            positionValues[5] = 0.75f;
+            positionValues[8] = 0.25f;
+        }
+#endif
         const std::array<float, 12> colorValues{0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1};
         positions->Upload(16 + baseVertex * 12, std::as_bytes(std::span(positionValues)));
         const auto colorStride = vertexFormat == 0 ? 16u : 8u;
@@ -207,6 +221,8 @@ int main()
         for (const auto value : state) sceAgcDcbSetCxRegisterDirect(&commands, value);
 #if ANYUNREAL_TEST_DEPTH
         sceAgcDcbSetCxRegisterDirect(&commands, {0x200, 0x16});
+        WriteDepthBias(commands, depthMode == 3 ? 8.0f : depthMode == 4 ? -8.0f : 0.0f, depthMode == 5 ? 1.0f : depthMode == 6 ? -1.0f : 0.0f);
+        if (depthMode >= 3) sceAgcDcbSetCxRegisterDirect(&commands, {0x205, 0x240 | (7u << 11)});
 #endif
         WriteViewport(commands, 0, {0, 0, 0, static_cast<float>(width), static_cast<float>(height), 1});
         WriteViewportScissor(commands, 0, {0, 0, width, height});
@@ -236,7 +252,7 @@ int main()
         };
         draw();
 #if ANYUNREAL_TEST_DEPTH
-        if (depthMode == 2)
+        if (depthMode >= 2)
         {
 #if ANYUNREAL_TEST_DEPTH_BARRIER
             const auto& depthStorage = depthTexture.GetStorage();
@@ -244,6 +260,7 @@ int main()
             depthBarrier.Release(commands);
             depthBarrier.Acquire(commands, depthRanges);
 #endif
+            sceAgcDcbSetCxRegisterDirect(&commands, {0x205, 0x240});
             WriteColorTarget(commands, 0, secondTarget);
             draw();
         }
@@ -270,7 +287,7 @@ int main()
         }
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
 #if ANYUNREAL_TEST_DEPTH
-        if (depthMode == 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
+        if (depthMode >= 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
 #endif
         const auto pixelBytes = targetTexture.GetRowBytes() / width;
         for (unsigned y = 0; y < height; ++y)
@@ -279,7 +296,7 @@ int main()
             {
                 bool inside = x >= width / 8 && x < width - width / 8 && y >= height / 8 && y < height - height / 8;
 #if ANYUNREAL_TEST_DEPTH
-                inside = inside && depthMode == 1;
+                inside = inside && (depthMode == 1 || depthMode == 3 || depthMode == 5);
 #endif
                 if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float)
                 {
