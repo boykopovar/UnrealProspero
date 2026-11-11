@@ -91,13 +91,17 @@ namespace AnyUnreal::RHI
         }
     }
 
-    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, const void* initialData) : TextureResource(description, addressHigh)
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, std::span<void* const> initialMipData) : TextureResource(description, addressHigh)
     {
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("Initial texture data conflicts with its initialization action");
-        if (description.NumMips != 1) throw std::invalid_argument("Pointer initialization requires one texture mip");
-        if (!initialData) throw std::invalid_argument("Initial texture data is null");
-        const auto size = LinearTexture2D::CalculateRowBytes(description.Extent.X, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))) * description.Extent.Y * description.Depth;
-        uploadInitialData({static_cast<const std::byte*>(initialData), size});
+        if (!storage) throw std::invalid_argument("Mip initialization requires a 2D color texture");
+        if (initialMipData.empty() || initialMipData.size() > storage->GetMipCount()) throw std::invalid_argument("Initial texture mip count exceeds its allocation");
+        for (const auto* data : initialMipData) if (!data) throw std::invalid_argument("Initial texture mip data is null");
+        for (std::uint32_t level = 0; level < initialMipData.size(); ++level)
+        {
+            const auto& mip = storage->GetMipLayout(level);
+            storage->Upload({static_cast<const std::byte*>(initialMipData[level]), mip.RowBytes * mip.Height}, mip.RowBytes, level);
+        }
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)

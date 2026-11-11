@@ -33,6 +33,8 @@
 #include <set>
 #include <limits>
 #include <cmath>
+#include <algorithm>
+#include <bit>
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 
@@ -43,14 +45,15 @@ namespace AnyUnreal::RHI
         if (!initialized || shutDown) throw std::runtime_error("Texture creation requires an initialized device");
         if (width == 0 || height == 0 || width > DeviceLimits::Texture2D || height > DeviceLimits::Texture2D) throw std::invalid_argument("Texture extent exceeds hardware limits");
         if (format == PF_Unknown || format >= PF_MAX) throw std::invalid_argument("Invalid texture format");
-        if (mipCount == 0 && width == 1 && height == 1) mipCount = 1;
-        if (mipCount != 1) throw std::runtime_error("Texture mip chains are not implemented");
-        if (initialMipCount > mipCount || (initialMipCount && (!initialMipData || !initialMipData[0]))) throw std::invalid_argument("Invalid initial texture mip data");
+        const auto maximumMipCount = static_cast<uint32>(std::bit_width(std::max(width, height)));
+        if (mipCount == 0) mipCount = maximumMipCount;
+        if (mipCount > maximumMipCount) throw std::invalid_argument("Texture mip count exceeds its dimensions");
+        if (initialMipCount > mipCount || (initialMipCount && !initialMipData)) throw std::invalid_argument("Invalid initial texture mip data");
         constexpr auto targetFlags = ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::DepthStencilTargetable | ETextureCreateFlags::ResolveTargetable | ETextureCreateFlags::DepthStencilResolveTarget | ETextureCreateFlags::Presentable;
         if (EnumHasAnyFlags(flags, targetFlags)) throw std::invalid_argument("Asynchronous texture creation does not accept render targets");
         if (IsInvalidAccess(initialState)) throw std::invalid_argument("Invalid initial texture access");
-        const auto description = FRHITextureCreateDesc::Create2D(debugName, static_cast<int32>(width), static_cast<int32>(height), static_cast<EPixelFormat>(format)).SetFlags(flags).SetInitialState(initialState).SetNumMips(1);
-        FTextureRHIRef result = initialMipCount ? new TextureResource(description, addressHigh, initialMipData[0]) : new TextureResource(description, addressHigh);
+        const auto description = FRHITextureCreateDesc::Create2D(debugName, static_cast<int32>(width), static_cast<int32>(height), static_cast<EPixelFormat>(format)).SetFlags(flags).SetInitialState(initialState).SetNumMips(static_cast<uint8>(mipCount));
+        FTextureRHIRef result = initialMipCount ? new TextureResource(description, addressHigh, std::span<void* const>{initialMipData, initialMipCount}) : new TextureResource(description, addressHigh);
         completionEvent.SafeRelease();
         return result;
     }
