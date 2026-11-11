@@ -36,6 +36,13 @@ namespace AnyUnreal::RHI
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
+            if (description.Format == PF_ShadowDepth)
+            {
+                constexpr auto depthFlags = Flags::DepthStencilTargetable | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
+                if (!EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable)) throw std::invalid_argument("Depth texture requires depth target usage");
+                if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior");
+                return;
+            }
             constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
             if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8) throw std::invalid_argument("Presentable texture format is not supported");
             if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior");
@@ -44,6 +51,7 @@ namespace AnyUnreal::RHI
         const FRHITextureCreateDesc& validate(const FRHITextureCreateDesc& description)
         {
             validateDescription(description);
+            if (description.Format == PF_ShadowDepth && description.InitAction != ERHITextureInitAction::Default) throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
             switch (description.InitAction)
             {
             case ERHITextureInitAction::Default:
@@ -70,17 +78,20 @@ namespace AnyUnreal::RHI
     std::size_t TextureResource::CalculateAlignment(const FRHITextureDesc& description)
     {
         validateDescription(description);
-        return EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Presentable) ? 65536 : Kernel::DirectAllocation::PageSize;
+        return description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Presentable) ? 65536 : Kernel::DirectAllocation::PageSize;
     }
 
     std::size_t TextureResource::CalculateAllocationSize(const FRHITextureDesc& description)
     {
         validateDescription(description);
+        if (description.Format == PF_ShadowDepth) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y);
         return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, format(description)));
     }
 
-    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), storage(std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh, CalculateAlignment(description))), initialized(description.InitAction != ERHITextureInitAction::Initializer)
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
+        if (description.Format == PF_ShadowDepth) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh);
+        else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh, CalculateAlignment(description));
         if (description.InitAction == ERHITextureInitAction::BulkData)
         {
             const auto size = description.BulkData->GetResourceBulkDataSize();
@@ -144,11 +155,25 @@ namespace AnyUnreal::RHI
         return result;
     }
 
-    std::size_t TextureResource::GetAllocationSize() const { return storage->GetStorage().AllocationSize(); }
+    std::size_t TextureResource::GetAllocationSize() const { return depthStorage ? depthStorage->GetStorage().AllocationSize() : storage->GetStorage().AllocationSize(); }
+
+    const BufferAllocation& TextureResource::GetStorage() const
+    {
+        if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        return depthStorage ? depthStorage->GetStorage() : storage->GetStorage();
+    }
+
+    std::shared_ptr<const DepthTexture2D> TextureResource::CaptureDepth() const
+    {
+        if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        if (!depthStorage) throw std::invalid_argument("Texture does not contain a depth plane");
+        return depthStorage;
+    }
 
     std::shared_ptr<const LinearTexture2D> TextureResource::Capture() const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        if (!storage) throw std::runtime_error("This operation requires a linear color texture");
         return storage;
     }
 

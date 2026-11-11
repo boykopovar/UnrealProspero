@@ -2,6 +2,7 @@
 #define ANYUNREAL_RHI_TEXTURE_RESOURCE_H
 
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
+#include "AnyUnreal/RHI/Texture/DepthTexture2D.h"
 #include "RHITextureInitializer.h"
 #include "HAL/CriticalSection.h"
 #include <memory>
@@ -29,6 +30,8 @@ namespace AnyUnreal::RHI
         void* MapReadback();
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
+        std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
+        const BufferAllocation& GetStorage() const;
         std::size_t GetAllocationSize() const;
 
     private:
@@ -36,6 +39,7 @@ namespace AnyUnreal::RHI
         void finishInitialization();
         FRHITextureSubresourceInitializer getSubresource(FRHITextureInitializer::FSubresourceIndex index);
         std::shared_ptr<LinearTexture2D> storage;
+        std::shared_ptr<DepthTexture2D> depthStorage;
         bool initialized;
         FCriticalSection lockMutex;
         std::optional<LockedData> lockedData;

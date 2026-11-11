@@ -28,7 +28,7 @@ namespace AnyUnreal::RHI
             {
                 auto& texture = ResolveTextureResource(entry.Resource);
                 if ((!entry.IsAllMips() && entry.MipIndex != 0) || (!entry.IsAllArraySlices() && entry.ArraySlice != 0) || (!entry.IsAllPlaneSlices() && entry.PlaneSlice != 0)) throw std::out_of_range("Texture transition selects a nonexistent subresource");
-                allocation = &texture.Capture()->GetStorage();
+                allocation = &texture.GetStorage();
                 retainedResource = &texture;
             }
             else if (entry.Type == FRHITransitionInfo::EType::UAV)
