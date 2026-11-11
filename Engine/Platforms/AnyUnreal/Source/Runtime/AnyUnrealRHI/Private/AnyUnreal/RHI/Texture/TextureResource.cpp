@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include "AnyUnreal/RHI/Texture/PixelFormat.h"
+#include "AnyUnreal/RHI/Device/DeviceLimits.h"
 #include "Containers/ResourceArray.h"
 #include "RHITextureReference.h"
 #include "Misc/ScopeLock.h"
@@ -13,11 +14,16 @@ namespace AnyUnreal::RHI
         void validateDescription(const FRHITextureDesc& description)
         {
             const bool volume = description.Dimension == ETextureDimension::Texture3D;
-            if ((!volume && description.Dimension != ETextureDimension::Texture2D) || (!volume && description.Depth != 1) || description.ArraySize != 1 || description.NumMips != 1 || description.NumSamples != 1) throw std::runtime_error("Texture creation requires a single-mip non-multisampled 2D or 3D texture");
-            if (volume && (description.Depth == 0 || description.Depth > 2048 || description.Extent.X > 2048 || description.Extent.Y > 2048)) throw std::invalid_argument("Volume texture extent exceeds hardware limits");
-            if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
+            if ((!volume && description.Dimension != ETextureDimension::Texture2D) || (!volume && description.Depth != 1) || description.ArraySize != 1 || description.NumSamples != 1) throw std::runtime_error("Texture creation requires a non-multisampled 2D or 3D texture");
+            if (volume && (description.Depth == 0 || description.Depth > DeviceLimits::Texture3D || description.Extent.X > static_cast<int32>(DeviceLimits::Texture3D) || description.Extent.Y > static_cast<int32>(DeviceLimits::Texture3D))) throw std::invalid_argument("Volume texture extent exceeds hardware limits");
+            if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > static_cast<int32>(DeviceLimits::Texture2D) || description.Extent.Y > static_cast<int32>(DeviceLimits::Texture2D)) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
+            if (volume || description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::Presentable))
+            {
+                if (description.NumMips != 1) throw std::runtime_error("Volume, depth and presentable mip chains are not implemented");
+            }
+            else LinearTexture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
             if (volume && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Volume render targets are not implemented");
             if (description.Format == PF_ShadowDepth)
             {
@@ -69,14 +75,14 @@ namespace AnyUnreal::RHI
         validateDescription(description);
         if (description.Format == PF_ShadowDepth) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y);
         if (description.Dimension == ETextureDimension::Texture3D) return BufferAllocation::CalculateAllocationSize(LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))));
-        return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))));
+        return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips));
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
         if (description.Format == PF_ShadowDepth) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh);
         else if (description.Dimension == ETextureDimension::Texture3D) volumeStorage = std::make_shared<LinearTexture3D>(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh);
-        else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description));
+        else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description), description.NumMips);
         if (description.InitAction == ERHITextureInitAction::BulkData)
         {
             const auto size = description.BulkData->GetResourceBulkDataSize();
@@ -88,6 +94,7 @@ namespace AnyUnreal::RHI
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, const void* initialData) : TextureResource(description, addressHigh)
     {
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("Initial texture data conflicts with its initialization action");
+        if (description.NumMips != 1) throw std::invalid_argument("Pointer initialization requires one texture mip");
         if (!initialData) throw std::invalid_argument("Initial texture data is null");
         const auto size = LinearTexture2D::CalculateRowBytes(description.Extent.X, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))) * description.Extent.Y * description.Depth;
         uploadInitialData({static_cast<const std::byte*>(initialData), size});
@@ -97,7 +104,7 @@ namespace AnyUnreal::RHI
     {
         if (description.Dimension != ETextureDimension::Texture2D) throw std::invalid_argument("External 2D storage requires a 2D texture description");
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
-        if (!storage || storage->GetWidth() != static_cast<uint32>(description.Extent.X) || storage->GetHeight() != static_cast<uint32>(description.Extent.Y) || storage->GetFormat() != ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))) throw std::invalid_argument("External texture storage does not match its description");
+        if (!storage || storage->GetMipCount() != description.NumMips || storage->GetWidth() != static_cast<uint32>(description.Extent.X) || storage->GetHeight() != static_cast<uint32>(description.Extent.Y) || storage->GetFormat() != ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB))) throw std::invalid_argument("External texture storage does not match its description");
         if (reinterpret_cast<std::uintptr_t>(storage->GetStorage().Data()) % CalculateAlignment(description) != 0) throw std::invalid_argument("External texture storage does not meet its alignment");
     }
 
@@ -107,11 +114,10 @@ namespace AnyUnreal::RHI
         if (lockedData || mappedData) throw std::runtime_error("Texture is already locked or mapped");
         if (mode != RLM_ReadOnly && mode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         const auto texture = Capture();
-        const auto& allocation = texture->GetStorage();
-        LockedData next{mode, texture->GetRowPitch(), std::vector<std::byte>(allocation.Size())};
+        LockedData next{mode, texture->GetRowPitch(), std::vector<std::byte>(texture->GetMipLayout(0).Size)};
         if (mode == RLM_ReadOnly)
         {
-            const auto source = allocation.GetRange(0, allocation.Size());
+            const auto source = texture->GetMipRange(0);
             std::copy(source.begin(), source.end(), next.Data.begin());
         }
         lockedData = std::move(next);
@@ -158,12 +164,22 @@ namespace AnyUnreal::RHI
         return {storage, &allocation};
     }
 
-    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb) const
+    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount) const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        if ((depthStorage || volumeStorage) && (firstMip != 0 || mipCount > 1)) throw std::out_of_range("Texture view exceeds the available mip range");
         if (depthStorage) return depthStorage->GetDescriptor();
         if (volumeStorage) return volumeStorage->CreateViewDescriptor(disableSrgb);
-        return storage->CreateViewDescriptor(disableSrgb);
+        return storage->CreateViewDescriptor(disableSrgb, firstMip, mipCount);
+    }
+
+    std::span<std::byte> TextureResource::GetMipRange(std::uint32_t mipLevel) const
+    {
+        if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
+        if (storage) return storage->GetMipRange(mipLevel);
+        if (mipLevel != 0) throw std::out_of_range("Texture mip level does not exist");
+        const auto& allocation = getAllocation();
+        return allocation.GetRange(0, allocation.Size());
     }
 
     const BufferAllocation& TextureResource::GetStorage() const
@@ -186,12 +202,30 @@ namespace AnyUnreal::RHI
 
     void TextureResource::uploadInitialData(std::span<const std::byte> data)
     {
+        if (storage)
+        {
+            std::size_t required = 0;
+            for (std::uint32_t level = 0; level < storage->GetMipCount(); ++level)
+            {
+                const auto& mip = storage->GetMipLayout(level);
+                required += mip.RowBytes * mip.Height;
+            }
+            if (data.size() != required) throw std::invalid_argument("Initial texture data does not match its mip chain");
+            std::size_t offset = 0;
+            for (std::uint32_t level = 0; level < storage->GetMipCount(); ++level)
+            {
+                const auto& mip = storage->GetMipLayout(level);
+                const auto size = mip.RowBytes * mip.Height;
+                storage->Upload(data.subspan(offset, size), mip.RowBytes, level);
+                offset += size;
+            }
+            return;
+        }
         const auto& description = GetDesc();
         const auto rowBytes = LinearTexture2D::CalculateRowBytes(description.Extent.X, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)));
         const auto sliceBytes = rowBytes * description.Extent.Y;
         if (data.size() != sliceBytes * description.Depth) throw std::invalid_argument("Initial texture data size does not match its extent");
         if (volumeStorage) volumeStorage->Upload(data, rowBytes, sliceBytes);
-        else if (storage) storage->Upload(data, rowBytes);
         else throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
     }
 
@@ -219,7 +253,12 @@ namespace AnyUnreal::RHI
     FRHITextureSubresourceInitializer TextureResource::getSubresource(FRHITextureInitializer::FSubresourceIndex index)
     {
         if (initialized) throw std::runtime_error("Texture is not awaiting initialization");
-        if (index.FaceIndex != 0 || index.ArrayIndex != 0 || index.MipIndex != 0) throw std::out_of_range("Texture subresource does not exist");
+        if (index.FaceIndex != 0 || index.ArrayIndex != 0 || index.MipIndex >= GetDesc().NumMips) throw std::out_of_range("Texture subresource does not exist");
+        if (storage)
+        {
+            const auto range = storage->GetMipRange(index.MipIndex);
+            return {range.data(), range.size(), storage->GetMipLayout(index.MipIndex).RowPitch};
+        }
         const auto& allocation = getAllocation();
         return {allocation.Data(), allocation.Size(), getRowPitch()};
     }

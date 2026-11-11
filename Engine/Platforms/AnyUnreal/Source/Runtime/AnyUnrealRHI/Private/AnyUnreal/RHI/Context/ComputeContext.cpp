@@ -111,7 +111,7 @@ namespace AnyUnreal::RHI
             const auto& texture = *static_cast<TextureUnorderedAccessView*>(view);
             storage = texture.CaptureStorage();
             if (!storage) throw std::invalid_argument("Texture UAV clear requires allocated storage");
-            range = storage->GetRange(0, storage->Size());
+            range = texture.GetRange();
             pattern = EncodeTextureClear(texture.GetFormat(), values);
             words = pattern.size();
         }

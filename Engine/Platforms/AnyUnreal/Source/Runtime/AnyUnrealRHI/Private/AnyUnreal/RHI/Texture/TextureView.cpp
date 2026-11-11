@@ -20,17 +20,17 @@ namespace AnyUnreal::RHI
             const bool depth = resource.Format == PF_ShadowDepth;
             if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed && !(depth && view.Plane == ERHITexturePlane::Depth)) throw std::runtime_error("Texture view plane is not implemented");
             if (view.Format != PF_Unknown && view.Format != resource.Format && !(depth && view.Format == PF_R32_FLOAT)) throw std::runtime_error("Texture view format reinterpretation is not implemented");
-            if (view.MipRange.First != 0 || view.MipRange.Num > 1 || view.ArrayRange.First != 0 || view.ArrayRange.Num > 1) throw std::out_of_range("Texture view exceeds the texture subresources");
+            if (view.MipRange.First >= resource.NumMips || view.MipRange.Num > resource.NumMips - view.MipRange.First || view.ArrayRange.First != 0 || view.ArrayRange.Num > 1) throw std::out_of_range("Texture view exceeds the texture subresources");
             return description;
         }
     }
 
-    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(description.Texture.SRV.bDisableSRGB))
+    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(description.Texture.SRV.bDisableSRGB, description.Texture.SRV.MipRange.First, description.Texture.SRV.MipRange.Num))
     {
         description.Texture.SRV.GetViewInfo(&texture);
     }
 
-    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), format(ResolveTextureFormat(texture.GetDesc().Format, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true))
+    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), format(ResolveTextureFormat(texture.GetDesc().Format, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true, description.Texture.UAV.MipRange.First, description.Texture.UAV.MipRange.Num)), range(texture.GetMipRange(description.Texture.UAV.MipRange.First))
     {
         description.Texture.UAV.GetViewInfo(&texture);
     }
