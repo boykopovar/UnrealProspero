@@ -1,3 +1,6 @@
+#include "AnyUnreal/RHI/Device/Module.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, AnyUnrealRHI)
+using AnyUnrealRHIModule = AnyUnreal::RHI::Module;
+
+IMPLEMENT_MODULE(AnyUnrealRHIModule, AnyUnrealRHI)

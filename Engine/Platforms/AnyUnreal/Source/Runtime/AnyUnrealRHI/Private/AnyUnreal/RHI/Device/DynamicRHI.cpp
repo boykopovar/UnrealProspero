@@ -82,6 +82,16 @@ namespace AnyUnreal::RHI
         statistics = result;
     }
 
+    bool DynamicRHI::RHIGetTextureMemoryVisualizeData(FColor*, int32, int32, int32, int32)
+    {
+        throw std::runtime_error("Texture allocation visualization is not implemented");
+    }
+
+    void* DynamicRHI::RHIGetNativeDevice()
+    {
+        throw std::runtime_error("AGC does not expose a native device handle");
+    }
+
     void DynamicRHI::Init()
     {
         if (initialized || shutDown) throw std::runtime_error("RHI initialization requires a new device");
