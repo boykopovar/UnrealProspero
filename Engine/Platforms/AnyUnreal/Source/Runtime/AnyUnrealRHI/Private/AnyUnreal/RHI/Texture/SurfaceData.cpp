@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Texture/SurfaceData.h"
 #include "RHISurfaceDataConversion.h"
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -49,6 +50,25 @@ namespace AnyUnreal::RHI
             default: throw std::invalid_argument("Surface format is not byte normalized");
             }
         }
+    }
+
+    void ReadVolumeHalfColors(const LinearTexture3D& texture, FIntRect rectangle, FIntPoint zRange, TArray<FFloat16Color>& output)
+    {
+        if (texture.GetFormat() != TextureFormat::Rgba16Float) throw std::invalid_argument("Half-float volume read requires an RGBA16 float texture");
+        if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > texture.GetWidth() || static_cast<uint32>(rectangle.Max.Y) > texture.GetHeight()) throw std::out_of_range("Volume read rectangle exceeds its texture");
+        if (zRange.X < 0 || zRange.Y < zRange.X || static_cast<uint32>(zRange.Y) > texture.GetDepth()) throw std::out_of_range("Volume read slices exceed its texture");
+        const auto slicePixels = static_cast<std::size_t>(rectangle.Width()) * rectangle.Height();
+        const auto pixels = slicePixels * (zRange.Y - zRange.X);
+        if (pixels > static_cast<std::size_t>(std::numeric_limits<int32>::max())) throw std::overflow_error("Volume read exceeds the output array range");
+        TArray<FFloat16Color> result;
+        result.SetNumUninitialized(static_cast<int32>(pixels));
+        if (pixels != 0)
+        {
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + static_cast<std::size_t>(rectangle.Min.X) * 8;
+            auto* data = static_cast<uint8*>(texture.GetStorage().Data()) + offset;
+            for (int32 z = zRange.X; z < zRange.Y; ++z) ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), data + static_cast<std::size_t>(z) * texture.GetSlicePitch(), static_cast<uint32>(texture.GetRowPitch()), result.GetData() + static_cast<std::size_t>(z - zRange.X) * slicePixels);
+        }
+        output = MoveTemp(result);
     }
 
     void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output)

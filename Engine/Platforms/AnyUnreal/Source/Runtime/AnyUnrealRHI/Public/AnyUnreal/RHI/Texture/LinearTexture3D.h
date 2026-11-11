@@ -20,6 +20,7 @@ namespace AnyUnreal::RHI
         std::uint32_t GetWidth() const;
         std::uint32_t GetHeight() const;
         std::uint32_t GetDepth() const;
+        TextureFormat GetFormat() const;
 
     private:
         std::size_t validateLayout(std::size_t size, std::size_t rowPitch, std::size_t slicePitch) const;

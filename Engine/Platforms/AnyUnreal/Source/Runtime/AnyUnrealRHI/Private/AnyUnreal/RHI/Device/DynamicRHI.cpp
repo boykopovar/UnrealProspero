@@ -191,6 +191,15 @@ namespace AnyUnreal::RHI
         return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(TextureResource::CalculateAlignment(description))};
     }
 
+    void DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* texture, FIntRect rectangle, FIntPoint zRange, TArray<FFloat16Color>& output)
+    {
+        auto storage = ResolveTextureResource(texture).CaptureVolume();
+        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
+        if (commandList.IsExecuting()) throw std::runtime_error("Volume read cannot execute inside a command list");
+        commandList.SubmitAndBlockUntilGPUIdle();
+        ReadVolumeHalfColors(*storage, rectangle, zRange, output);
+    }
+
     void DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* texture, FIntRect rectangle, TArray<FFloat16Color>& output, ECubeFace cubeFace, int32 arrayIndex, int32 mipIndex)
     {
         if (arrayIndex != 0 || mipIndex != 0 || cubeFace < CubeFace_PosX || cubeFace > CubeFace_MAX) throw std::invalid_argument("Surface read selects an unavailable subresource");

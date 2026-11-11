@@ -66,4 +66,5 @@ namespace AnyUnreal::RHI
     std::uint32_t LinearTexture3D::GetWidth() const { return width; }
     std::uint32_t LinearTexture3D::GetHeight() const { return height; }
     std::uint32_t LinearTexture3D::GetDepth() const { return depth; }
+    TextureFormat LinearTexture3D::GetFormat() const { return format; }
 }
