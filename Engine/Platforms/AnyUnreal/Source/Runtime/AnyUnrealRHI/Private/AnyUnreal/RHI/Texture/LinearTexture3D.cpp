@@ -16,12 +16,12 @@ namespace AnyUnreal::RHI
 
     LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh) : width(width), height(height), depth(depth), format(format), rowBytes(LinearTexture2D::CalculateRowBytes(width, format)), rowPitch(LinearTexture2D::CalculateRowPitch(width, format)), slicePitch(rowPitch * height), storage(CalculateDataSize(width, height, depth, format), addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Texture) {}
 
-    std::size_t LinearTexture3D::validateLayout(std::size_t size, std::size_t rowPitch, std::size_t slicePitch) const
+    std::size_t LinearTexture3D::validateLayout(std::size_t size, std::size_t dataRowPitch, std::size_t dataSlicePitch) const
     {
-        if (rowPitch < rowBytes || rowPitch > std::numeric_limits<std::size_t>::max() / height || slicePitch < rowPitch * height) throw std::invalid_argument("Volume row or slice pitch is too small");
-        const auto lastSliceBytes = rowPitch * (height - 1) + rowBytes;
-        if (size < lastSliceBytes || depth - 1 > (size - lastSliceBytes) / slicePitch) throw std::invalid_argument("Volume data does not contain all slices");
-        return slicePitch * (depth - 1) + lastSliceBytes;
+        if (dataRowPitch < rowBytes || dataRowPitch > std::numeric_limits<std::size_t>::max() / height || dataSlicePitch < dataRowPitch * height) throw std::invalid_argument("Volume row or slice pitch is too small");
+        const auto lastSliceBytes = dataRowPitch * (height - 1) + rowBytes;
+        if (size < lastSliceBytes || depth - 1 > (size - lastSliceBytes) / dataSlicePitch) throw std::invalid_argument("Volume data does not contain all slices");
+        return dataSlicePitch * (depth - 1) + lastSliceBytes;
     }
 
     void LinearTexture3D::Upload(std::span<const std::byte> source, std::size_t sourceRowPitch, std::size_t sourceSlicePitch)
