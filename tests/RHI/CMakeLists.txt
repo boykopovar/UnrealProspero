@@ -34,6 +34,8 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck Graphics.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorTarget.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/VertexBufferTable.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/GraphicsShaderLink.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"

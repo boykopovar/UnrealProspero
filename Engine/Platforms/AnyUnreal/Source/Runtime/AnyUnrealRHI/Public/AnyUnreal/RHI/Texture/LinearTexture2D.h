@@ -28,10 +28,14 @@ namespace AnyUnreal::RHI
         const BufferAllocation& GetStorage() const;
         std::size_t GetRowPitch() const;
         std::size_t GetRowBytes() const;
+        std::uint32_t GetWidth() const;
+        std::uint32_t GetHeight() const;
+        TextureFormat GetFormat() const;
 
     private:
         std::uint32_t width;
         std::uint32_t height;
+        TextureFormat format;
         std::size_t rowBytes;
         std::size_t rowPitch;
         BufferAllocation storage;
