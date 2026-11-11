@@ -1,5 +1,5 @@
-#include "AnyUnreal/File/Metadata.h"
-#include "AnyUnreal/File/Timestamp.h"
+#include "UnrealProspero/File/Metadata.h"
+#include "UnrealProspero/File/Timestamp.h"
 #include <limits>
 #include <stdexcept>
 
@@ -22,8 +22,8 @@ namespace
 
 bool CheckFileMetadata()
 {
-    using AnyUnreal::File::Timestamp;
-    using AnyUnreal::File::Metadata;
+    using UnrealProspero::File::Timestamp;
+    using UnrealProspero::File::Metadata;
     constexpr int64 epochTicks = 621355968000000000;
     if (Timestamp::ToDateTime({0, 0}).GetTicks() != epochTicks) return false;
     if (Timestamp::ToDateTime({-1, 999999999}).GetTicks() != epochTicks - 1) return false;

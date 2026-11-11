@@ -1,5 +1,5 @@
-#include "AnyUnreal/RHI/Shader/AgcHeader.h"
-#include "AnyUnreal/Shader/UserData.h"
+#include "UnrealProspero/RHI/Shader/AgcHeader.h"
+#include "UnrealProspero/Shader/UserData.h"
 #include "SceShaders.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -10,28 +10,28 @@
 #include <stdexcept>
 #include <string_view>
 
-#if ANYUNREAL_TEST_CREATE_SHADER
-#include "AnyUnreal/RHI/Shader/AgcShader.h"
-#include "AnyUnreal/RHI/Shader/ShaderCommands.h"
-#include "AnyUnreal/RHI/Shader/GraphicsShaderLink.h"
-#include "AnyUnreal/Kernel/Result.h"
+#if UNREALPROSPERO_TEST_CREATE_SHADER
+#include "UnrealProspero/RHI/Shader/AgcShader.h"
+#include "UnrealProspero/RHI/Shader/ShaderCommands.h"
+#include "UnrealProspero/RHI/Shader/GraphicsShaderLink.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
 #endif
 
 namespace
 {
-#if ANYUNREAL_TEST_CREATE_SHADER
+#if UNREALPROSPERO_TEST_CREATE_SHADER
     bool APS5_VABI exhausted(CommandBuffer*, std::uint32_t, void*)
     {
         throw std::length_error("AGC test command buffer exhausted");
     }
 
-    void checkCommands(const AnyUnreal::RHI::AgcShader& shader, const AnyUnreal::Shader::UserDataLayout& layout, const AnyUnreal::Shader::UserDataInputs& inputs)
+    void checkCommands(const UnrealProspero::RHI::AgcShader& shader, const UnrealProspero::Shader::UserDataLayout& layout, const UnrealProspero::Shader::UserDataInputs& inputs)
     {
         std::array<std::uint32_t, 256> words{};
         CommandBuffer commands{words.data(), words.data() + words.size(), words.data(), words.data() + words.size(), exhausted, nullptr, 0};
-        AnyUnreal::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
+        UnrealProspero::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
         const auto size = static_cast<std::size_t>(commands.cursor_up - words.data());
         std::map<std::uint32_t, std::uint32_t> registers;
         for (std::size_t offset = 0; offset < size;)
@@ -48,7 +48,7 @@ namespace
             const auto& expected = shader.Get().sh_registers[index];
             if (registers.at(expected.offset) != expected.value) throw std::runtime_error("AGC program register was not written");
         }
-        using AnyUnreal::Shader::ShaderStage;
+        using UnrealProspero::Shader::ShaderStage;
         const auto base = layout.GetStage() == ShaderStage::Compute ? 0x240u : (layout.GetStage() == ShaderStage::Vertex || layout.GetStage() == ShaderStage::Geometry) ? 0x8cu : 0xcu;
         const auto expected = layout.Build(inputs);
         for (unsigned index = 0; index < layout.GetCount(); ++index)
@@ -58,7 +58,7 @@ namespace
         commands = {words.data(), words.data() + 1, words.data(), words.data() + 1, exhausted, nullptr, 0};
         try
         {
-            AnyUnreal::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
+            UnrealProspero::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
         }
         catch (const std::length_error&)
         {
@@ -91,7 +91,7 @@ int RunChecks(int argc, const char* const* argv)
     const auto header = read(argv[1]);
     const auto code = read(argv[2]);
     const std::string_view name(argv[3]);
-    using AnyUnreal::Shader::ShaderStage;
+    using UnrealProspero::Shader::ShaderStage;
     ShaderStage stage;
     if (name == "vertex") stage = ShaderStage::Vertex;
     else if (name == "fragment") stage = ShaderStage::Pixel;
@@ -99,8 +99,8 @@ int RunChecks(int argc, const char* const* argv)
     else if (name == "geometry") stage = ShaderStage::Geometry;
     else throw std::invalid_argument("Unknown shader stage");
     const auto metadata = read(argv[4]);
-    const auto layout = AnyUnreal::Shader::UserDataLayout::Read(metadata, stage);
-    AnyUnreal::Shader::UserDataInputs inputs;
+    const auto layout = UnrealProspero::Shader::UserDataLayout::Read(metadata, stage);
+    UnrealProspero::Shader::UserDataInputs inputs;
     const auto aperture = static_cast<std::uint64_t>(layout.GetAddressHigh()) << 32;
     inputs.DescriptorSets = {aperture + 0x10000, aperture + 0x20000, aperture + 0x30000, aperture + 0x40000};
     inputs.VertexBuffers = aperture + 0x50000;
@@ -114,11 +114,11 @@ int RunChecks(int argc, const char* const* argv)
     }
     if (stage == ShaderStage::Vertex && layout.GetVertexBufferUsageMask() == 0 && (registers[0] != 17 || registers[1] != 0)) throw std::runtime_error("Unexpected fullscreen vertex draw parameters");
     if (stage == ShaderStage::Compute && registers[2] != 0x10000) throw std::runtime_error("Unexpected compute descriptor pointer");
-    reject([&] { AnyUnreal::Shader::UserDataLayout::Read({}, stage); });
+    reject([&] { UnrealProspero::Shader::UserDataLayout::Read({}, stage); });
     auto duplicateMetadata = metadata;
     const std::string duplicate = "version=21\n";
     duplicateMetadata.insert(duplicateMetadata.end(), duplicate.begin(), duplicate.end());
-    reject([&] { AnyUnreal::Shader::UserDataLayout::Read(duplicateMetadata, stage); });
+    reject([&] { UnrealProspero::Shader::UserDataLayout::Read(duplicateMetadata, stage); });
     const auto rejectField = [&](const std::string& name, const std::string& value)
     {
         std::string text(metadata.begin(), metadata.end());
@@ -127,7 +127,7 @@ int RunChecks(int argc, const char* const* argv)
         const auto end = text.find('\n', begin + 1);
         text.replace(begin + 1, end - begin - 1, name + "=" + value);
         const auto bytes = std::span(reinterpret_cast<const std::uint8_t*>(text.data()), text.size());
-        reject([&] { AnyUnreal::Shader::UserDataLayout::Read(bytes, stage); });
+        reject([&] { UnrealProspero::Shader::UserDataLayout::Read(bytes, stage); });
     };
     rejectField("version", "0");
     rejectField("user_sgpr_count", "17");
@@ -157,7 +157,7 @@ int RunChecks(int argc, const char* const* argv)
         invalid.DescriptorSets[0] = ((static_cast<std::uint64_t>(layout.GetAddressHigh()) + 1) << 32) | 0x10000;
         reject([&] { layout.Build(invalid); });
     }
-    using AnyUnreal::RHI::ValidateAgcHeader;
+    using UnrealProspero::RHI::ValidateAgcHeader;
     ValidateAgcHeader(header, code, stage);
     for (std::size_t size = 0; size < header.size(); ++size) reject([&] { ValidateAgcHeader(std::span(header).first(size), code, stage); });
     reject([&] { ValidateAgcHeader(header, {}, stage); });
@@ -169,13 +169,13 @@ int RunChecks(int argc, const char* const* argv)
         invalid[field + 3] = 1;
         reject([&] { ValidateAgcHeader(invalid, code, stage); });
     }
-#if ANYUNREAL_TEST_CREATE_SHADER
-    AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    constexpr auto target = AnyUnreal::Shader::AgcTarget::ANYUNREAL_TEST_AGC_TARGET;
-    const AnyUnreal::Shader::ShaderBinaryView binary{stage, target, header, code, metadata, {}, {}};
-    reject([&] { AnyUnreal::RHI::AgcShader shader(binary, static_cast<ShaderStage>(99), target); });
-    reject([&] { AnyUnreal::RHI::AgcShader shader(binary, stage, static_cast<AnyUnreal::Shader::AgcTarget>(99)); });
-    AnyUnreal::RHI::AgcShader shader(binary, stage, target);
+#if UNREALPROSPERO_TEST_CREATE_SHADER
+    UnrealProspero::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    constexpr auto target = UnrealProspero::Shader::AgcTarget::UNREALPROSPERO_TEST_AGC_TARGET;
+    const UnrealProspero::Shader::ShaderBinaryView binary{stage, target, header, code, metadata, {}, {}};
+    reject([&] { UnrealProspero::RHI::AgcShader shader(binary, static_cast<ShaderStage>(99), target); });
+    reject([&] { UnrealProspero::RHI::AgcShader shader(binary, stage, static_cast<UnrealProspero::Shader::AgcTarget>(99)); });
+    UnrealProspero::RHI::AgcShader shader(binary, stage, target);
     if (!shader.Get().code || shader.Get().shader_size != code.size()) throw std::runtime_error("AGC shader creation failed");
     checkCommands(shader, layout, inputs);
     if (argc == 8)
@@ -184,10 +184,10 @@ int RunChecks(int argc, const char* const* argv)
         const auto pixelHeader = read(argv[5]);
         const auto pixelCode = read(argv[6]);
         const auto pixelMetadata = read(argv[7]);
-        const AnyUnreal::Shader::ShaderBinaryView pixelBinary{ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}};
-        const AnyUnreal::RHI::AgcShader pixel(pixelBinary, ShaderStage::Pixel, target);
-        reject([&] { AnyUnreal::RHI::GraphicsShaderLink invalid(pixel, &shader, 4); });
-        const AnyUnreal::RHI::GraphicsShaderLink link(shader, &pixel, 4);
+        const UnrealProspero::Shader::ShaderBinaryView pixelBinary{ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}};
+        const UnrealProspero::RHI::AgcShader pixel(pixelBinary, ShaderStage::Pixel, target);
+        reject([&] { UnrealProspero::RHI::GraphicsShaderLink invalid(pixel, &shader, 4); });
+        const UnrealProspero::RHI::GraphicsShaderLink link(shader, &pixel, 4);
         std::array<std::uint32_t, 256> words{};
         CommandBuffer commands{words.data(), words.data() + words.size(), words.data(), words.data() + words.size(), exhausted, nullptr, 0};
         link.Record(commands);
@@ -212,7 +212,7 @@ int RunChecks(int argc, const char* const* argv)
     return 0;
 }
 
-#if ANYUNREAL_TEST_CREATE_SHADER
+#if UNREALPROSPERO_TEST_CREATE_SHADER
 int main()
 {
     return RunChecks(getargc_nid_postfix(), getargv_nid_postfix());

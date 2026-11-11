@@ -1,5 +1,5 @@
-#include "AnyUnreal/AnyUnrealPlatformGuid.h"
-#include "AnyUnreal/Kernel/Clock.h"
+#include "UnrealProspero/UnrealProsperoPlatformGuid.h"
+#include "UnrealProspero/Kernel/Clock.h"
 #include "HAL/PlatformMisc.h"
 #include <array>
 #include <cstdint>
@@ -9,7 +9,7 @@ namespace
 {
     std::uint64_t milliseconds()
     {
-        const auto time = AnyUnreal::Kernel::Clock::UnixTime();
+        const auto time = UnrealProspero::Kernel::Clock::UnixTime();
         return static_cast<std::uint64_t>(time.Seconds) * 1000 + time.Nanoseconds / 1000000;
     }
 
@@ -24,7 +24,7 @@ bool CheckGuids()
     std::set<std::array<uint32, 4>> generated;
     for (int index = 0; index != 256; ++index)
     {
-        const auto random = FAnyUnrealPlatformGuid::CreateGuidFromRandomOnly();
+        const auto random = FUnrealProsperoPlatformGuid::CreateGuidFromRandomOnly();
         if (!hasType(random, 4)) return false;
         if (!generated.insert({random.A, random.B, random.C, random.D}).second) return false;
         const auto before = milliseconds();

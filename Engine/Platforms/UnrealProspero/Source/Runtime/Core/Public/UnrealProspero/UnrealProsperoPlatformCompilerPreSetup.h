@@ -1,0 +1,6 @@
+#ifndef UNREALPROSPERO_PLATFORM_COMPILER_PRE_SETUP_H
+#define UNREALPROSPERO_PLATFORM_COMPILER_PRE_SETUP_H
+
+#include "Clang/ClangPlatformCompilerPreSetup.h"
+
+#endif

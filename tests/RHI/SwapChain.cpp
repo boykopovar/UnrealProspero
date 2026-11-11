@@ -1,9 +1,9 @@
-#include "AnyUnreal/RHI/Presentation/SwapChain.h"
-#include "AnyUnreal/RHI/Command/ColorClear.h"
-#include "AnyUnreal/RHI/Command/BufferFill.h"
-#include "AnyUnreal/RHI/Command/CommandStorage.h"
-#include "AnyUnreal/RHI/Command/Submission.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/RHI/Presentation/SwapChain.h"
+#include "UnrealProspero/RHI/Command/ColorClear.h"
+#include "UnrealProspero/RHI/Command/BufferFill.h"
+#include "UnrealProspero/RHI/Command/CommandStorage.h"
+#include "UnrealProspero/RHI/Command/Submission.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include <iostream>
 #include <memory>
@@ -11,10 +11,10 @@
 
 int main()
 {
-    using namespace AnyUnreal::RHI;
-    AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    auto output = AnyUnreal::Video::Output::AcquirePrimary();
-    if (AnyUnreal::Video::Output::AcquirePrimary() != output) throw std::runtime_error("Primary video output was opened more than once");
+    using namespace UnrealProspero::RHI;
+    UnrealProspero::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    auto output = UnrealProspero::Video::Output::AcquirePrimary();
+    if (UnrealProspero::Video::Output::AcquirePrimary() != output) throw std::runtime_error("Primary video output was opened more than once");
     const auto resolution = output->GetResolution();
     if (resolution.fullWidth == 0 || resolution.fullHeight == 0 || resolution.paneWidth == 0 || resolution.paneHeight == 0) throw std::runtime_error("Primary video output reported an empty mode");
     const auto outputHandle = output->GetHandle();
@@ -86,7 +86,7 @@ int main()
     SubmitAndWait(commands, fence, 1, 10000000);
     replacement.Present(1);
     replacement.Close();
-    if (AnyUnreal::Video::Output::AcquirePrimary()->GetHandle() != outputHandle) throw std::runtime_error("Primary video output did not survive viewport replacement");
+    if (UnrealProspero::Video::Output::AcquirePrimary()->GetHandle() != outputHandle) throw std::runtime_error("Primary video output did not survive viewport replacement");
     std::cout << "Swap chain presented 49 GPU frames, resized and reused its video output safely\n";
     return 0;
 }

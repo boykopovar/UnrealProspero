@@ -1,5 +1,5 @@
-#include "AnyUnreal/Cook/SettingsModule.h"
+#include "UnrealProspero/Cook/SettingsModule.h"
 #include "Modules/ModuleManager.h"
 
-using AnyLinuxSettingsModule = AnyUnreal::Cook::SettingsModule<EAnyUnrealTarget::Linux>;
+using AnyLinuxSettingsModule = UnrealProspero::Cook::SettingsModule<EUnrealProsperoTarget::Linux>;
 IMPLEMENT_MODULE(AnyLinuxSettingsModule, AnyLinuxTargetPlatformSettings)

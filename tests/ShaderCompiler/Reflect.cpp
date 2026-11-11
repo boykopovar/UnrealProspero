@@ -1,5 +1,5 @@
-#include "AnyUnreal/Shader/DescriptorLayout.h"
-#include "AnyUnreal/Shader/VertexInputs.h"
+#include "UnrealProspero/Shader/DescriptorLayout.h"
+#include "UnrealProspero/Shader/VertexInputs.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -23,13 +23,13 @@ int main(int argumentCount, char** arguments)
         if (argumentCount == 3)
         {
             if (std::string(arguments[2]) != "--vertex-inputs") throw std::invalid_argument("Unknown reflection mode");
-            for (const auto& input : AnyUnreal::Shader::ReflectVertexInputs(words, "main")) std::cout << input.Location << ',' << input.Components << ',' << static_cast<int>(input.Type) << '\n';
+            for (const auto& input : UnrealProspero::Shader::ReflectVertexInputs(words, "main")) std::cout << input.Location << ',' << input.Components << ',' << static_cast<int>(input.Type) << '\n';
             return 0;
         }
-        const auto bindings = AnyUnreal::Shader::ReflectDescriptorLayout(words, "main");
+        const auto bindings = UnrealProspero::Shader::ReflectDescriptorLayout(words, "main");
         try
         {
-            AnyUnreal::Shader::ReflectDescriptorLayout(words, "missingEntryPoint");
+            UnrealProspero::Shader::ReflectDescriptorLayout(words, "missingEntryPoint");
             throw std::runtime_error("Missing entry point was accepted");
         }
         catch (const std::invalid_argument&)

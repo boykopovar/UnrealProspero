@@ -1,6 +1,6 @@
-#include "AnyUnreal/Cook/PlatformModule.h"
+#include "UnrealProspero/Cook/PlatformModule.h"
 #include "Modules/ModuleManager.h"
 
-using AnyUnrealPlatformModule = AnyUnreal::Cook::PlatformModule;
+using UnrealProsperoPlatformModule = UnrealProspero::Cook::PlatformModule;
 
-IMPLEMENT_MODULE(AnyUnrealPlatformModule, AnyWin64TargetPlatform)
+IMPLEMENT_MODULE(UnrealProsperoPlatformModule, AnyWin64TargetPlatform)

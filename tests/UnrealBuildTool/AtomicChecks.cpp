@@ -49,7 +49,7 @@ bool CheckAtomics()
     std::array<Pthread, 4> threads{};
     for (Pthread& thread : threads)
     {
-        if (scePthreadCreate(&thread, nullptr, increment, &counter, "AnyUnrealAtomic") != 0) return false;
+        if (scePthreadCreate(&thread, nullptr, increment, &counter, "UnrealProsperoAtomic") != 0) return false;
     }
     for (Pthread thread : threads)
     {

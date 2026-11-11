@@ -1,9 +1,9 @@
-#include "AnyUnreal/Kernel/Directory.h"
-#include "AnyUnreal/File/DirectoryVisitor.h"
-#include "AnyUnreal/Text/Encoding.h"
-#include "AnyUnreal/Kernel/File.h"
-#include "AnyUnreal/Kernel/FileSystem.h"
-#include "AnyUnreal/Kernel/Error.h"
+#include "UnrealProspero/Kernel/Directory.h"
+#include "UnrealProspero/File/DirectoryVisitor.h"
+#include "UnrealProspero/Text/Encoding.h"
+#include "UnrealProspero/Kernel/File.h"
+#include "UnrealProspero/Kernel/FileSystem.h"
+#include "UnrealProspero/Kernel/Error.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <set>
 #include <string>
@@ -11,7 +11,7 @@
 
 namespace
 {
-    using namespace AnyUnreal::Kernel;
+    using namespace UnrealProspero::Kernel;
 
     class TestDirectory
     {
@@ -53,7 +53,7 @@ namespace
         bool Visit(const TCHAR* path, bool directory) override
         {
             if (directory) throw std::runtime_error("Unexpected directory");
-            names.insert(AnyUnreal::Text::EncodeUtf8(path));
+            names.insert(UnrealProspero::Text::EncodeUtf8(path));
             return !stop;
         }
 
@@ -70,7 +70,7 @@ namespace
         bool Visit(const TCHAR* path, const FFileStatData& status) override
         {
             if (!status.bIsValid || status.bIsDirectory || status.FileSize != 0) throw std::runtime_error("Invalid visitor file metadata");
-            names.insert(AnyUnreal::Text::EncodeUtf8(path));
+            names.insert(UnrealProspero::Text::EncodeUtf8(path));
             return true;
         }
 
@@ -94,7 +94,7 @@ namespace
 
 bool CheckDirectories()
 {
-    const auto root = "AnyUnreal-enumeration-" + std::to_string(getpid_nid_postfix());
+    const auto root = "UnrealProspero-enumeration-" + std::to_string(getpid_nid_postfix());
     TestDirectory owned(root);
     {
         Directory empty(root);
@@ -118,11 +118,11 @@ bool CheckDirectories()
         Directory invalid(root + "/" + unicode);
         return false;
     }
-    catch (const AnyUnreal::Kernel::Error&)
+    catch (const UnrealProspero::Kernel::Error&)
     {
     }
-    const auto wideRoot = AnyUnreal::Text::DecodeUtf8(root);
-    using AnyUnreal::File::DirectoryVisitor;
+    const auto wideRoot = UnrealProspero::Text::DecodeUtf8(root);
+    using UnrealProspero::File::DirectoryVisitor;
     NameVisitor selected(false);
     if (!DirectoryVisitor::Iterate(wideRoot, selected) || selected.Names() != std::set<std::string>{root + "/" + unicode}) return false;
     NameVisitor stopped(true);
@@ -134,6 +134,6 @@ bool CheckDirectories()
     if (metadata.Names() != fullNames) return false;
     NameVisitor absent(false);
     if (DirectoryVisitor::Iterate(wideRoot + TEXT("/absent"), absent) || !absent.Names().empty()) return false;
-    if (DirectoryVisitor::Iterate(wideRoot + TEXT("/") + AnyUnreal::Text::DecodeUtf8(unicode), absent)) return false;
+    if (DirectoryVisitor::Iterate(wideRoot + TEXT("/") + UnrealProspero::Text::DecodeUtf8(unicode), absent)) return false;
     return true;
 }

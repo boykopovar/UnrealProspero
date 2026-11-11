@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using AnyUnreal.Build.Execution;
-using AnyUnreal.Build.Sdk;
+using UnrealProspero.Build.Execution;
+using UnrealProspero.Build.Sdk;
 
 internal static class Program
 {
@@ -32,7 +32,7 @@ internal static class Program
                 entryArguments.AddRange(new[] { "-fPIC", "-c", Path.GetFullPath(args[6]), "-o", entryObject });
                 await new ToolCommand(profile.Compiler, directory, entryArguments).ExecuteAsync(CancellationToken.None);
                 string extension = target == Target.Windows ? ".exe" : target == Target.Ps5 ? ".elf" : "";
-                string executable = Path.Combine(directory, "application", "AnyUnrealProbe" + extension);
+                string executable = Path.Combine(directory, "application", "UnrealProsperoProbe" + extension);
                 ToolCommand link = ExecutableLink.CreateCommand(sdk, target, args[2], args[5], Path.Combine(directory, "link"), executable, "Release", new[] { objectFile, entryObject }, Array.Empty<string>(), new[] { "libc", "libkernel" }, Array.Empty<string>(), Array.Empty<string>());
                 await link.ExecuteAsync(CancellationToken.None);
                 if (!File.Exists(executable) || new FileInfo(executable).Length == 0) throw new InvalidDataException("Missing executable");

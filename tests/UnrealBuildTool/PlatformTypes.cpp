@@ -1,11 +1,11 @@
 #include "Containers/LockFreeList.h"
-#include "AnyUnreal/AnyUnrealRunnableThread.h"
+#include "UnrealProspero/UnrealProsperoRunnableThread.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformFile.h"
 #include "CoreTypes.h"
-#include "AnyUnreal/File/FileHandle.h"
-#include "AnyUnreal/AnyUnrealEvent.h"
-#include "AnyUnreal/AnyUnrealPlatformProperties.h"
+#include "UnrealProspero/File/FileHandle.h"
+#include "UnrealProspero/UnrealProsperoEvent.h"
+#include "UnrealProspero/UnrealProsperoPlatformProperties.h"
 #include "HAL/PlatformProperties.h"
 #include "GenericPlatform/GenericPlatformTime.h"
 #include <cstddef>
@@ -23,11 +23,11 @@ static_assert(PLATFORM_LINUX == 0);
 static_assert(PLATFORM_UNIX == 0);
 static_assert(PLATFORM_EXCEPTIONS_DISABLED == 0);
 
-using WindowsProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Windows>;
-using LinuxProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Linux>;
-using Ps5Properties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Ps5>;
-using ServerProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Linux, true>;
-using ClientProperties = TAnyUnrealPlatformProperties<EAnyUnrealTarget::Windows, false, true>;
+using WindowsProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Windows>;
+using LinuxProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Linux>;
+using Ps5Properties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Ps5>;
+using ServerProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Linux, true>;
+using ClientProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Windows, false, true>;
 
 static_assert(std::string_view(WindowsProperties::PlatformName()) == "AnyWin64");
 static_assert(std::string_view(LinuxProperties::PlatformName()) == "AnyLinux");
@@ -56,10 +56,10 @@ static_assert(!FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Editor
 static_assert(!FPlatformProperties::SupportsBuildTarget(EBuildTargetType::Unknown));
 static_assert(FPlatformProperties::GetMaxSupportedVirtualMemoryAlignment() == 16384);
 
-#if ANYUNREAL_TARGET_WINDOWS
+#if UNREALPROSPERO_TARGET_WINDOWS
 static_assert(sizeof(long) == 4);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyWin64");
-#elif ANYUNREAL_TARGET_LINUX
+#elif UNREALPROSPERO_TARGET_LINUX
 static_assert(sizeof(long) == 8);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyLinux");
 #else
@@ -67,22 +67,22 @@ static_assert(sizeof(long) == 8);
 static_assert(std::string_view(FPlatformProperties::IniPlatformName()) == "AnyPS5");
 #endif
 
-static_assert(std::is_base_of_v<FEvent, FAnyUnrealEvent>);
-static_assert(!std::is_abstract_v<FAnyUnrealEvent>);
-static_assert(!std::is_copy_constructible_v<FAnyUnrealEvent>);
-static_assert(!std::is_move_constructible_v<FAnyUnrealEvent>);
-static_assert(std::is_nothrow_destructible_v<FAnyUnrealEvent>);
+static_assert(std::is_base_of_v<FEvent, FUnrealProsperoEvent>);
+static_assert(!std::is_abstract_v<FUnrealProsperoEvent>);
+static_assert(!std::is_copy_constructible_v<FUnrealProsperoEvent>);
+static_assert(!std::is_move_constructible_v<FUnrealProsperoEvent>);
+static_assert(std::is_nothrow_destructible_v<FUnrealProsperoEvent>);
 
-static_assert(std::is_base_of_v<IFileHandle, FAnyUnrealFileHandle>);
-static_assert(!std::is_abstract_v<FAnyUnrealFileHandle>);
-static_assert(!std::is_copy_constructible_v<FAnyUnrealFileHandle>);
+static_assert(std::is_base_of_v<IFileHandle, FUnrealProsperoFileHandle>);
+static_assert(!std::is_abstract_v<FUnrealProsperoFileHandle>);
+static_assert(!std::is_copy_constructible_v<FUnrealProsperoFileHandle>);
 
-static_assert(!std::is_abstract_v<FAnyUnrealPlatformFile>);
+static_assert(!std::is_abstract_v<FUnrealProsperoPlatformFile>);
 
-static_assert(!std::is_abstract_v<FAnyUnrealRunnableThread>);
+static_assert(!std::is_abstract_v<FUnrealProsperoRunnableThread>);
 static_assert(alignof(FIndexedPointer) >= 8);
-static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealRecursiveMutex>);
-static_assert(std::is_nothrow_destructible_v<UE::FAnyUnrealSharedMutex>);
+static_assert(std::is_nothrow_destructible_v<UE::FUnrealProsperoRecursiveMutex>);
+static_assert(std::is_nothrow_destructible_v<UE::FUnrealProsperoSharedMutex>);
 
-static_assert(ANYUNREAL_TARGET_WINDOWS + ANYUNREAL_TARGET_LINUX + ANYUNREAL_TARGET_PS5 == 1);
-static_assert(PLATFORM_DESKTOP == (ANYUNREAL_TARGET_WINDOWS || ANYUNREAL_TARGET_LINUX));
+static_assert(UNREALPROSPERO_TARGET_WINDOWS + UNREALPROSPERO_TARGET_LINUX + UNREALPROSPERO_TARGET_PS5 == 1);
+static_assert(PLATFORM_DESKTOP == (UNREALPROSPERO_TARGET_WINDOWS || UNREALPROSPERO_TARGET_LINUX));

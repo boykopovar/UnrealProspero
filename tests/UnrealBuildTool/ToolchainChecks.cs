@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AnyUnreal.Build.Execution;
-using AnyUnreal.Build.Sdk;
+using UnrealProspero.Build.Execution;
+using UnrealProspero.Build.Sdk;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging.Abstractions;
 using UnrealBuildBase;
@@ -17,12 +17,12 @@ internal static class ToolchainChecks
     {
         DirectoryReference intermediate = new(outputDirectory);
         Directory.CreateDirectory(outputDirectory);
-        string sourceRoot = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Build");
+        string sourceRoot = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/UnrealProspero/Build");
         RuntimeProfile profile = await RuntimeProfile.ConfigureAsync(sdk, target, cmake, Path.Combine(sourceRoot, "Toolchain"), Path.Combine(outputDirectory, "profile"), CancellationToken.None);
-        AnyUnrealToolChain toolchain = new(sdk, profile, target, cmake, Path.Combine(sourceRoot, "Linker"), ClangToolChainOptions.None, NullLogger.Instance);
+        UnrealProsperoToolChain toolchain = new(sdk, profile, target, cmake, Path.Combine(sourceRoot, "Linker"), ClangToolChainOptions.None, NullLogger.Instance);
         string extension = UEBuildPlatform.GetBuildPlatform(platform).GetBinaryExtension(UEBuildBinaryType.Executable);
         FileReference executable = FileReference.Combine(intermediate, "application", "UnrealProbe" + extension);
-        TargetMakefile makefile = new("AnyUnreal", executable, FileReference.Combine(intermediate, "UnrealProbe.target"), intermediate, intermediate, TargetType.Program, new ConfigValueTracker(new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>()), false, null, null, null);
+        TargetMakefile makefile = new("UnrealProspero", executable, FileReference.Combine(intermediate, "UnrealProbe.target"), intermediate, intermediate, TargetType.Program, new ConfigValueTracker(new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>()), false, null, null, null);
         TargetMakefileBuilder graph = new(makefile, new FileHashCache(false, false), NullLogger.Instance);
         SourceFileMetadataCache metadata = SourceFileMetadataCache.CreateHierarchy(null, NullLogger.Instance);
         UnrealArchitectures architectures = new(UnrealArch.X64);
@@ -35,11 +35,11 @@ internal static class ToolchainChecks
         };
         CPPOutput objects = toolchain.CompileAllCPPFiles(compile, new[] { FileItem.GetItemByPath(Path.Combine(sourceRoot, "Toolchain/Probe.cpp")) }, DirectoryReference.Combine(intermediate, "objects"), "Probe", graph);
         CppCompileEnvironment platformCompile = new(compile);
-        platformCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/Core/Public"));
+        platformCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/UnrealProspero/Source/Runtime/Core/Public"));
         platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Core/Public"));
         platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/TraceLog/Public"));
         platformCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/AutoRTFM/Public"));
-        platformCompile.Definitions.AddRange(new[] { "OVERRIDE_PLATFORM_HEADER_NAME=AnyUnreal", "ANYUNREAL_TARGET_" + SdkInstallation.GetTargetName(target).ToUpperInvariant() + "=1", "UE_BUILD_DEVELOPMENT=1", "WITH_EDITOR=0", "WITH_ENGINE=0", "WITH_UNREAL_DEVELOPER_TOOLS=0", "WITH_PLUGIN_SUPPORT=0", "IS_MONOLITHIC=1", "IS_PROGRAM=1", "WITH_SERVER_CODE=1", "UE_MERGED_MODULES=0" });
+        platformCompile.Definitions.AddRange(new[] { "OVERRIDE_PLATFORM_HEADER_NAME=UnrealProspero", "UNREALPROSPERO_TARGET_" + SdkInstallation.GetTargetName(target).ToUpperInvariant() + "=1", "UE_BUILD_DEVELOPMENT=1", "WITH_EDITOR=0", "WITH_ENGINE=0", "WITH_UNREAL_DEVELOPER_TOOLS=0", "WITH_PLUGIN_SUPPORT=0", "IS_MONOLITHIC=1", "IS_PROGRAM=1", "WITH_SERVER_CODE=1", "UE_MERGED_MODULES=0" });
         platformCompile.Definitions.Add("CORE_API=");
         platformCompile.Definitions.Add("TRACELOG_API=");
         toolchain.CompileAllCPPFiles(platformCompile, new[] { FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "PlatformTypes.cpp")) }, DirectoryReference.Combine(intermediate, "platform"), "PlatformTypes", graph);
@@ -55,10 +55,10 @@ internal static class ToolchainChecks
         toolchain.CompileAllCPPFiles(llmCompile, new[] { FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Source/Runtime/Core/Private/HAL/LLM/LLM.cpp")) }, DirectoryReference.Combine(intermediate, "unreal"), "LLM", graph);
         CppCompileEnvironment launchCompile = new(platformCompile);
         launchCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Launch/Public"));
-        toolchain.CompileAllCPPFiles(launchCompile, new[] { FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/Launch/Private/AnyUnreal/LaunchAnyUnreal.cpp")) }, DirectoryReference.Combine(intermediate, "launch"), "Launch", graph);
+        toolchain.CompileAllCPPFiles(launchCompile, new[] { FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/UnrealProspero/Source/Runtime/Launch/Private/UnrealProspero/LaunchUnrealProspero.cpp")) }, DirectoryReference.Combine(intermediate, "launch"), "Launch", graph);
         CPPOutput entry = toolchain.CompileAllCPPFiles(platformCompile, new[] { "PlatformRuntime.cpp", "MutexChecks.cpp", "EventChecks.cpp", "AtomicChecks.cpp", "MathChecks.cpp", "MiscChecks.cpp", "GuidChecks.cpp", "ExitChecks.cpp", "ArgumentChecks.cpp", "StringChecks.cpp", "ClockChecks.cpp", "MemoryChecks.cpp", "VirtualMemoryChecks.cpp", "TimeChecks.cpp", "ProcessChecks.cpp", "ModuleChecks.cpp", "ThreadChecks.cpp", "FileChecks.cpp", "FileLockChecks.cpp", "FileSystemChecks.cpp", "FileMetadataChecks.cpp", "DirectoryChecks.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, name))).ToArray(), DirectoryReference.Combine(intermediate, "entry"), "Entry", graph);
-        string coreSource = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/Core/Private/AnyUnreal");
-        CPPOutput platformObjects = toolchain.CompileAllCPPFiles(platformCompile, new[] { "AnyUnrealPlatformTLS.cpp", "Mutex/RecursiveMutex.cpp", "Mutex/SharedMutex.cpp", "Kernel/Event.cpp", "AnyUnrealEvent.cpp", "AnyUnrealPlatformMisc.cpp", "AnyUnrealPlatformGuid.cpp", "Text/Encoding.cpp", "Kernel/Debug.cpp", "Kernel/Clock.cpp", "Kernel/SystemConfiguration.cpp", "Kernel/DirectAllocation.cpp", "Memory/PageAllocator.cpp", "Memory/VirtualMemoryBlock.cpp", "Kernel/Calendar.cpp", "AnyUnrealPlatformTime.cpp", "AnyUnrealPlatformProcess.cpp", "Process/Events.cpp", "Process/Sleep.cpp", "Process/Identity.cpp", "Process/Threads.cpp", "Process/Modules.cpp", "Process/Exit.cpp", "Process/RequestExit.cpp", "Process/Arguments.cpp", "AnyUnrealRunnableThread.cpp", "AnyUnrealPlatformStackWalk.cpp", "Runnable/Priority.cpp", "Kernel/Module.cpp", "Kernel/Affinity.cpp", "Kernel/Thread.cpp", "Kernel/ThreadAttributes.cpp", "Kernel/File.cpp", "Kernel/FileLock.cpp", "Kernel/Descriptor.cpp", "Kernel/Directory.cpp", "File/FileHandle.cpp", "Kernel/FileSystem.cpp", "Kernel/Move.cpp", "File/Timestamp.cpp", "File/Metadata.cpp", "File/DirectoryVisitor.cpp", "File/Path.cpp", "AnyUnrealPlatformFile.cpp", "File/PlatformMetadata.cpp", "File/PlatformDirectories.cpp", "File/PlatformHandles.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(coreSource, name))).ToArray(), DirectoryReference.Combine(intermediate, "core"), "Core", graph);
+        string coreSource = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/UnrealProspero/Source/Runtime/Core/Private/UnrealProspero");
+        CPPOutput platformObjects = toolchain.CompileAllCPPFiles(platformCompile, new[] { "UnrealProsperoPlatformTLS.cpp", "Mutex/RecursiveMutex.cpp", "Mutex/SharedMutex.cpp", "Kernel/Event.cpp", "UnrealProsperoEvent.cpp", "UnrealProsperoPlatformMisc.cpp", "UnrealProsperoPlatformGuid.cpp", "Text/Encoding.cpp", "Kernel/Debug.cpp", "Kernel/Clock.cpp", "Kernel/SystemConfiguration.cpp", "Kernel/DirectAllocation.cpp", "Memory/PageAllocator.cpp", "Memory/VirtualMemoryBlock.cpp", "Kernel/Calendar.cpp", "UnrealProsperoPlatformTime.cpp", "UnrealProsperoPlatformProcess.cpp", "Process/Events.cpp", "Process/Sleep.cpp", "Process/Identity.cpp", "Process/Threads.cpp", "Process/Modules.cpp", "Process/Exit.cpp", "Process/RequestExit.cpp", "Process/Arguments.cpp", "UnrealProsperoRunnableThread.cpp", "UnrealProsperoPlatformStackWalk.cpp", "Runnable/Priority.cpp", "Kernel/Module.cpp", "Kernel/Affinity.cpp", "Kernel/Thread.cpp", "Kernel/ThreadAttributes.cpp", "Kernel/File.cpp", "Kernel/FileLock.cpp", "Kernel/Descriptor.cpp", "Kernel/Directory.cpp", "File/FileHandle.cpp", "Kernel/FileSystem.cpp", "Kernel/Move.cpp", "File/Timestamp.cpp", "File/Metadata.cpp", "File/DirectoryVisitor.cpp", "File/Path.cpp", "UnrealProsperoPlatformFile.cpp", "File/PlatformMetadata.cpp", "File/PlatformDirectories.cpp", "File/PlatformHandles.cpp" }.Select(name => FileItem.GetItemByPath(Path.Combine(coreSource, name))).ToArray(), DirectoryReference.Combine(intermediate, "core"), "Core", graph);
         LinkEnvironment archive = new(platform, CppConfiguration.Development, architectures)
         {
             IntermediateDirectory = intermediate,
@@ -75,14 +75,14 @@ internal static class ToolchainChecks
         link.OutputFilePaths.Add(executable);
         toolchain.LinkFiles(link, false, graph);
         CppCompileEnvironment videoCompile = new(platformCompile);
-        videoCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Public"));
+        videoCompile.UserIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms/UnrealProspero/Source/Runtime/ApplicationCore/Public"));
         videoCompile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime/ApplicationCore/Public"));
         videoCompile.Definitions.Add("APPLICATIONCORE_API=");
         CPPOutput video = toolchain.CompileAllCPPFiles(videoCompile, new[]
         {
             FileItem.GetItemByPath(Path.Combine(AppContext.BaseDirectory, "VideoOutputChecks.cpp")),
-            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Private/AnyUnreal/AnyUnrealPlatformApplicationMisc.cpp")),
-            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"))
+            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/UnrealProspero/Source/Runtime/ApplicationCore/Private/UnrealProspero/UnrealProsperoPlatformApplicationMisc.cpp")),
+            FileItem.GetItemByPath(Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/UnrealProspero/Source/Runtime/ApplicationCore/Private/UnrealProspero/Video/Output.cpp"))
         }, DirectoryReference.Combine(intermediate, "video-objects"), "VideoOutput", graph);
         FileReference videoExecutable = FileReference.Combine(intermediate, "video", "VideoOutputProbe" + extension);
         LinkEnvironment videoLink = new(platform, CppConfiguration.Development, architectures) { IntermediateDirectory = intermediate };

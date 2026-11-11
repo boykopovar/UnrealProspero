@@ -1,12 +1,12 @@
-#include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
-#include "AnyUnreal/RHI/Texture/DepthTexture2D.h"
+#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/DepthTexture2D.h"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 
 int main()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     const auto baseline = BufferAllocation::GetTextureAllocationBytes();
     BufferAllocation buffer(32769, 1);
     if (BufferAllocation::GetTextureAllocationBytes() != baseline) throw std::runtime_error("Buffer allocation was counted as a texture");

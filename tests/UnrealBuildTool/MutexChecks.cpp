@@ -28,7 +28,7 @@ namespace
     bool runProbe(Probe& probe, bool recursive, bool writer, bool reader)
     {
         Pthread thread;
-        if (scePthreadCreate(&thread, nullptr, probeLocks, &probe, "AnyUnrealMutex") != 0) return false;
+        if (scePthreadCreate(&thread, nullptr, probeLocks, &probe, "UnrealProsperoMutex") != 0) return false;
         if (scePthreadJoin(thread, nullptr) != 0) return false;
         return probe.recursiveAvailable == recursive && probe.writerAvailable == writer && probe.readerAvailable == reader;
     }
@@ -84,7 +84,7 @@ bool CheckMutexes()
     std::array<Pthread, 4> threads{};
     for (Pthread& thread : threads)
     {
-        if (scePthreadCreate(&thread, nullptr, incrementCounter, &counter, "AnyUnrealCounter") != 0) return false;
+        if (scePthreadCreate(&thread, nullptr, incrementCounter, &counter, "UnrealProsperoCounter") != 0) return false;
     }
     for (Pthread thread : threads)
     {

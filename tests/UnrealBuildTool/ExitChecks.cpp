@@ -1,4 +1,4 @@
-#include "AnyUnreal/Process/Exit.h"
+#include "UnrealProspero/Process/Exit.h"
 #include "HAL/PlatformMisc.h"
 #include <charconv>
 #include <cstdlib>
@@ -20,7 +20,7 @@ namespace
 
 bool CheckExitStatus()
 {
-    using AnyUnreal::Process::Exit;
+    using UnrealProspero::Process::Exit;
     uint8 status = 42;
     if (FPlatformMisc::HasOverriddenReturnCode(&status) || status != 42) return false;
     if (FPlatformMisc::HasOverriddenReturnCode(nullptr)) return false;
@@ -35,7 +35,7 @@ bool CheckExitStatus()
 
 [[noreturn]] void RunExitProbe(std::string_view argument)
 {
-    using AnyUnreal::Process::Exit;
+    using UnrealProspero::Process::Exit;
     if (argument != "default")
     {
         unsigned int status = 0;

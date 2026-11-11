@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using AnyUnreal.Build.Execution;
-using AnyUnreal.Build.Sdk;
+using UnrealProspero.Build.Execution;
+using UnrealProspero.Build.Sdk;
 using AutomationTool;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,7 +34,7 @@ internal sealed class StagingChecks : BuildCommand
             FileReference project = new(Path.Combine(projectDirectory, "StagingProbe.uproject"));
             File.WriteAllText(project.FullName, "{\"FileVersion\":3}");
             {
-                string metadata = Path.Combine(projectDirectory, "Build", "AnyUnreal");
+                string metadata = Path.Combine(projectDirectory, "Build", "UnrealProspero");
                 Directory.CreateDirectory(Path.GetDirectoryName(metadata)!);
                 new ToolCommand(sdk.Executable, projectDirectory, new[] { "init", "StagingProbe", "--deps", sdk.Dependencies, "--directory", metadata }).ExecuteAsync(CancellationToken.None).GetAwaiter().GetResult();
             }
@@ -49,7 +49,7 @@ internal sealed class StagingChecks : BuildCommand
             FileReference executable = new(Path.Combine(binaries, "UnrealProbe" + Platform.GetExeExtension(platformType)));
             TargetReceipt receipt = new(project, "StagingProbe", TargetType.Game, platformType, UnrealTargetConfiguration.Development, new BuildVersion(), new UnrealArchitectures(UnrealArch.X64), false, BuildSettingsVersion.Latest, TargetBuildEnvironment.Unique);
             receipt.BuildProducts.Add(new BuildProduct(executable, BuildProductType.Executable));
-            AnyUnrealReceipt.Write(receipt.AdditionalProperties, sdk);
+            UnrealProsperoReceipt.Write(receipt.AdditionalProperties, sdk);
             List<UnrealTargetConfiguration> configurations = new() { UnrealTargetConfiguration.Development };
             DeploymentContext context = new(project, new DirectoryReference(unrealRoot), new DirectoryReference(Path.Combine(projectDirectory, "stage")), null, null, new DirectoryReference(Path.Combine(projectDirectory, "archive")), "", platform, platform, configurations, new[] { new StageTarget { Receipt = receipt, RequireFilesExist = true } }, new List<string> { "UnrealProbe" }, false, true, false, true, false, true, false, false, false, false, null, new List<DirectoryReference>());
             ProjectParams parameters = new(project, Command: new StagingChecks(), ClientConfigsToBuild: configurations, ClientTargetPlatforms: new List<TargetPlatformDescriptor> { new(platformType) }, Build: false, SkipCook: true, Stage: true);

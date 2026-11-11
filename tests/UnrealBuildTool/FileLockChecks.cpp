@@ -1,8 +1,8 @@
-#include "AnyUnreal/Kernel/FileLock.h"
-#include "AnyUnreal/Kernel/File.h"
-#include "AnyUnreal/Kernel/FileSystem.h"
-#include "AnyUnreal/Kernel/Clock.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/Kernel/FileLock.h"
+#include "UnrealProspero/Kernel/File.h"
+#include "UnrealProspero/Kernel/FileSystem.h"
+#include "UnrealProspero/Kernel/Clock.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libkernel/Time/include/Time.hpp"
 #include <cstring>
@@ -10,7 +10,7 @@
 
 namespace
 {
-    using namespace AnyUnreal::Kernel;
+    using namespace UnrealProspero::Kernel;
 
     class LockPath
     {
@@ -29,7 +29,7 @@ namespace
 
 bool CheckFileLocks()
 {
-    const auto path = "AnyUnreal-lock-" + std::to_string(getpid_nid_postfix());
+    const auto path = "UnrealProspero-lock-" + std::to_string(getpid_nid_postfix());
     LockPath cleanup(path);
     {
         FileLock owner(path);

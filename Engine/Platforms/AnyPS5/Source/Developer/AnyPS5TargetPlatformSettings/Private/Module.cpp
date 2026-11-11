@@ -1,5 +1,5 @@
-#include "AnyUnreal/Cook/SettingsModule.h"
+#include "UnrealProspero/Cook/SettingsModule.h"
 #include "Modules/ModuleManager.h"
 
-using AnyPS5SettingsModule = AnyUnreal::Cook::SettingsModule<EAnyUnrealTarget::Ps5>;
+using AnyPS5SettingsModule = UnrealProspero::Cook::SettingsModule<EUnrealProsperoTarget::Ps5>;
 IMPLEMENT_MODULE(AnyPS5SettingsModule, AnyPS5TargetPlatformSettings)

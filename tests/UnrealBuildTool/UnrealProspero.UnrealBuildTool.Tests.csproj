@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>UnrealBuildTool.Tests</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(UnrealRoot)/Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/UnrealProsperoShaderCommon/UnrealProsperoShaderCommon.Build.cs" Link="Rules/UnrealProsperoShaderCommon.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/UnrealProsperoRHI/UnrealProsperoRHI.Build.cs" Link="Rules/UnrealProsperoRHI.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Developer/UnrealProsperoShaderFormat/UnrealProsperoShaderFormat.Build.cs" Link="Rules/UnrealProsperoShaderFormat.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Developer/UnrealProsperoShaderCompiler/UnrealProsperoShaderCompiler.Build.cs" Link="Rules/UnrealProsperoShaderCompiler.Build.cs" />
+    <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/Core/Core.Build.cs" Link="Rules/Core.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/Core/Core_UnrealProspero.Build.cs" Link="Rules/Core_UnrealProspero.Build.cs" />
+    <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/Launch/Launch.Build.cs" Link="Rules/Launch.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/Launch/Launch_UnrealProspero.Build.cs" Link="Rules/Launch_UnrealProspero.Build.cs" />
+    <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/ApplicationCore/ApplicationCore.Build.cs" Link="Rules/ApplicationCore.Build.cs" />
+    <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/ApplicationCore/ApplicationCore_UnrealProspero.Build.cs" Link="Rules/ApplicationCore_UnrealProspero.Build.cs" />
+    <None Update="PlatformRuntime.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="MutexChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="AtomicChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="MathChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="VideoOutputChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ArgumentChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ExitChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="GuidChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="MiscChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="StringChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ClockChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="DirectoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="FileMetadataChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="FileSystemChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="FileLockChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="FileChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ThreadChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ModuleChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="ProcessChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="TimeChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="VirtualMemoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="MemoryChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="PlatformTypes.cpp" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="ValidateUnrealRoot" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(UnrealRoot)' == ''" Text="UnrealRoot must point to an Unreal source checkout with the UnrealProspero extension installed" />
+  </Target>
+</Project>

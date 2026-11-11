@@ -1,5 +1,5 @@
 #include "HAL/PlatformString.h"
-#include "AnyUnreal/Text/Encoding.h"
+#include "UnrealProspero/Text/Encoding.h"
 #include <stdexcept>
 #include <type_traits>
 
@@ -49,8 +49,8 @@ bool CheckStrings()
     if (FPlatformString::Strchr(text, static_cast<TCHAR>(0x0411)) != text + 1) return false;
     if (FPlatformString::Strcmp(text, text) != 0) return false;
     if (FPlatformString::Strlen("abc") != 3) return false;
-    using AnyUnreal::Text::DecodeUtf8;
-    using AnyUnreal::Text::EncodeUtf8;
+    using UnrealProspero::Text::DecodeUtf8;
+    using UnrealProspero::Text::EncodeUtf8;
     const std::string encoded = "A\xc2\x80\xdf\xbf\xe0\xa0\x80\xef\xbf\xbf\xf0\x90\x80\x80\xf4\x8f\xbf\xbf";
     const std::basic_string<TCHAR> decoded{'A', 0x80, 0x7ff, 0x800, 0xffff, 0xd800, 0xdc00, 0xdbff, 0xdfff};
     if (DecodeUtf8(encoded) != decoded || EncodeUtf8(decoded) != encoded) return false;

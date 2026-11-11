@@ -1,5 +1,5 @@
-#include "AnyUnreal/Shader/PipelineDescriptors.h"
-#include "AnyUnreal/Shader/EntryPoint.h"
+#include "UnrealProspero/Shader/PipelineDescriptors.h"
+#include "UnrealProspero/Shader/EntryPoint.h"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -34,7 +34,7 @@ namespace
 
 int main(int count, char** arguments)
 {
-    using namespace AnyUnreal::Shader;
+    using namespace UnrealProspero::Shader;
     if (count != 5) throw std::invalid_argument("Expected vertex and geometry input and output paths");
     auto vertex = read(arguments[1]);
     auto geometry = read(arguments[2]);

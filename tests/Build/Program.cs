@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AnyUnreal.Build.Execution;
-using AnyUnreal.Build.Sdk;
-using AnyUnreal.Build.Packaging;
+using UnrealProspero.Build.Execution;
+using UnrealProspero.Build.Sdk;
+using UnrealProspero.Build.Packaging;
 
 internal static class Program
 {
@@ -20,11 +20,11 @@ internal static class Program
         }
         reject<ArgumentException>(() => sdk.GetImportLibrary(Target.Ps5, "lib/../../libc"));
         reject<ArgumentOutOfRangeException>(() => SdkInstallation.GetTargetName((Target)99));
-        reject<FileNotFoundException>(() => sdk.GetImportLibrary(Target.Ps5, "libAnyUnrealMissing"));
+        reject<FileNotFoundException>(() => sdk.GetImportLibrary(Target.Ps5, "libUnrealProsperoMissing"));
         await new ToolCommand(sdk.Executable, Directory.GetCurrentDirectory(), new[] { "--version" }).ExecuteAsync(CancellationToken.None);
         try
         {
-            await new ToolCommand(sdk.Executable, Directory.GetCurrentDirectory(), new[] { "invalid-anyunreal-command" }).ExecuteAsync(CancellationToken.None);
+            await new ToolCommand(sdk.Executable, Directory.GetCurrentDirectory(), new[] { "invalid-unrealprospero-command" }).ExecuteAsync(CancellationToken.None);
             throw new Exception("Failed tool command was accepted");
         }
         catch (InvalidOperationException) { }
@@ -42,7 +42,7 @@ internal static class Program
             string outputRoot = Path.GetFullPath(args[4]);
             if (Directory.Exists(outputRoot)) throw new IOException("Test output already exists");
             Directory.CreateDirectory(outputRoot);
-            Ps5Package package = new(args[2], args[3], Path.Combine(args[2], "app0"), Path.Combine(outputRoot, "AnyUnreal.ffpfsc"), Path.Combine(outputRoot, "package workspace"));
+            Ps5Package package = new(args[2], args[3], Path.Combine(args[2], "app0"), Path.Combine(outputRoot, "UnrealProspero.ffpfsc"), Path.Combine(outputRoot, "package workspace"));
             ToolCommand command = package.CreateCommand(sdk);
             if (!command.Arguments.Contains(package.Workspace)) throw new Exception("Workspace argument was not preserved");
             await package.BuildAsync(sdk, CancellationToken.None);

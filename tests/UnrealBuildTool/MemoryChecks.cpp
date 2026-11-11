@@ -1,6 +1,6 @@
-#include "AnyUnreal/Kernel/DirectAllocation.h"
+#include "UnrealProspero/Kernel/DirectAllocation.h"
 #include "HAL/PlatformMemory.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +16,7 @@ namespace
         {
             for (int index = 0; index < 8; ++index)
             {
-                constexpr auto size = AnyUnreal::Memory::PageAllocator::Alignment;
+                constexpr auto size = UnrealProspero::Memory::PageAllocator::Alignment;
                 void* allocation = FPlatformMemory::BinnedAllocFromOS(size);
                 auto* bytes = static_cast<unsigned char*>(allocation);
                 bytes[0] = static_cast<unsigned char>(index);
@@ -38,7 +38,7 @@ namespace
         void (*free)(void*, std::size_t) = nullptr;
         int32 alignment = 0;
         if (!FPlatformMemory::GetLLMAllocFunctions(allocate, free, alignment)) return false;
-        if (!allocate || !free || alignment != AnyUnreal::Kernel::DirectAllocation::PageSize) return false;
+        if (!allocate || !free || alignment != UnrealProspero::Kernel::DirectAllocation::PageSize) return false;
         struct Allocation
         {
             void* Address;
@@ -65,7 +65,7 @@ namespace
         void* start = nullptr;
         void* end = nullptr;
         int protection = 0;
-        AnyUnreal::Kernel::CheckResult(sceKernelQueryMemoryProtection(address, &start, &end, &protection), "sceKernelQueryMemoryProtection");
+        UnrealProspero::Kernel::CheckResult(sceKernelQueryMemoryProtection(address, &start, &end, &protection), "sceKernelQueryMemoryProtection");
         const auto location = reinterpret_cast<std::uintptr_t>(address);
         return protection == expected && reinterpret_cast<std::uintptr_t>(start) <= location && location < reinterpret_cast<std::uintptr_t>(end);
     }
@@ -74,10 +74,10 @@ namespace
 bool CheckMemory()
 {
     if (!checkTrackerAllocator()) return false;
-    using AnyUnreal::Kernel::DirectAllocation;
+    using UnrealProspero::Kernel::DirectAllocation;
     constexpr auto page = DirectAllocation::PageSize;
     {
-        using AnyUnreal::Kernel::DirectMemoryAccess;
+        using UnrealProspero::Kernel::DirectMemoryAccess;
         DirectAllocation allocation(page * 3, 65536, DirectMemoryAccess::CpuGpu);
         auto* bytes = static_cast<unsigned char*>(allocation.Data());
         if (!checkProtection(bytes, 0x33)) return false;
@@ -148,7 +148,7 @@ bool CheckMemory()
     {
     }
     void* allocation = FPlatformMemory::BinnedAllocFromOS(page * 4);
-    if (reinterpret_cast<std::uintptr_t>(allocation) % AnyUnreal::Memory::PageAllocator::Alignment != 0) return false;
+    if (reinterpret_cast<std::uintptr_t>(allocation) % UnrealProspero::Memory::PageAllocator::Alignment != 0) return false;
     auto* bytes = static_cast<unsigned char*>(allocation);
     bytes[page] = 71;
     if (!FPlatformMemory::PageProtect(bytes + page, page, true, false)) return false;
@@ -181,8 +181,8 @@ bool CheckMemory()
     }
     Pthread threads[4]{};
     bool passed[4]{};
-    for (int index = 0; index < 4; ++index) AnyUnreal::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, checkConcurrentPages, &passed[index], "AnyUnrealPages"), "scePthreadCreate");
-    for (auto& thread : threads) AnyUnreal::Kernel::CheckResult(scePthreadJoin(thread, nullptr), "scePthreadJoin");
+    for (int index = 0; index < 4; ++index) UnrealProspero::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, checkConcurrentPages, &passed[index], "UnrealProsperoPages"), "scePthreadCreate");
+    for (auto& thread : threads) UnrealProspero::Kernel::CheckResult(scePthreadJoin(thread, nullptr), "scePthreadJoin");
     for (const bool result : passed) if (!result) return false;
     return true;
 }

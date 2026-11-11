@@ -1,11 +1,11 @@
-#include "AnyUnreal/RHI/Command/TextureCopy.h"
-#include "AnyUnreal/RHI/Memory/TextureUpload.h"
-#include "AnyUnreal/RHI/Memory/VolumeUpload.h"
-#include "AnyUnreal/RHI/Command/BufferFill.h"
-#include "AnyUnreal/RHI/Command/PatternFill.h"
-#include "AnyUnreal/RHI/Command/CommandStorage.h"
-#include "AnyUnreal/RHI/Command/Submission.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/RHI/Command/TextureCopy.h"
+#include "UnrealProspero/RHI/Memory/TextureUpload.h"
+#include "UnrealProspero/RHI/Memory/VolumeUpload.h"
+#include "UnrealProspero/RHI/Command/BufferFill.h"
+#include "UnrealProspero/RHI/Command/PatternFill.h"
+#include "UnrealProspero/RHI/Command/CommandStorage.h"
+#include "UnrealProspero/RHI/Command/Submission.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include <algorithm>
 #include <iostream>
@@ -16,10 +16,10 @@
 
 void CheckArrayMipData()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
     {
-        LinearTexture2D texture(13, 7, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
+        LinearTexture2D texture(13, 7, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
         const auto bytes = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xcd});
         std::vector expected(bytes.begin(), bytes.end());
@@ -60,7 +60,7 @@ void CheckArrayMipData()
 
 void CheckVolumeMipData()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     const std::array<std::size_t, 4> mipSizes{17920, 8960, 3840, 1280};
     for (std::uint32_t level = 0; level < mipSizes.size(); ++level)
     {
@@ -106,7 +106,7 @@ void CheckVolumeMipData()
 
 void CheckVolumeMipClears()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     LinearTexture3D texture(13, 7, 5, TextureFormat::Rgba32Float, 2, 4);
     const auto allocation = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
     const std::array<std::uint32_t, 4> pattern{0x3f800000, 0xbf800000, 0x3f000000, 0};
@@ -134,7 +134,7 @@ void CheckVolumeMipClears()
 
 void CheckVolumeCopies()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const auto mipLevel : {0u, 1u, 2u})
     for (unsigned mode = 0; mode < 5; ++mode)
@@ -211,7 +211,7 @@ void CheckVolumeCopies()
 
 void CheckVolumeUploads()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const auto mipLevel : {0u, 1u, 2u})
     for (const bool pendingWrite : {false, true})
@@ -260,14 +260,14 @@ void CheckVolumeUploads()
 
 void CheckMipCopies()
 {
-    using namespace AnyUnreal::RHI;
+    using namespace UnrealProspero::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const bool array : {false, true})
     for (const auto mode : {0u, 1u, 2u, 3u, 4u})
     {
         if (mode == 4 && !array) continue;
-        LinearTexture2D source(67, 19, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::Texture, array ? 3u : 1u);
-        LinearTexture2D other(91, 37, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 7, AllocationUsage::Texture, array ? 4u : 1u);
+        LinearTexture2D source(67, 19, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::Texture, array ? 3u : 1u);
+        LinearTexture2D other(91, 37, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 7, AllocationUsage::Texture, array ? 4u : 1u);
         const auto& destination = mode == 1 || mode == 4 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
@@ -349,7 +349,7 @@ void CheckMipCopies()
 int main()
 {
     {
-        using namespace AnyUnreal::RHI;
+        using namespace UnrealProspero::RHI;
         const auto volumeLevels = CalculateLinearMipLayout(13, 7, 5, 4, 4);
         const std::size_t volumeOffsets[]{1792, 768, 256, 0};
         const std::uint32_t volumeDepths[]{5, 2, 1, 1};
@@ -385,12 +385,12 @@ int main()
         }
     }
 
-    using namespace AnyUnreal::RHI;
-    AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    using namespace UnrealProspero::RHI;
+    UnrealProspero::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     const auto initialTextureBytes = BufferAllocation::GetTextureAllocationBytes();
     const auto initialNonStreamingBytes = BufferAllocation::GetNonStreamingTextureAllocationBytes();
     {
-        LinearTexture2D streaming(67, 19, TextureFormat::Rgba8Unorm, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::StreamingTexture);
+        LinearTexture2D streaming(67, 19, TextureFormat::Rgba8Unorm, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::StreamingTexture);
         if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Streaming texture allocation entered the non-streaming budget");
         LinearTexture2D regular(7, 5, TextureFormat::Rgba8Unorm, 2);
         if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() + regular.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes + regular.GetStorage().AllocationSize()) throw std::runtime_error("Non-streaming texture allocation budget is incorrect");
@@ -406,11 +406,11 @@ int main()
     for (const auto mipCount : {1u, 3u})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
-        LinearTexture2D source(67, 9, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, mipCount);
+        LinearTexture2D source(67, 9, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount);
         auto destinationFormat = format;
         if (mode == 4 && format == TextureFormat::Rgba8Srgb) destinationFormat = TextureFormat::Rgba8Unorm;
         if (mode == 4 && format == TextureFormat::Bgra8Srgb) destinationFormat = TextureFormat::Bgra8Unorm;
-        LinearTexture2D other(91, 13, destinationFormat, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, mipCount == 1 ? 1u : 4u);
+        LinearTexture2D other(91, 13, destinationFormat, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount == 1 ? 1u : 4u);
         const auto& destination = mode == 2 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());

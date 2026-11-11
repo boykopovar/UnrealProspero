@@ -1,5 +1,5 @@
-#include "AnyUnreal/Kernel/Event.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/Kernel/Event.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libkernel/Time/include/Time.hpp"
 #include <array>
@@ -7,7 +7,7 @@
 
 namespace
 {
-    using AnyUnreal::Kernel::Event;
+    using UnrealProspero::Kernel::Event;
 
     struct Waiters
     {
@@ -33,10 +33,10 @@ namespace
     {
         Waiters waiters(manualReset, count, timeout);
         std::array<Pthread, 4> threads{};
-        for (unsigned index = 0; index < count; ++index) AnyUnreal::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, waitEvent, &waiters, "AnyUnrealEventCheck"), __func__);
+        for (unsigned index = 0; index < count; ++index) UnrealProspero::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, waitEvent, &waiters, "UnrealProsperoEventCheck"), __func__);
         bool ready = waiters.ready.Wait(5000);
         waiters.event.Trigger();
-        for (unsigned index = 0; index < count; ++index) AnyUnreal::Kernel::CheckResult(scePthreadJoin(threads[index], nullptr), __func__);
+        for (unsigned index = 0; index < count; ++index) UnrealProspero::Kernel::CheckResult(scePthreadJoin(threads[index], nullptr), __func__);
         return ready && waiters.awakened.load() == count;
     }
 }

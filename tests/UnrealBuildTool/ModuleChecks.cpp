@@ -1,14 +1,14 @@
-#include "AnyUnreal/Kernel/Module.h"
-#include "AnyUnreal/Text/Encoding.h"
+#include "UnrealProspero/Kernel/Module.h"
+#include "UnrealProspero/Text/Encoding.h"
 #include "HAL/PlatformProcess.h"
-#include "AnyUnreal/Kernel/Error.h"
+#include "UnrealProspero/Kernel/Error.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <stdexcept>
 #include <string>
 
 bool CheckModules()
 {
-    using AnyUnreal::Kernel::Module;
+    using UnrealProspero::Kernel::Module;
     try
     {
         Module invalid("");
@@ -28,10 +28,10 @@ bool CheckModules()
     if (threadId() != scePthreadGetthreadid()) return false;
     try
     {
-        first.FindSymbol("AnyUnrealMissingExportForModuleCheck");
+        first.FindSymbol("UnrealProsperoMissingExportForModuleCheck");
         return false;
     }
-    catch (const AnyUnreal::Kernel::Error&)
+    catch (const UnrealProspero::Kernel::Error&)
     {
     }
     first.Close();
@@ -47,7 +47,7 @@ bool CheckModules()
     threadId = reinterpret_cast<ThreadIdFunction>(second.FindSymbol("scePthreadGetthreadid"));
     if (threadId() != scePthreadGetthreadid()) return false;
     second.Close();
-    void* handle = FPlatformProcess::GetDllHandle(AnyUnreal::Text::DecodeUtf8(library).c_str());
+    void* handle = FPlatformProcess::GetDllHandle(UnrealProspero::Text::DecodeUtf8(library).c_str());
     threadId = reinterpret_cast<ThreadIdFunction>(FPlatformProcess::GetDllExport(handle, TEXT("scePthreadGetthreadid")));
     const bool passed = threadId() == scePthreadGetthreadid();
     FPlatformProcess::FreeDllHandle(handle);

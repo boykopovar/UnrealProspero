@@ -1,152 +1,152 @@
 cmake_minimum_required(VERSION 3.24)
-project(AnyUnrealShaderLoadingTests LANGUAGES CXX)
+project(UnrealProsperoShaderLoadingTests LANGUAGES CXX)
 
-set(runtime_root "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/AnyUnreal/Source/Runtime")
+set(runtime_root "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/UnrealProspero/Source/Runtime")
 set(test_targets AgcHeaderCheck)
-option(ANYUNREAL_TEST_CREATE_SHADER "Create AGC shaders through the release runtime" OFF)
-if(ANYUNREAL_TEST_CREATE_SHADER)
+option(UNREALPROSPERO_TEST_CREATE_SHADER "Create AGC shaders through the release runtime" OFF)
+if(UNREALPROSPERO_TEST_CREATE_SHADER)
     find_package(AnyDevKit CONFIG REQUIRED)
     adk_add_executable(AgcHeaderCheck AgcHeader.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/GraphicsShaderLink.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/GraphicsShaderLink.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_add_executable(ComputeCheck Compute.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture3D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthBounds.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/SamplerDescriptor.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/Upload.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/Readback.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Completion.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/ConstantData.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ComputeDispatch.cpp"
-        "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/ShaderBinary.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Tables.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Storage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/MergedTables.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Buffer/BufferClearValue.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture3D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/DepthTarget.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/DepthBounds.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Viewport.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/SamplerDescriptor.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/Upload.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/Readback.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/PatternFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Completion.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/ConstantData.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ComputeDispatch.cpp"
+        "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/ShaderBinary.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/Tables.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/Storage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/MergedTables.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/BufferDescriptor.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Buffer/BufferClearValue.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     set(graphics_sources Graphics.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Query/OcclusionSnapshot.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Completion.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/TextureClearValue.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorTarget.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/VertexBufferTable.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/GraphicsShaderLink.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Buffer/BufferClearValue.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Query/OcclusionSnapshot.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Completion.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureClearValue.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/PatternFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/IndirectDraw.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorTarget.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/VertexBufferTable.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/GraphicsShaderLink.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Viewport.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/BufferDescriptor.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Buffer/BufferClearValue.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
     set(depth_sources ${graphics_sources}
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthBias.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/DepthBias.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/DepthTarget.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp")
     foreach(depth_target IN ITEMS DepthCheck DepthBarrierCheck)
         adk_add_executable(${depth_target} ${depth_sources})
-        target_compile_definitions(${depth_target} PRIVATE ANYUNREAL_TEST_DEPTH=1 ANYUNREAL_TEST_OCCLUSION=0)
+        target_compile_definitions(${depth_target} PRIVATE UNREALPROSPERO_TEST_DEPTH=1 UNREALPROSPERO_TEST_OCCLUSION=0)
         adk_link_libraries(${depth_target} libc libkernel libSceAgc libSceAgcDriver)
         list(APPEND test_targets ${depth_target})
     endforeach()
-    target_compile_definitions(DepthCheck PRIVATE ANYUNREAL_TEST_DEPTH_BARRIER=0)
-    target_compile_definitions(DepthBarrierCheck PRIVATE ANYUNREAL_TEST_DEPTH_BARRIER=1)
+    target_compile_definitions(DepthCheck PRIVATE UNREALPROSPERO_TEST_DEPTH_BARRIER=0)
+    target_compile_definitions(DepthBarrierCheck PRIVATE UNREALPROSPERO_TEST_DEPTH_BARRIER=1)
     adk_add_executable(TextureCopyCheck TextureCopy.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/TextureCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
-    target_sources(TextureCopyCheck PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/TextureUpload.cpp" "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp")
-    target_sources(TextureCopyCheck PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/VolumeUpload.cpp" "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture3D.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/TextureCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/PatternFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
+    target_sources(TextureCopyCheck PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/TextureUpload.cpp" "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp")
+    target_sources(TextureCopyCheck PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/VolumeUpload.cpp" "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture3D.cpp")
     adk_link_libraries(TextureCopyCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(ColorClearCheck ColorClear.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture3D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/HalfPixels.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/TextureClearValue.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture3D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/HalfPixels.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureClearValue.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/PatternFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(SwapChainCheck SwapChain.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Presentation/SwapChain.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/TextureClearValue.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/Clock.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Presentation/SwapChain.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureClearValue.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/PatternFill.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/ApplicationCore/Private/UnrealProspero/Video/Output.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/Clock.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     target_include_directories(SwapChainCheck PRIVATE "${runtime_root}/ApplicationCore/Public")
     adk_link_libraries(SwapChainCheck libc libkernel libSceAgc libSceAgcDriver libSceVideoOut)
     adk_add_executable(DrawArgumentsCheck DrawArguments.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/IndirectDraw.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(DrawArgumentsCheck libc libkernel libSceAgc libSceAgcDriver)
     list(APPEND test_targets DrawArgumentsCheck)
     adk_add_executable(MemoryAccountingCheck MemoryAccounting.cpp
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearMipLayout.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
-        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(MemoryAccountingCheck libc libkernel)
     list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck SwapChainCheck MemoryAccountingCheck)
     adk_add_executable(OcclusionCheck ${graphics_sources})
-    target_compile_definitions(GraphicsCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=0)
-    target_compile_definitions(OcclusionCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=1)
+    target_compile_definitions(GraphicsCheck PRIVATE UNREALPROSPERO_TEST_OCCLUSION=0)
+    target_compile_definitions(OcclusionCheck PRIVATE UNREALPROSPERO_TEST_OCCLUSION=1)
     list(APPEND test_targets OcclusionCheck)
     adk_link_libraries(OcclusionCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(GraphicsCheck libc libkernel libSceAgc libSceAgcDriver)
@@ -154,13 +154,13 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
     adk_link_libraries(AgcHeaderCheck libc libkernel libSceAgc)
     foreach(test_target IN LISTS test_targets)
         set_target_properties(${test_target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
-        target_compile_definitions(${test_target} PRIVATE ANYUNREAL_TEST_CREATE_SHADER=1)
+        target_compile_definitions(${test_target} PRIVATE UNREALPROSPERO_TEST_CREATE_SHADER=1)
         if(ADK_TARGET STREQUAL "windows")
-            target_compile_definitions(${test_target} PRIVATE ANYUNREAL_TEST_AGC_TARGET=Windows)
+            target_compile_definitions(${test_target} PRIVATE UNREALPROSPERO_TEST_AGC_TARGET=Windows)
         elseif(ADK_TARGET STREQUAL "linux")
-            target_compile_definitions(${test_target} PRIVATE ANYUNREAL_TEST_AGC_TARGET=Linux)
+            target_compile_definitions(${test_target} PRIVATE UNREALPROSPERO_TEST_AGC_TARGET=Linux)
         elseif(ADK_TARGET STREQUAL "ps5")
-            target_compile_definitions(${test_target} PRIVATE ANYUNREAL_TEST_AGC_TARGET=Ps5)
+            target_compile_definitions(${test_target} PRIVATE UNREALPROSPERO_TEST_AGC_TARGET=Ps5)
         else()
             message(FATAL_ERROR "Unknown AGC test platform")
         endif()
@@ -171,14 +171,14 @@ else()
     endif()
     add_executable(AgcHeaderCheck AgcHeader.cpp)
     target_include_directories(AgcHeaderCheck SYSTEM PRIVATE "${ADK_HEADERS}")
-    target_compile_definitions(AgcHeaderCheck PRIVATE ANYUNREAL_TEST_CREATE_SHADER=0)
+    target_compile_definitions(AgcHeaderCheck PRIVATE UNREALPROSPERO_TEST_CREATE_SHADER=0)
 endif()
 foreach(test_target IN LISTS test_targets)
-    target_sources(${test_target} PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/HalfFloat.cpp")
-    target_sources(${test_target} PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcHeader.cpp")
-    target_sources(${test_target} PRIVATE "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/UserData.cpp")
-    target_include_directories(${test_target} PRIVATE "${runtime_root}/AnyUnrealRHI/Public" "${runtime_root}/AnyUnrealShaderCommon/Public" "${runtime_root}/Core/Public")
-    target_compile_definitions(${test_target} PRIVATE ANYUNREALRHI_API= ANYUNREALSHADERCOMMON_API=)
+    target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/HalfFloat.cpp")
+    target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcHeader.cpp")
+    target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/UserData.cpp")
+    target_include_directories(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Public" "${runtime_root}/UnrealProsperoShaderCommon/Public" "${runtime_root}/Core/Public")
+    target_compile_definitions(${test_target} PRIVATE UNREALPROSPERORHI_API= UNREALPROSPEROSHADERCOMMON_API=)
     target_compile_features(${test_target} PRIVATE cxx_std_20)
     set_target_properties(${test_target} PROPERTIES CXX_EXTENSIONS OFF)
     if(MSVC)

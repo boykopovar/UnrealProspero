@@ -1,21 +1,21 @@
-#include "AnyUnreal/Runnable/Priority.h"
-#include "AnyUnreal/Kernel/Thread.h"
-#include "AnyUnreal/Kernel/Affinity.h"
-#include "AnyUnreal/Kernel/Event.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/Runnable/Priority.h"
+#include "UnrealProspero/Kernel/Thread.h"
+#include "UnrealProspero/Kernel/Affinity.h"
+#include "UnrealProspero/Kernel/Event.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <bit>
 #include <stdexcept>
 
 bool CheckThreads()
 {
-    using namespace AnyUnreal::Kernel;
+    using namespace UnrealProspero::Kernel;
     ThreadAttributes attributes;
     constexpr EThreadPriority priorities[]{TPri_TimeCritical, TPri_Highest, TPri_AboveNormal, TPri_Normal, TPri_SlightlyBelowNormal, TPri_BelowNormal, TPri_Lowest};
     int previous = 255;
     for (const auto priority : priorities)
     {
-        const int mapped = AnyUnreal::Runnable::GetKernelPriority(priority);
+        const int mapped = UnrealProspero::Runnable::GetKernelPriority(priority);
         if (mapped <= previous || mapped > 767) return false;
         attributes.SetPriority(mapped);
         KernelSchedParam actual{};
@@ -25,7 +25,7 @@ bool CheckThreads()
     }
     try
     {
-        AnyUnreal::Runnable::GetKernelPriority(TPri_Num);
+        UnrealProspero::Runnable::GetKernelPriority(TPri_Num);
         return false;
     }
     catch (const std::invalid_argument&)
@@ -62,7 +62,7 @@ bool CheckThreads()
         passed = priority.sched_priority == 600 && inherit == 0 && actualStack == stackSize && Affinity::Get(scePthreadSelf()) == affinity && scePthreadGetthreadid() != parent;
         entered.Trigger();
         release.Wait();
-    }, "AnyUnrealThread", &attributes);
+    }, "UnrealProsperoThread", &attributes);
     const bool started = entered.Wait(5000);
     const bool valid = started && thread.IsJoinable() && thread.Get() != scePthreadSelf();
     release.Trigger();
@@ -79,10 +79,10 @@ bool CheckThreads()
     }
     int value = 0;
     {
-        Thread scoped([&] { value = 42; }, "AnyUnrealScoped");
+        Thread scoped([&] { value = 42; }, "UnrealProsperoScoped");
     }
     if (value != 42) return false;
-    Thread throwing([] { throw std::range_error("thread failure"); }, "AnyUnrealThrow");
+    Thread throwing([] { throw std::range_error("thread failure"); }, "UnrealProsperoThrow");
     try
     {
         throwing.Join();

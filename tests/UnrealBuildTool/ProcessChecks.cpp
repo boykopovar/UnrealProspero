@@ -1,9 +1,9 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformAffinity.h"
-#include "AnyUnreal/Kernel/Affinity.h"
+#include "UnrealProspero/Kernel/Affinity.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <bit>
-#include "AnyUnreal/Kernel/Clock.h"
+#include "UnrealProspero/Kernel/Clock.h"
 #include <limits>
 #include <stdexcept>
 
@@ -12,8 +12,8 @@ namespace
     class AffinityRestore
     {
     public:
-        AffinityRestore() : mask(AnyUnreal::Kernel::Affinity::Get(scePthreadSelf())) {}
-        ~AffinityRestore() noexcept(false) { AnyUnreal::Kernel::Affinity::Set(scePthreadSelf(), mask); }
+        AffinityRestore() : mask(UnrealProspero::Kernel::Affinity::Get(scePthreadSelf())) {}
+        ~AffinityRestore() noexcept(false) { UnrealProspero::Kernel::Affinity::Set(scePthreadSelf(), mask); }
 
     private:
         KernelCpumask mask;
@@ -21,7 +21,7 @@ namespace
 
     bool checkIdentity()
     {
-        using AnyUnreal::Kernel::Affinity;
+        using UnrealProspero::Kernel::Affinity;
         if (FPlatformProcess::GetCurrentProcessId() != static_cast<uint32>(getpid_nid_postfix())) return false;
         AffinityRestore restore;
         const auto available = Affinity::Available();
@@ -78,7 +78,7 @@ bool CheckProcess()
     if (!rejects<std::overflow_error>(std::numeric_limits<float>::max())) return false;
     FPlatformProcess::YieldThread();
     FPlatformProcess::SleepNoStats(0);
-    using AnyUnreal::Kernel::Clock;
+    using UnrealProspero::Kernel::Clock;
     const auto start = Clock::MonotonicNanoseconds();
     FPlatformProcess::SleepNoStats(0.02f);
     const auto end = Clock::MonotonicNanoseconds();

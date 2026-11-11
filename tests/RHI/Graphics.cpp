@@ -1,22 +1,22 @@
-#include "AnyUnreal/RHI/Shader/GraphicsShaderLink.h"
-#include "AnyUnreal/RHI/Shader/ShaderCommands.h"
-#include "AnyUnreal/RHI/Command/CommandStorage.h"
-#include "AnyUnreal/RHI/Command/MemoryAcquire.h"
-#include "AnyUnreal/RHI/Command/Submission.h"
-#include "AnyUnreal/RHI/Command/Viewport.h"
-#include "AnyUnreal/RHI/Command/ColorTarget.h"
-#include "AnyUnreal/RHI/Command/ColorClear.h"
-#if ANYUNREAL_TEST_DEPTH
-#include "AnyUnreal/RHI/Command/DepthTarget.h"
-#include "AnyUnreal/RHI/Command/DepthBias.h"
-#include "AnyUnreal/RHI/Command/MemoryBarrier.h"
+#include "UnrealProspero/RHI/Shader/GraphicsShaderLink.h"
+#include "UnrealProspero/RHI/Shader/ShaderCommands.h"
+#include "UnrealProspero/RHI/Command/CommandStorage.h"
+#include "UnrealProspero/RHI/Command/MemoryAcquire.h"
+#include "UnrealProspero/RHI/Command/Submission.h"
+#include "UnrealProspero/RHI/Command/Viewport.h"
+#include "UnrealProspero/RHI/Command/ColorTarget.h"
+#include "UnrealProspero/RHI/Command/ColorClear.h"
+#if UNREALPROSPERO_TEST_DEPTH
+#include "UnrealProspero/RHI/Command/DepthTarget.h"
+#include "UnrealProspero/RHI/Command/DepthBias.h"
+#include "UnrealProspero/RHI/Command/MemoryBarrier.h"
 #endif
-#if ANYUNREAL_TEST_OCCLUSION
-#include "AnyUnreal/RHI/Query/OcclusionSnapshot.h"
+#if UNREALPROSPERO_TEST_OCCLUSION
+#include "UnrealProspero/RHI/Query/OcclusionSnapshot.h"
 #endif
-#include "AnyUnreal/RHI/Command/IndirectDraw.h"
-#include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/RHI/Command/IndirectDraw.h"
+#include "UnrealProspero/RHI/Descriptor/VertexBufferTable.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libSceAgc/DcbDraw/include/IndexBuffer.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -47,8 +47,8 @@ int main()
 {
     if (getargc_nid_postfix() != 7 && getargc_nid_postfix() != 8) throw std::invalid_argument("Expected vertex and pixel header, code and metadata, optionally followed by geometry");
     const auto* argv = getargv_nid_postfix();
-    using namespace AnyUnreal::RHI;
-    namespace Shaders = AnyUnreal::Shader;
+    using namespace UnrealProspero::RHI;
+    namespace Shaders = UnrealProspero::Shader;
     const bool geometry = getargc_nid_postfix() == 8;
     if (geometry && std::string_view(argv[7]) != "geometry") throw std::invalid_argument("Unknown graphics program stage");
     const auto vertexStage = geometry ? Shaders::ShaderStage::Geometry : Shaders::ShaderStage::Vertex;
@@ -64,12 +64,12 @@ int main()
     if (vertexLayout.GetVertexBufferUsageMask() != (dynamic ? 3u : 0x88u) || vertexLayout.UsesVertexBuffersPerAttribute() != dynamic) throw std::invalid_argument("Graphics fixture has an unexpected vertex layout");
     const auto aperture = vertexLayout.GetAddressHigh();
     if (pixelLayout.GetAddressHigh() != aperture) throw std::invalid_argument("Shader apertures disagree");
-    AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    constexpr auto target = Shaders::AgcTarget::ANYUNREAL_TEST_AGC_TARGET;
+    UnrealProspero::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    constexpr auto target = Shaders::AgcTarget::UNREALPROSPERO_TEST_AGC_TARGET;
     const AgcShader vertex({vertexStage, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, vertexStage, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
     for (const auto dimensions : {std::array{0u, 1u}, std::array{1u, 0u}, std::array{16385u, 1u}, std::array{1u, 16385u}})
     {
         bool rejected = false;
@@ -86,7 +86,7 @@ int main()
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
     for (const auto mipLevel : {0u})
 #else
     for (const auto mipLevel : {0u, 1u})
@@ -96,14 +96,14 @@ int main()
         const auto width = dimensions[0];
         const auto height = dimensions[1];
         std::string caseName = std::to_string(width) + "x" + std::to_string(height) + " indirect " + std::to_string(indirect) + " index stride " + std::to_string(indexStride) + " base vertex " + std::to_string(baseVertex);
-#if ANYUNREAL_TEST_DEPTH
-        caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(ANYUNREAL_TEST_DEPTH_BARRIER);
+#if UNREALPROSPERO_TEST_DEPTH
+        caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(UNREALPROSPERO_TEST_DEPTH_BARRIER);
 #endif
         const auto arrayLayer = mipLevel == 0 ? 0u : 2u;
-        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, AnyUnreal::Kernel::DirectAllocation::PageSize, mipLevel + 2, AllocationUsage::Texture, 3);
+        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, UnrealProspero::Kernel::DirectAllocation::PageSize, mipLevel + 2, AllocationUsage::Texture, 3);
         const auto& targetMip = targetTexture.GetMipLayout(mipLevel);
         const auto targetOffset = arrayLayer * targetTexture.GetLayerPitch() + targetMip.Offset;
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         LinearTexture2D secondTarget(width, height, format, aperture);
 #endif
         const auto& output = targetTexture.GetStorage();
@@ -142,13 +142,13 @@ int main()
             indexStorage.Upload(0, std::as_bytes(std::span(indices)));
         }
         std::fill_n(static_cast<std::uint32_t*>(output.Data()), output.Size() / 4, 0xa5a5a5a5u);
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         const float vertexDepth = depthMode >= 3 ? 0.5f : 0.0f;
 #else
         constexpr float vertexDepth = 0;
 #endif
         std::array<float, 9> positionValues{-1, -1, vertexDepth, 3, -1, vertexDepth, -1, 3, vertexDepth};
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         if (depthMode >= 5)
         {
             positionValues[2] = 0.25f;
@@ -205,10 +205,10 @@ int main()
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
         WriteColorClear(commands, targetTexture, {}, mipLevel, arrayLayer);
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         WriteColorClear(commands, secondTarget, {});
         DepthTexture2D depthTexture(width, height, aperture);
-#if ANYUNREAL_TEST_DEPTH_BARRIER
+#if UNREALPROSPERO_TEST_DEPTH_BARRIER
         MemoryBarrier depthBarrier(aperture);
 #endif
         if (reinterpret_cast<std::uintptr_t>(depthTexture.GetStorage().Data()) % 65536 != 0 || depthTexture.GetStorage().Size() != DepthTexture2D::CalculateDataSize(width, height)) throw std::runtime_error("Depth texture allocation does not match its tiled layout");
@@ -232,7 +232,7 @@ int main()
             ShaderRegister{0x2fa, 0x3f800000}, ShaderRegister{0x2fb, 0x3f800000}, ShaderRegister{0x2fc, 0x3f800000}, ShaderRegister{0x2fd, 0x3f800000}
         };
         for (const auto value : state) sceAgcDcbSetCxRegisterDirect(&commands, value);
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         sceAgcDcbSetCxRegisterDirect(&commands, {0x200, 0x16});
         WriteDepthBias(commands, depthMode == 3 ? 8.0f : depthMode == 4 ? -8.0f : 0.0f, depthMode == 5 ? 1.0f : depthMode == 6 ? -1.0f : 0.0f);
         if (depthMode >= 3) sceAgcDcbSetCxRegisterDirect(&commands, {0x205, 0x240 | (7u << 11)});
@@ -246,7 +246,7 @@ int main()
         vertexInputs.StartInstance = firstInstance;
         WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
         WriteShaderRegisters(commands, pixel, pixelLayout, {});
-#if ANYUNREAL_TEST_OCCLUSION
+#if UNREALPROSPERO_TEST_OCCLUSION
         OcclusionSnapshot occlusion(aperture);
         std::uint64_t sampleCount = 123;
         if (occlusion.TryGetResult(sampleCount, false) || sampleCount != 123) throw std::runtime_error("Unrecorded query returned a result");
@@ -264,10 +264,10 @@ int main()
             else sceAgcDcbDrawIndexAuto(&commands, 3, 0);
         };
         draw();
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         if (depthMode >= 2)
         {
-#if ANYUNREAL_TEST_DEPTH_BARRIER
+#if UNREALPROSPERO_TEST_DEPTH_BARRIER
             const auto& depthStorage = depthTexture.GetStorage();
             const std::array depthRanges{GpuMemoryRange{depthStorage.Data(), depthStorage.Size()}, GpuMemoryRange{output.Data(), output.Size()}};
             depthBarrier.Release(commands);
@@ -278,12 +278,12 @@ int main()
             draw();
         }
 #endif
-#if ANYUNREAL_TEST_OCCLUSION
+#if UNREALPROSPERO_TEST_OCCLUSION
         occlusion.End(commands);
         if (occlusion.TryGetResult(sampleCount, false) || sampleCount != 123) throw std::runtime_error("Unsubmitted query returned a result");
 #endif
         SubmitAndWait(commands, fence, 1, 10000000);
-#if ANYUNREAL_TEST_OCCLUSION
+#if UNREALPROSPERO_TEST_OCCLUSION
         const auto expectedSamples = static_cast<std::uint64_t>(width - 2 * (width / 8)) * (height - 2 * (height / 8)) * instanceCount;
 #endif
         std::array<std::uint8_t, 16> color{};
@@ -304,7 +304,7 @@ int main()
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
         for (std::size_t offset = 0; offset < output.Size(); ++offset) if ((offset < targetOffset || offset >= targetOffset + targetMip.Size) && pixels[offset] != 0xa5) throw std::runtime_error("Color target changed an adjacent mip or array layer");
         pixels += targetOffset;
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
         if (depthMode >= 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
 #endif
         const auto pixelBytes = targetMip.RowBytes / width;
@@ -313,7 +313,7 @@ int main()
             for (unsigned x = 0; x < width; ++x)
             {
                 bool inside = x >= width / 8 && x < width - width / 8 && y >= height / 8 && y < height - height / 8;
-#if ANYUNREAL_TEST_DEPTH
+#if UNREALPROSPERO_TEST_DEPTH
                 inside = inside && (depthMode == 1 || depthMode == 3 || depthMode == 5);
 #endif
                 if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float)
@@ -335,7 +335,7 @@ int main()
                 }
             }
         }
-#if ANYUNREAL_TEST_OCCLUSION
+#if UNREALPROSPERO_TEST_OCCLUSION
         if (!occlusion.TryGetResult(sampleCount, true) || sampleCount != expectedSamples) throw std::runtime_error("Occlusion sample count mismatch: " + std::to_string(sampleCount) + " expected " + std::to_string(expectedSamples) + " format " + std::to_string(static_cast<int>(format)) + " indirect " + std::to_string(indirect));
 #endif
     }

@@ -1,28 +1,28 @@
-#include "AnyUnreal/Video/Output.h"
+#include "UnrealProspero/Video/Output.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "AnyUnreal/Kernel/Error.h"
-#include "AnyUnreal/Kernel/DirectAllocation.h"
-#include "AnyUnreal/Kernel/Clock.h"
+#include "UnrealProspero/Kernel/Error.h"
+#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libSceVideoOut/include/Buffer.hpp"
 #include <array>
 #include <stdexcept>
 
-void WaitForFlip(AnyUnreal::Video::Output& output, std::int64_t argument)
+void WaitForFlip(UnrealProspero::Video::Output& output, std::int64_t argument)
 {
-    const auto start = AnyUnreal::Kernel::Clock::MonotonicNanoseconds();
+    const auto start = UnrealProspero::Kernel::Clock::MonotonicNanoseconds();
     while (output.GetFlipStatus().flipArg != argument)
     {
-        if (AnyUnreal::Kernel::Clock::MonotonicNanoseconds() - start > 5000000000ull) throw std::runtime_error("Video flip timed out");
+        if (UnrealProspero::Kernel::Clock::MonotonicNanoseconds() - start > 5000000000ull) throw std::runtime_error("Video flip timed out");
         output.WaitVblank();
     }
 }
 
 int main()
 {
-    using AnyUnreal::Video::Output;
+    using UnrealProspero::Video::Output;
     for (int iteration = 0; iteration != 3; ++iteration)
     {
-        AnyUnreal::Kernel::DirectAllocation pixels(262144, 65536, AnyUnreal::Kernel::DirectMemoryAccess::CpuGpu);
+        UnrealProspero::Kernel::DirectAllocation pixels(262144, 65536, UnrealProspero::Kernel::DirectMemoryAccess::CpuGpu);
         Output output;
         static_cast<void>(FPlatformApplicationMisc::IsThisApplicationForeground());
         FPlatformApplicationMisc::PumpMessages(false);
@@ -34,7 +34,7 @@ int main()
             Output duplicate;
             return 62;
         }
-        catch (const AnyUnreal::Kernel::Error&)
+        catch (const UnrealProspero::Kernel::Error&)
         {
         }
         const auto after = output.GetResolution();

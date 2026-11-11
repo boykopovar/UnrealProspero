@@ -1,5 +1,5 @@
-#include "AnyUnreal/Cook/SettingsModule.h"
+#include "UnrealProspero/Cook/SettingsModule.h"
 #include "Modules/ModuleManager.h"
 
-using AnyWin64SettingsModule = AnyUnreal::Cook::SettingsModule<EAnyUnrealTarget::Windows>;
+using AnyWin64SettingsModule = UnrealProspero::Cook::SettingsModule<EUnrealProsperoTarget::Windows>;
 IMPLEMENT_MODULE(AnyWin64SettingsModule, AnyWin64TargetPlatformSettings)

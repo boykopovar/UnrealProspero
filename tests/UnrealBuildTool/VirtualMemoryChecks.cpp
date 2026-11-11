@@ -1,5 +1,5 @@
 #include "HAL/PlatformMemory.h"
-#include "AnyUnreal/Kernel/Result.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <cstring>
 #include <cstdint>
@@ -12,7 +12,7 @@ namespace
     bool isCommitted(void* address)
     {
         VirtualQueryInfo info{};
-        AnyUnreal::Kernel::CheckResult(sceKernelVirtualQuery(address, 0, &info, sizeof(info)), "sceKernelVirtualQuery");
+        UnrealProspero::Kernel::CheckResult(sceKernelVirtualQuery(address, 0, &info, sizeof(info)), "sceKernelVirtualQuery");
         return info.is_committed != 0;
     }
 }

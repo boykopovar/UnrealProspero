@@ -1,0 +1,40 @@
+#ifndef UNREALPROSPERO_RHI_COMMAND_TEXTURE_COPY_H
+#define UNREALPROSPERO_RHI_COMMAND_TEXTURE_COPY_H
+
+#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/LinearTexture3D.h"
+#include "SceTypes.hpp"
+
+namespace UnrealProspero::RHI
+{
+    struct TextureCopyRegion
+    {
+        std::uint32_t SourceX;
+        std::uint32_t SourceY;
+        std::uint32_t DestinationX;
+        std::uint32_t DestinationY;
+        std::uint32_t Width;
+        std::uint32_t Height;
+        std::uint32_t SourceMip = 0;
+        std::uint32_t DestinationMip = 0;
+        std::uint32_t SourceLayer = 0;
+        std::uint32_t DestinationLayer = 0;
+    };
+
+    struct VolumeCopyRegion
+    {
+        std::array<std::uint32_t, 3> Source;
+        std::array<std::uint32_t, 3> Destination;
+        std::array<std::uint32_t, 3> Extent;
+        std::uint32_t SourceMip = 0;
+        std::uint32_t DestinationMip = 0;
+    };
+
+    UNREALPROSPERORHI_API void ValidateTextureCopy(const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);
+    UNREALPROSPERORHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);
+    UNREALPROSPERORHI_API std::vector<TextureCopyRegion> BuildTextureCopyRegions(const LinearTexture2D& destination, const LinearTexture2D& source, TextureCopyRegion firstRegion, std::uint32_t mipCount, std::uint32_t layerCount);
+    UNREALPROSPERORHI_API void ValidateTextureCopy(const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
+    UNREALPROSPERORHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
+}
+
+#endif
