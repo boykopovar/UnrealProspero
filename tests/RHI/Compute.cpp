@@ -1,5 +1,5 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
-#include "AnyUnreal/RHI/Descriptor/Buffer.h"
+#include "AnyUnreal/RHI/Descriptor/Tables.h"
 #include <algorithm>
 #include <string_view>
 #include "AnyUnreal/RHI/Command/Submission.h"
@@ -22,6 +22,48 @@ namespace
         std::vector<std::uint8_t> result(std::istreambuf_iterator<char>(file), {});
         if (file.bad() || result.empty()) throw std::runtime_error("Cannot read compute shader input");
         return result;
+    }
+
+    void checkDescriptorTables(std::uint32_t addressHigh, const void* buffer)
+    {
+        namespace RHI = AnyUnreal::RHI;
+        namespace Shaders = AnyUnreal::Shader;
+        using Kind = Shaders::ResourceKind;
+        const std::array bindings{
+            Shaders::RuntimeBinding{Kind::ShaderResource, 5, 2, 9, 2, 32, 16, 0, "storage-buffer"},
+            Shaders::RuntimeBinding{Kind::UniformBuffer, 7, 3, 1, 1, 0, 16, 64, "uniform-buffer"}
+        };
+        RHI::DescriptorTables tables(bindings, addressHigh);
+        const auto reject = [](auto&& action)
+        {
+            try { action(); }
+            catch (const std::exception&) { return; }
+            throw std::runtime_error("Invalid descriptor binding was accepted");
+        };
+        reject([&] { tables.SetBuffer(Kind::ShaderResource, 4, buffer, 64); });
+        reject([&] { tables.SetBuffer(Kind::ShaderResource, 7, buffer, 64); });
+        reject([&] { tables.SetBuffer(Kind::UniformBuffer, 7, buffer, 32); });
+        const std::array<std::byte, 8> shortDescriptor{};
+        reject([&] { tables.SetDescriptor(Kind::ShaderResource, 5, shortDescriptor); });
+        tables.SetBuffer(Kind::ShaderResource, 5, buffer, 64);
+        tables.SetBuffer(Kind::UniformBuffer, 7, buffer, 64);
+        Shaders::UserDataInputs inputs;
+        inputs.DescriptorSets.fill(123);
+        reject([&] { tables.Apply(inputs); });
+        for (const auto address : inputs.DescriptorSets)
+        {
+            if (address != 123) throw std::runtime_error("Incomplete descriptor application changed user data");
+        }
+        tables.SetBuffer(Kind::ShaderResource, 6, buffer, 128);
+        tables.Apply(inputs);
+        if (inputs.DescriptorSets[0] != 0 || inputs.DescriptorSets[1] != 0 || inputs.DescriptorSets[2] == 0 || inputs.DescriptorSets[3] == 0) throw std::runtime_error("Descriptor sets were assigned incorrectly");
+        const auto* array = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[2]);
+        const auto* uniform = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[3]);
+        if (array[10] != 64 || array[14] != 128 || uniform[2] != 64) throw std::runtime_error("Descriptor array offsets were assigned incorrectly");
+        for (unsigned index = 0; index < 8; ++index)
+        {
+            if (array[index] != 0) throw std::runtime_error("Descriptor write overwrote layout padding");
+        }
     }
 
     bool APS5_VABI exhausted(CommandBuffer*, std::uint32_t, void*)
@@ -52,21 +94,24 @@ int main()
     RHI::BufferAllocation memory(16384, layout.GetAddressHigh());
     RHI::BufferAllocation secondMemory(16384, layout.GetAddressHigh());
     if (secondMemory.Data() == memory.Data()) throw std::runtime_error("GPU allocations overlap");
+    checkDescriptorTables(layout.GetAddressHigh(), secondMemory.Data());
     auto* base = static_cast<std::byte*>(memory.Data());
-    auto* descriptor = reinterpret_cast<std::uint32_t*>(base);
     auto* fence = std::construct_at(reinterpret_cast<std::uint64_t*>(base + 64), 0);
     auto* output = reinterpret_cast<std::uint32_t*>(base + 256);
     auto* input = static_cast<std::uint32_t*>(secondMemory.Data());
     auto* words = reinterpret_cast<std::uint32_t*>(base + 4096);
-    const auto outputDescriptor = RHI::CreateByteAddressBufferDescriptor(output, 64 * sizeof(std::uint32_t));
-    std::copy(outputDescriptor.begin(), outputDescriptor.end(), descriptor + (readWrite ? 4 : 0));
-    if (readWrite)
-    {
-        const auto inputDescriptor = RHI::CreateByteAddressBufferDescriptor(input, 64 * sizeof(std::uint32_t));
-        std::copy(inputDescriptor.begin(), inputDescriptor.end(), descriptor);
-    }
+    std::vector<Shaders::RuntimeBinding> bindings;
+    if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite ? 1u : 0u, 1, readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
     Shaders::UserDataInputs inputs;
-    inputs.DescriptorSets[0] = reinterpret_cast<std::uintptr_t>(descriptor);
+    bool rejected = false;
+    try { descriptors.Apply(inputs); }
+    catch (const std::runtime_error&) { rejected = true; }
+    if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
+    descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
+    if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+    descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 2; ++iteration)
     {
         for (unsigned index = 0; index < 64; ++index)
@@ -79,6 +124,7 @@ int main()
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, secondMemory.Data(), secondMemory.Size(), 40);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, shader.Get().code, shader.Get().shader_size, 40);
+        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, reinterpret_cast<const void*>(inputs.DescriptorSets[0]), bindings.size() * 16, 40);
         RHI::WriteShaderRegisters(commands, shader, layout, inputs);
         sceAgcCbDispatch(&commands, 1, 1, 1, shader.Get().specials->dispatch_modifier);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
