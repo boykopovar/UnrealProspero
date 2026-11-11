@@ -186,8 +186,8 @@ int main()
         if (emptyInputs.VertexBuffers != 0 || !emptyTable.GetMemoryRanges().empty()) throw std::runtime_error("Empty vertex table retained GPU state");
         const std::weak_ptr<BufferAllocation> positionLifetime = positions;
         const std::weak_ptr<BufferAllocation> colorLifetime = colors;
-        const auto colorFormat = !dynamic ? VertexFormat::Untyped : vertexFormat == 0 ? VertexFormat::Float4 : VertexFormat::Half4;
-        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{dynamic ? 1u : 7u, colors, 32, colorStride, colorFormat, divisor, instanceMode != 0}, VertexBufferBinding{dynamic ? 0u : 3u, positions, 16, 12, dynamic ? VertexFormat::Float3 : VertexFormat::Untyped}}, aperture, dynamic);
+        const auto colorFormat = !dynamic ? BufferFormat::Untyped : vertexFormat == 0 ? BufferFormat::Float4 : BufferFormat::Half4;
+        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{dynamic ? 1u : 7u, colors, 32, colorStride, colorFormat, divisor, instanceMode != 0}, VertexBufferBinding{dynamic ? 0u : 3u, positions, 16, 12, dynamic ? BufferFormat::Float3 : BufferFormat::Untyped}}, aperture, dynamic);
         positions.reset();
         colors.reset();
         if (positionLifetime.expired() || colorLifetime.expired()) throw std::runtime_error("Vertex table did not retain source buffers");

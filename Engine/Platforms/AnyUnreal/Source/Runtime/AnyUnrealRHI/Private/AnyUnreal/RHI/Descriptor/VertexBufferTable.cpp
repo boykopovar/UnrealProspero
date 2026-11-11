@@ -24,7 +24,7 @@ namespace AnyUnreal::RHI
         {
             if (!binding) continue;
             const auto range = binding->Storage->GetRange(binding->Offset, binding->Storage->Size() - binding->Offset);
-            if (!dynamic && (binding->Format != VertexFormat::Untyped || binding->InstanceRate || binding->InstanceDivisor != 1)) throw std::invalid_argument("Dynamic attributes supplied to a static vertex table");
+            if (!dynamic && (binding->Format != BufferFormat::Untyped || binding->InstanceRate || binding->InstanceDivisor != 1)) throw std::invalid_argument("Dynamic attributes supplied to a static vertex table");
             const auto descriptor = dynamic ? CreateTypedVertexBufferDescriptor(range.data(), range.size(), binding->Stride, binding->Format) : CreateVertexBufferDescriptor(range.data(), range.size(), binding->Stride);
             descriptors.insert(descriptors.end(), descriptor.begin(), descriptor.end());
             if (dynamic) descriptors.insert(descriptors.end(), {binding->InstanceDivisor, binding->InstanceRate ? 1u : 0u, 0u, 0u});

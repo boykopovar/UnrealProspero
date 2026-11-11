@@ -14,7 +14,7 @@ namespace AnyUnreal::RHI
         bool GetInitializer(FVertexDeclarationElementList& initializer) override;
         const FVertexDeclarationElementList& GetElements() const;
         static uint32 GetElementSize(EVertexElementType type);
-        static VertexFormat GetElementFormat(EVertexElementType type);
+        static BufferFormat GetElementFormat(EVertexElementType type);
 
     private:
         FVertexDeclarationElementList elements;

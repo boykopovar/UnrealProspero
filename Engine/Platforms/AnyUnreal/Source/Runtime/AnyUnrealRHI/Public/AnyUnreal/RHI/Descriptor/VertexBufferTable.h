@@ -16,7 +16,7 @@ namespace AnyUnreal::RHI
         std::shared_ptr<BufferAllocation> Storage;
         std::size_t Offset;
         std::uint32_t Stride;
-        VertexFormat Format = VertexFormat::Untyped;
+        BufferFormat Format = BufferFormat::Untyped;
         std::uint32_t InstanceDivisor = 1;
         bool InstanceRate = false;
     };
