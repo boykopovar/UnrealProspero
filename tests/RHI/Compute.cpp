@@ -147,6 +147,8 @@ int main()
             values[index] = index + static_cast<std::uint32_t>(iteration * 7);
         }
         secondMemory.Upload(inputOffset, std::as_bytes(std::span(values)));
+        const std::array<std::uint32_t, 3> dispatchGroups{iteration == 3 ? 0u : 1u, 1u, 1u};
+        memory.Upload(2048, std::as_bytes(std::span(dispatchGroups)));
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
         std::vector<RHI::GpuMemoryRange> ranges{
@@ -155,6 +157,13 @@ int main()
             {shader.Get().code, shader.Get().shader_size}
         };
         const auto originalPosition = commands.cursor_up;
+        for (const auto offset : {2u, static_cast<unsigned>(memory.Size() - 8)})
+        {
+            bool rejectedArguments = false;
+            try { RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), offset); }
+            catch (const std::out_of_range&) { rejectedArguments = true; }
+            if (!rejectedArguments || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid indirect dispatch changed the command buffer");
+        }
         const RHI::GpuMemoryRange invalidRanges[]{
             {nullptr, 4},
             {memory.Data(), 0},
@@ -171,7 +180,8 @@ int main()
         const auto tableRanges = descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
-        RHI::WriteComputeDispatch(commands, shader, layout, inputs, iteration == 3 ? 0 : 1, 1, 1);
+        if (iteration == 1) RHI::WriteComputeDispatch(commands, shader, layout, inputs, 1, 1, 1);
+        else RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), 2048);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         for (unsigned index = 0; index < 64; ++index)
         {
@@ -179,5 +189,5 @@ int main()
             if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
-    std::cout << "GPU compute output verified for two dispatches and a zero-sized dispatch\n";
+    std::cout << "GPU compute output verified for direct, indirect and zero-sized indirect dispatches\n";
 }
