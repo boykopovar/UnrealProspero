@@ -22,8 +22,11 @@ namespace AnyUnreal::RHI
         TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 8>& GetDescriptor() const { return descriptor; }
         const BufferAllocation* GetStorage() const { return storage.get(); }
+        std::shared_ptr<const BufferAllocation> CaptureStorage() const { return storage; }
+        TextureFormat GetFormat() const { return format; }
 
     private:
+        TextureFormat format;
         std::shared_ptr<const BufferAllocation> storage;
         std::array<std::uint32_t, 8> descriptor;
     };

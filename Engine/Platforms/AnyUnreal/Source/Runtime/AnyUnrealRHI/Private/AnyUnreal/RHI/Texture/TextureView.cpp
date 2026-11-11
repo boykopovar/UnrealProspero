@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Texture/TextureView.h"
+#include "AnyUnreal/RHI/Texture/PixelFormat.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -29,7 +30,7 @@ namespace AnyUnreal::RHI
         description.Texture.SRV.GetViewInfo(&texture);
     }
 
-    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true))
+    TextureUnorderedAccessView::TextureUnorderedAccessView(TextureResource& texture, const FRHIViewDesc& description) : FRHIUnorderedAccessView(&texture, checkDescription(texture, description, true)), format(ResolveTextureFormat(texture.GetDesc().Format, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(true))
     {
         description.Texture.UAV.GetViewInfo(&texture);
     }

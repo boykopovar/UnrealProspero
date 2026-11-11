@@ -4,6 +4,8 @@
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Command/PatternFill.h"
 #include "AnyUnreal/RHI/Buffer/ClearValue.h"
+#include "AnyUnreal/RHI/Texture/ClearValue.h"
+#include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
@@ -88,18 +90,35 @@ namespace AnyUnreal::RHI
     }
 
     template<typename TValue>
-    void ComputeContext::clearBufferView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values)
+    void ComputeContext::clearView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values)
     {
         requireWritable();
-        if (!view || !view->IsBuffer()) throw std::invalid_argument("UAV clear requires a buffer view");
-        const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
-        const auto range = snapshot.GetRange();
+        if (!view) throw std::invalid_argument("UAV clear requires a view");
+        std::shared_ptr<const BufferAllocation> storage;
+        std::span<std::byte> range;
+        std::array<std::uint32_t, 4> pattern;
+        std::size_t words;
+        if (view->IsBuffer())
+        {
+            const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
+            storage = snapshot.CaptureStorage();
+            range = snapshot.GetRange();
+            pattern = EncodeBufferClear(snapshot.GetFormat(), values);
+            words = snapshot.GetFormat() == BufferFormat::Untyped ? 1u : GetBufferElementSize(snapshot.GetFormat()) / 4;
+        }
+        else
+        {
+            const auto& texture = *static_cast<TextureUnorderedAccessView*>(view);
+            storage = texture.CaptureStorage();
+            if (!storage) throw std::invalid_argument("Texture UAV clear requires allocated storage");
+            range = storage->GetRange(0, storage->Size());
+            pattern = EncodeTextureClear(texture.GetFormat(), values);
+            words = pattern.size();
+        }
         if (range.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
-        const auto pattern = EncodeBufferClear(snapshot.GetFormat(), values);
-        const auto words = snapshot.GetFormat() == BufferFormat::Untyped ? 1u : GetBufferElementSize(snapshot.GetFormat()) / 4;
         try
         {
-            clearedBuffers.push_back(snapshot.CaptureStorage());
+            clearedResources.push_back(std::move(storage));
             WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(words));
         }
         catch (...)
@@ -111,12 +130,12 @@ namespace AnyUnreal::RHI
 
     void ComputeContext::RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values)
     {
-        clearBufferView(view, std::array<std::uint32_t, 4>{values.X, values.Y, values.Z, values.W});
+        clearView(view, std::array<std::uint32_t, 4>{values.X, values.Y, values.Z, values.W});
     }
 
     void ComputeContext::RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values)
     {
-        clearBufferView(view, std::array<float, 4>{values.X, values.Y, values.Z, values.W});
+        clearView(view, std::array<float, 4>{values.X, values.Y, values.Z, values.W});
     }
 
     void ComputeContext::RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size)

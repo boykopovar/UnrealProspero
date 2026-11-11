@@ -71,7 +71,7 @@ namespace AnyUnreal::RHI
 
         void requireWritable() const;
         void recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin);
-        template<typename TValue> void clearBufferView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values);
+        template<typename TValue> void clearView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         CommandStorage commandStorage;
         Completion completion;
@@ -80,7 +80,7 @@ namespace AnyUnreal::RHI
         std::unique_ptr<ShaderParameters> parameters;
         std::vector<Dispatch> dispatches;
         StaticUniformBuffers staticUniforms;
-        std::vector<std::shared_ptr<BufferAllocation>> clearedBuffers;
+        std::vector<std::shared_ptr<const BufferAllocation>> clearedResources;
         std::vector<std::shared_ptr<ResourceTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         std::vector<std::shared_ptr<Completion>> fenceMarkers;
