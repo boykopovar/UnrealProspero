@@ -3,8 +3,8 @@ from pathlib import Path
 import subprocess
 
 
-def run(arguments):
-    subprocess.run([str(argument) for argument in arguments], check=True, timeout=120)
+def run(arguments, cwd=None):
+    subprocess.run([str(argument) for argument in arguments], cwd=cwd, check=True, timeout=120)
 
 
 def main():
@@ -57,7 +57,8 @@ def main():
             header = directory / "header.bin"
             code = directory / "code.bin"
             metadata = directory / "bindings.adk"
-            run([adk, "spirv", "--input", spirv, "--stage", stage, "--target", target, "--header", header, "--code", code, "--metadata", metadata, *descriptors])
+            (directory / "shader.spv").write_bytes(data)
+            run([adk, "spirv", "--input", "shader.spv", "--header", "header.bin", "--code", "code.bin", "--metadata", "bindings.adk", "--stage", stage, "--target", target, "--entry", "main", "--omit-implicit-primitive-id", "true", *descriptors], cwd=directory)
             for path in (header, code, metadata):
                 if not path.read_bytes():
                     raise RuntimeError(f"Empty shader output: {path}")
