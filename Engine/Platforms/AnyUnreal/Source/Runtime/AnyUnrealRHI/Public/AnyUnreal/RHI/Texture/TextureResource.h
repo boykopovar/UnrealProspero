@@ -37,8 +37,8 @@ namespace AnyUnreal::RHI
         std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
         std::shared_ptr<const LinearTexture3D> CaptureVolume() const;
         std::shared_ptr<const BufferAllocation> CaptureStorage() const;
-        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0) const;
-        std::vector<std::span<std::byte>> GetMipRanges(std::uint32_t mipLevel) const;
+        std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0, std::uint32_t firstLayer = 0, std::uint32_t layerCount = 0) const;
+        std::vector<std::span<std::byte>> GetMipRanges(std::uint32_t mipLevel, std::uint32_t firstLayer = 0, std::uint32_t layerCount = 0) const;
         const BufferAllocation& GetStorage() const;
         std::size_t GetAllocationSize() const;
 
