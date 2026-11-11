@@ -22,6 +22,7 @@
 #include "AnyUnreal/RHI/Texture/SurfaceData.h"
 #include "RHICommandList.h"
 #include "RHIResourceReplace.h"
+#include "RHIStats.h"
 #include <stdexcept>
 #include <set>
 #include <limits>
@@ -46,6 +47,14 @@ namespace AnyUnreal::RHI
         FTextureRHIRef result = initialMipCount ? new TextureResource(description, addressHigh, initialMipData[0]) : new TextureResource(description, addressHigh);
         completionEvent.SafeRelease();
         return result;
+    }
+
+    void DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& statistics)
+    {
+        if (!initialized || shutDown) throw std::runtime_error("Texture memory statistics require an initialized device");
+        FTextureMemoryStats result;
+        result.NonStreamingMemorySize = BufferAllocation::GetTextureAllocationBytes();
+        statistics = result;
     }
 
     void DynamicRHI::Init()

@@ -3,11 +3,13 @@
 #include <cstring>
 #include <stdexcept>
 #include <algorithm>
+#include <atomic>
 
 namespace AnyUnreal::RHI
 {
     namespace
     {
+        std::atomic<std::uint64_t> textureAllocationBytes{0};
         void* addressHint(std::uint32_t high, std::size_t alignment)
         {
             if (high > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
@@ -23,10 +25,22 @@ namespace AnyUnreal::RHI
         return (size + pageSize - 1) & ~(pageSize - 1);
     }
 
-    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment) : allocation(CalculateAllocationSize(size), alignment, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh, alignment)), size(size)
+    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, AllocationUsage usage) : allocation(CalculateAllocationSize(size), alignment, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh, alignment)), size(size), usage(usage)
     {
+        if (usage != AllocationUsage::Buffer && usage != AllocationUsage::Texture) throw std::invalid_argument("Invalid GPU allocation usage");
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());
         if ((address >> 32) != addressHigh || ((address + allocation.Size() - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
+        if (usage == AllocationUsage::Texture) textureAllocationBytes.fetch_add(allocation.Size(), std::memory_order_relaxed);
+    }
+
+    BufferAllocation::~BufferAllocation() noexcept(false)
+    {
+        if (usage == AllocationUsage::Texture) textureAllocationBytes.fetch_sub(allocation.Size(), std::memory_order_relaxed);
+    }
+
+    std::uint64_t BufferAllocation::GetTextureAllocationBytes()
+    {
+        return textureAllocationBytes.load(std::memory_order_relaxed);
     }
 
     std::span<std::byte> BufferAllocation::GetRange(std::size_t offset, std::size_t length) const

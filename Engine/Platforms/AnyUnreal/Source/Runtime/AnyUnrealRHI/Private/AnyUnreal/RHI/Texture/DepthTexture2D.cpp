@@ -9,7 +9,7 @@ namespace AnyUnreal::RHI
         return static_cast<std::size_t>((width + 127) / 128) * ((height + 127) / 128) * 65536;
     }
 
-    DepthTexture2D::DepthTexture2D(std::uint32_t width, std::uint32_t height, std::uint32_t addressHigh) : width(width), height(height), storage(CalculateDataSize(width, height), addressHigh, 65536) {}
+    DepthTexture2D::DepthTexture2D(std::uint32_t width, std::uint32_t height, std::uint32_t addressHigh) : width(width), height(height), storage(CalculateDataSize(width, height), addressHigh, 65536, AllocationUsage::Texture) {}
     std::array<std::uint32_t, 8> DepthTexture2D::GetDescriptor() const
     {
         const auto address = reinterpret_cast<std::uintptr_t>(storage.Data());

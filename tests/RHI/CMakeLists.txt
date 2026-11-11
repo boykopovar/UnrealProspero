@@ -107,7 +107,13 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     target_include_directories(SwapChainCheck PRIVATE "${runtime_root}/ApplicationCore/Public")
     adk_link_libraries(SwapChainCheck libc libkernel libSceAgc libSceAgcDriver libSceVideoOut)
-    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck SwapChainCheck)
+    adk_add_executable(MemoryAccountingCheck MemoryAccounting.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    adk_link_libraries(MemoryAccountingCheck libc libkernel)
+    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck SwapChainCheck MemoryAccountingCheck)
     adk_add_executable(OcclusionCheck ${graphics_sources})
     target_compile_definitions(GraphicsCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=0)
     target_compile_definitions(OcclusionCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=1)
