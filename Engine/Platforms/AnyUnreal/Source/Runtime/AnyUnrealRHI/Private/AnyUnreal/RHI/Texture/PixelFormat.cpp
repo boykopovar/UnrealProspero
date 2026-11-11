@@ -25,6 +25,8 @@ namespace AnyUnreal::RHI
             FormatMapping{PF_R16F_FILTER, TextureFormat::R16Float, std::nullopt},
             FormatMapping{PF_G16R16F, TextureFormat::Rg16Float, std::nullopt},
             FormatMapping{PF_G16R16F_FILTER, TextureFormat::Rg16Float, std::nullopt},
+            FormatMapping{PF_R32_UINT, TextureFormat::R32Uint, std::nullopt},
+            FormatMapping{PF_R32_SINT, TextureFormat::R32Sint, std::nullopt},
             FormatMapping{PF_R32_FLOAT, TextureFormat::R32Float, std::nullopt},
             FormatMapping{PF_FloatRGBA, TextureFormat::Rgba16Float, std::nullopt},
             FormatMapping{PF_A32B32G32R32F, TextureFormat::Rgba32Float, std::nullopt}
@@ -51,12 +53,13 @@ namespace AnyUnreal::RHI
             format.Supported = false;
             format.Capabilities = Caps::None;
         }
-        constexpr auto colorCaps = Caps::Texture2D | Caps::Texture3D | Caps::RenderTarget | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable | Caps::TextureStore | Caps::UAV | Caps::TypedUAVLoad | Caps::TypedUAVStore;
+        constexpr auto colorCaps = Caps::Texture2D | Caps::Texture3D | Caps::TextureCube | Caps::TextureMipmaps | Caps::RenderTarget | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable | Caps::TextureStore | Caps::UAV | Caps::TypedUAVLoad | Caps::TypedUAVStore;
         for (const auto& mapping : mappings)
         {
             auto& format = GPixelFormats[mapping.Pixel];
             format.Supported = true;
-            format.Capabilities = colorCaps;
+            const bool integer = mapping.Linear == TextureFormat::R32Uint || mapping.Linear == TextureFormat::R32Sint;
+            format.Capabilities = integer ? colorCaps & ~(Caps::TextureCube | Caps::RenderTarget | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable) : colorCaps;
         }
         auto& depth = GPixelFormats[PF_ShadowDepth];
         depth.Supported = true;
@@ -67,7 +70,7 @@ namespace AnyUnreal::RHI
         for (auto pixel : {PF_R16_UINT, PF_R32_UINT})
         {
             auto& format = GPixelFormats[pixel];
-            format.Capabilities = Caps::Buffer | Caps::IndexBuffer;
+            format.Capabilities |= Caps::Buffer | Caps::IndexBuffer;
         }
         ConfigureTypedBufferFormats();
     }

@@ -23,6 +23,7 @@ namespace AnyUnreal::RHI
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > static_cast<int32>(DeviceLimits::Texture2D) || description.Extent.Y > static_cast<int32>(DeviceLimits::Texture2D)) throw std::invalid_argument("Texture extent exceeds hardware limits");
             if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
             using Flags = ETextureCreateFlags;
+            if ((description.Format == PF_R32_UINT || description.Format == PF_R32_SINT) && EnumHasAnyFlags(description.Flags, Flags::RenderTargetable)) throw std::runtime_error("Integer render targets are not implemented");
             if (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::Presentable))
             {
                 if (description.NumMips != 1) throw std::runtime_error("Depth and presentable mip chains are not implemented");
