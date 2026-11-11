@@ -13,9 +13,9 @@ namespace AnyUnreal::Shader
 {
     namespace
     {
-        const FName windowsFormat(TEXT("AGC_ANYWIN64"));
-        const FName linuxFormat(TEXT("AGC_ANYLINUX"));
-        const FName ps5Format(TEXT("AGC_ANYPS5"));
+        const FName windowsFormat(TEXT("SF_AGC_ANYWIN64"));
+        const FName linuxFormat(TEXT("SF_AGC_ANYLINUX"));
+        const FName ps5Format(TEXT("SF_AGC_ANYPS5"));
 
         AgcTarget getTarget(FName format)
         {
