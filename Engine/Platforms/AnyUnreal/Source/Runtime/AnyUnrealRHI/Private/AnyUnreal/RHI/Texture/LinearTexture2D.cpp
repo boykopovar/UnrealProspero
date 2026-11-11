@@ -131,12 +131,13 @@ namespace AnyUnreal::RHI
     }
 
     const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount) const
+    std::array<std::uint32_t, 8> LinearTexture2D::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t arrayLayer) const
     {
         if (firstMip >= GetMipCount()) throw std::out_of_range("Texture view starts past the mip chain");
         if (mipCount == 0) mipCount = GetMipCount() - firstMip;
         if (mipCount > GetMipCount() - firstMip) throw std::out_of_range("Texture view exceeds the mip chain");
-        auto result = CreateDescriptor(width, height, format, storage.Data(), disableSrgb, GetMipCount());
+        if (arrayLayer >= arrayLayers) throw std::out_of_range("Texture view layer exceeds its allocation");
+        auto result = CreateDescriptor(width, height, format, storage.GetRange(arrayLayer * layerPitch, layerPitch).data(), disableSrgb, GetMipCount());
         result[3] = (result[3] & ~0xff000u) | (firstMip << 12) | ((firstMip + mipCount - 1) << 16);
         return result;
     }
