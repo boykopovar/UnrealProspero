@@ -24,6 +24,7 @@ namespace AnyUnreal::RHI
         static std::size_t CalculateAlignment(const FRHITextureDesc& description);
         static std::size_t CalculateAllocationSize(const FRHITextureDesc& description);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
+        TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, const void* initialData);
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);
         void* Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch);
         LockedData Unlock();

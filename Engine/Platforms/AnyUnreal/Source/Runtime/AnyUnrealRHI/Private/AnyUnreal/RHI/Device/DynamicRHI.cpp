@@ -31,6 +31,23 @@
 
 namespace AnyUnreal::RHI
 {
+    FTextureRHIRef DynamicRHI::RHIAsyncCreateTexture2D(uint32 width, uint32 height, uint8 format, uint32 mipCount, ETextureCreateFlags flags, ERHIAccess initialState, void** initialMipData, uint32 initialMipCount, const TCHAR* debugName, FGraphEventRef& completionEvent)
+    {
+        if (!initialized || shutDown) throw std::runtime_error("Texture creation requires an initialized device");
+        if (width == 0 || height == 0 || width > 16384 || height > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
+        if (format == PF_Unknown || format >= PF_MAX) throw std::invalid_argument("Invalid texture format");
+        if (mipCount == 0 && width == 1 && height == 1) mipCount = 1;
+        if (mipCount != 1) throw std::runtime_error("Texture mip chains are not implemented");
+        if (initialMipCount > mipCount || (initialMipCount && (!initialMipData || !initialMipData[0]))) throw std::invalid_argument("Invalid initial texture mip data");
+        constexpr auto targetFlags = ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::DepthStencilTargetable | ETextureCreateFlags::ResolveTargetable | ETextureCreateFlags::DepthStencilResolveTarget | ETextureCreateFlags::Presentable;
+        if (EnumHasAnyFlags(flags, targetFlags)) throw std::invalid_argument("Asynchronous texture creation does not accept render targets");
+        if (IsInvalidAccess(initialState)) throw std::invalid_argument("Invalid initial texture access");
+        const auto description = FRHITextureCreateDesc::Create2D(debugName, static_cast<int32>(width), static_cast<int32>(height), static_cast<EPixelFormat>(format)).SetFlags(flags).SetInitialState(initialState).SetNumMips(1);
+        FTextureRHIRef result = initialMipCount ? new TextureResource(description, addressHigh, initialMipData[0]) : new TextureResource(description, addressHigh);
+        completionEvent.SafeRelease();
+        return result;
+    }
+
     void DynamicRHI::Init()
     {
         if (initialized || shutDown) throw std::runtime_error("RHI initialization requires a new device");

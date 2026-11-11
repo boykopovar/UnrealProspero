@@ -11,6 +11,7 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API DynamicRHI : public FDynamicRHI
     {
     public:
+        FTextureRHIRef RHIAsyncCreateTexture2D(uint32 width, uint32 height, uint8 format, uint32 mipCount, ETextureCreateFlags flags, ERHIAccess initialState, void** initialMipData, uint32 initialMipCount, const TCHAR* debugName, FGraphEventRef& completionEvent) override;
         void Init() override;
         void Shutdown() override;
         const TCHAR* GetName() override;

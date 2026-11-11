@@ -102,6 +102,15 @@ namespace AnyUnreal::RHI
         }
     }
 
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, const void* initialData) : TextureResource(description, addressHigh)
+    {
+        if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("Initial texture data conflicts with its initialization action");
+        if (!initialData) throw std::invalid_argument("Initial texture data is null");
+        if (!storage) throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
+        const auto pitch = storage->GetRowBytes();
+        storage->Upload({static_cast<const std::byte*>(initialData), pitch * storage->GetHeight()}, pitch);
+    }
+
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
     {
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
