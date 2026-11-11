@@ -54,14 +54,19 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
-    adk_add_executable(DepthCheck ${graphics_sources}
+    set(depth_sources ${graphics_sources}
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp")
-    target_compile_definitions(DepthCheck PRIVATE ANYUNREAL_TEST_DEPTH=1 ANYUNREAL_TEST_OCCLUSION=0)
-    adk_link_libraries(DepthCheck libc libkernel libSceAgc libSceAgcDriver)
-    list(APPEND test_targets DepthCheck)
+    foreach(depth_target IN ITEMS DepthCheck DepthBarrierCheck)
+        adk_add_executable(${depth_target} ${depth_sources})
+        target_compile_definitions(${depth_target} PRIVATE ANYUNREAL_TEST_DEPTH=1 ANYUNREAL_TEST_OCCLUSION=0)
+        adk_link_libraries(${depth_target} libc libkernel libSceAgc libSceAgcDriver)
+        list(APPEND test_targets ${depth_target})
+    endforeach()
+    target_compile_definitions(DepthCheck PRIVATE ANYUNREAL_TEST_DEPTH_BARRIER=0)
+    target_compile_definitions(DepthBarrierCheck PRIVATE ANYUNREAL_TEST_DEPTH_BARRIER=1)
     adk_add_executable(TextureCopyCheck TextureCopy.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/TextureCopy.cpp"

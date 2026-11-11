@@ -87,7 +87,7 @@ int main()
         const auto height = dimensions[1];
         std::string caseName = std::to_string(width) + "x" + std::to_string(height) + " indirect " + std::to_string(indirect) + " index stride " + std::to_string(indexStride) + " base vertex " + std::to_string(baseVertex);
 #if ANYUNREAL_TEST_DEPTH
-        caseName += " depth mode " + std::to_string(depthMode);
+        caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(ANYUNREAL_TEST_DEPTH_BARRIER);
 #endif
         LinearTexture2D targetTexture(width, height, format, aperture);
 #if ANYUNREAL_TEST_DEPTH
@@ -181,7 +181,9 @@ int main()
 #if ANYUNREAL_TEST_DEPTH
         WriteColorClear(commands, secondTarget, {});
         DepthTexture2D depthTexture(width, height, aperture);
+#if ANYUNREAL_TEST_DEPTH_BARRIER
         MemoryBarrier depthBarrier(aperture);
+#endif
         if (reinterpret_cast<std::uintptr_t>(depthTexture.GetStorage().Data()) % 65536 != 0 || depthTexture.GetStorage().Size() != DepthTexture2D::CalculateDataSize(width, height)) throw std::runtime_error("Depth texture allocation does not match its tiled layout");
         WriteDepthTarget(commands, depthTexture);
         WriteDepthClear(commands, depthTexture, depthMode == 0 ? 0.0f : 1.0f);
@@ -236,10 +238,12 @@ int main()
 #if ANYUNREAL_TEST_DEPTH
         if (depthMode == 2)
         {
+#if ANYUNREAL_TEST_DEPTH_BARRIER
             const auto& depthStorage = depthTexture.GetStorage();
             const std::array depthRanges{GpuMemoryRange{depthStorage.Data(), depthStorage.Size()}, GpuMemoryRange{output.Data(), output.Size()}};
             depthBarrier.Release(commands);
             depthBarrier.Acquire(commands, depthRanges);
+#endif
             WriteColorTarget(commands, 0, secondTarget);
             draw();
         }
