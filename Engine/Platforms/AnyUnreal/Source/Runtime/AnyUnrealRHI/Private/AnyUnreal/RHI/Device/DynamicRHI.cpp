@@ -4,6 +4,7 @@
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
+#include "AnyUnreal/RHI/Pipeline/GraphicsPipeline.h"
 #include "AnyUnreal/RHI/Transition/ResourceTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
@@ -24,6 +25,11 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FGraphicsPipelineStateRHIRef DynamicRHI::RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& initializer)
+    {
+        return new GraphicsPipeline(initializer);
     }
 
     FVertexDeclarationRHIRef DynamicRHI::RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements)

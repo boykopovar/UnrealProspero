@@ -16,6 +16,7 @@ namespace AnyUnreal::RHI
         FPixelShaderRHIRef RHICreatePixelShader(const FRHICreateShaderDesc& description) override;
         FComputeShaderRHIRef RHICreateComputeShader(const FRHICreateShaderDesc& description) override;
         FComputePipelineStateRHIRef RHICreateComputePipelineState(const FComputePipelineStateInitializer& initializer) override;
+        FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& initializer) override;
         FUniformBufferRHIRef RHICreateUniformBuffer(const void* contents, const FRHIUniformBufferLayout* layout, EUniformBufferUsage usage, EUniformBufferValidation validation) override;
         void RHIUpdateUniformBuffer(FRHICommandListBase& commandList, FRHIUniformBuffer* buffer, const void* contents) override;
         FRHIBufferInitializer RHICreateBufferInitializer(FRHICommandListBase& commandList, const FRHIBufferCreateDesc& description) override;
