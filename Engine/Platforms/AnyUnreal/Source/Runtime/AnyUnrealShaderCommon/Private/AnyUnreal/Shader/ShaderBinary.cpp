@@ -55,37 +55,42 @@ namespace AnyUnreal::Shader
         {
             if (shader.Stage > ShaderStage::Compute || shader.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader stage or target");
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
-            for (std::size_t index = 0; index < shader.Bindings.size(); ++index)
+            ValidateRuntimeBindings(shader.Bindings);
+        }
+    }
+
+    void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings)
+    {
+        for (std::size_t index = 0; index < bindings.size(); ++index)
+        {
+            const auto& binding = bindings[index];
+            if (binding.Set >= 4 || binding.Kind > ResourceKind::CombinedImageSampler || binding.ParameterIndex >= 65535 || binding.Count == 0 || binding.Count > 65535 - binding.ParameterIndex) throw std::invalid_argument("Invalid shader parameter range");
+            const std::string_view type = binding.Type;
+            std::uint32_t stride = 0;
+            bool kindMatches = false;
+            if (type == "sampler") { stride = 16; kindMatches = binding.Kind == ResourceKind::Sampler; }
+            else if (type == "uniform-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::UniformBuffer; }
+            else if (type == "storage-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::ShaderResource || binding.Kind == ResourceKind::UnorderedAccess; }
+            else if (type == "uniform-texel-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::ShaderResource; }
+            else if (type == "storage-texel-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::UnorderedAccess; }
+            else if (type == "sampled-image" || type == "input-attachment") { stride = 32; kindMatches = binding.Kind == ResourceKind::ShaderResource; }
+            else if (type == "storage-image") { stride = 32; kindMatches = binding.Kind == ResourceKind::UnorderedAccess; }
+            else if (type == "combined-image-sampler") { stride = 48; kindMatches = binding.Kind == ResourceKind::CombinedImageSampler; }
+            else throw std::invalid_argument("Invalid shader descriptor type");
+            if (!kindMatches || binding.Stride != stride || binding.Offset % 16 != 0) throw std::invalid_argument("Inconsistent shader descriptor layout");
+            if (static_cast<std::uint64_t>(binding.Offset) + static_cast<std::uint64_t>(binding.Count) * binding.Stride > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Shader descriptor range overflow");
+            if ((binding.Kind == ResourceKind::UniformBuffer) != (binding.BlockSize != 0)) throw std::invalid_argument("Invalid shader constant buffer size");
+            for (std::size_t previous = 0; previous < index; ++previous)
             {
-                const auto& binding = shader.Bindings[index];
-                if (binding.Kind > ResourceKind::CombinedImageSampler || binding.ParameterIndex >= 65535 || binding.Count == 0 || binding.Count > 65535 - binding.ParameterIndex) throw std::invalid_argument("Invalid shader parameter range");
-                const std::string_view type = binding.Type;
-                std::uint32_t stride = 0;
-                bool kindMatches = false;
-                if (type == "sampler") { stride = 16; kindMatches = binding.Kind == ResourceKind::Sampler; }
-                else if (type == "uniform-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::UniformBuffer; }
-                else if (type == "storage-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::ShaderResource || binding.Kind == ResourceKind::UnorderedAccess; }
-                else if (type == "uniform-texel-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::ShaderResource; }
-                else if (type == "storage-texel-buffer") { stride = 16; kindMatches = binding.Kind == ResourceKind::UnorderedAccess; }
-                else if (type == "sampled-image" || type == "input-attachment") { stride = 32; kindMatches = binding.Kind == ResourceKind::ShaderResource; }
-                else if (type == "storage-image") { stride = 32; kindMatches = binding.Kind == ResourceKind::UnorderedAccess; }
-                else if (type == "combined-image-sampler") { stride = 48; kindMatches = binding.Kind == ResourceKind::CombinedImageSampler; }
-                else throw std::invalid_argument("Invalid shader descriptor type");
-                if (!kindMatches || binding.Stride != stride || binding.Offset % 16 != 0) throw std::invalid_argument("Inconsistent shader descriptor layout");
-                if (static_cast<std::uint64_t>(binding.Offset) + static_cast<std::uint64_t>(binding.Count) * binding.Stride > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Shader descriptor range overflow");
-                if ((binding.Kind == ResourceKind::UniformBuffer) != (binding.BlockSize != 0)) throw std::invalid_argument("Invalid shader constant buffer size");
-                for (std::size_t previous = 0; previous < index; ++previous)
+                const auto& other = bindings[previous];
+                if (binding.Set == other.Set)
                 {
-                    const auto& other = shader.Bindings[previous];
-                    if (binding.Set == other.Set)
-                    {
-                        if (binding.Binding == other.Binding) throw std::invalid_argument("Duplicate shader descriptor binding");
-                        const auto end = static_cast<std::uint64_t>(binding.Offset) + static_cast<std::uint64_t>(binding.Count) * binding.Stride;
-                        const auto otherEnd = static_cast<std::uint64_t>(other.Offset) + static_cast<std::uint64_t>(other.Count) * other.Stride;
-                        if (binding.Offset < otherEnd && other.Offset < end) throw std::invalid_argument("Overlapping shader descriptor ranges");
-                    }
-                    if (binding.Kind == other.Kind && binding.ParameterIndex < other.ParameterIndex + other.Count && other.ParameterIndex < binding.ParameterIndex + binding.Count) throw std::invalid_argument("Overlapping shader parameter ranges");
+                    if (binding.Binding == other.Binding) throw std::invalid_argument("Duplicate shader descriptor binding");
+                    const auto end = static_cast<std::uint64_t>(binding.Offset) + static_cast<std::uint64_t>(binding.Count) * binding.Stride;
+                    const auto otherEnd = static_cast<std::uint64_t>(other.Offset) + static_cast<std::uint64_t>(other.Count) * other.Stride;
+                    if (binding.Offset < otherEnd && other.Offset < end) throw std::invalid_argument("Overlapping shader descriptor ranges");
                 }
+                if (binding.Kind == other.Kind && binding.ParameterIndex < other.ParameterIndex + other.Count && other.ParameterIndex < binding.ParameterIndex + binding.Count) throw std::invalid_argument("Overlapping shader parameter ranges");
             }
         }
     }
