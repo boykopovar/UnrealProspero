@@ -51,6 +51,19 @@ namespace AnyUnreal::Shader
                 default: throw std::invalid_argument("Unsupported AGC descriptor type: " + std::to_string(type));
             }
         }
+
+        ResourceKind classify(SpvReflectResourceType type)
+        {
+            switch (static_cast<std::uint32_t>(type))
+            {
+                case SPV_REFLECT_RESOURCE_FLAG_CBV: return ResourceKind::UniformBuffer;
+                case SPV_REFLECT_RESOURCE_FLAG_SAMPLER: return ResourceKind::Sampler;
+                case SPV_REFLECT_RESOURCE_FLAG_SRV: return ResourceKind::ShaderResource;
+                case SPV_REFLECT_RESOURCE_FLAG_UAV: return ResourceKind::UnorderedAccess;
+                case SPV_REFLECT_RESOURCE_FLAG_SRV | SPV_REFLECT_RESOURCE_FLAG_SAMPLER: return ResourceKind::CombinedImageSampler;
+                default: throw std::invalid_argument("Unsupported shader resource class: " + std::to_string(type));
+            }
+        }
     }
 
     std::vector<DescriptorBinding> ReflectDescriptorLayout(std::span<const std::uint32_t> spirv, const std::string& entryPoint)
@@ -86,7 +99,19 @@ namespace AnyUnreal::Shader
             const auto [type, stride] = describe(binding->descriptor_type);
             const std::uint64_t end = offset + static_cast<std::uint64_t>(binding->count) * stride;
             if (end > std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("Shader descriptor table is too large");
-            result.push_back({binding->set, binding->binding, binding->count, static_cast<std::uint32_t>(offset), stride, type, binding->name ? binding->name : ""});
+            DescriptorBinding reflected{binding->set, binding->binding, binding->count, static_cast<std::uint32_t>(offset), stride, type, binding->name ? binding->name : "", classify(binding->resource_type), 0, {}};
+            if (reflected.Kind == ResourceKind::UniformBuffer)
+            {
+                reflected.BlockSize = binding->block.padded_size;
+                for (std::uint32_t index = 0; index < binding->block.member_count; ++index)
+                {
+                    const auto& member = binding->block.members[index];
+                    if (!member.name || *member.name == '\0') throw std::invalid_argument("Uniform buffer member has no name");
+                    if (member.size == 0 || static_cast<std::uint64_t>(member.absolute_offset) + member.size > reflected.BlockSize) throw std::runtime_error("Uniform buffer member exceeds its block");
+                    reflected.Members.push_back({member.name, member.absolute_offset, member.size});
+                }
+            }
+            result.push_back(std::move(reflected));
             offset = end;
         }
         return result;

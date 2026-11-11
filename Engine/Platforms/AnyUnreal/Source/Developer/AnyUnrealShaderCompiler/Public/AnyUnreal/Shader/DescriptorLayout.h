@@ -8,6 +8,22 @@
 
 namespace AnyUnreal::Shader
 {
+    enum class ResourceKind
+    {
+        UniformBuffer,
+        Sampler,
+        ShaderResource,
+        UnorderedAccess,
+        CombinedImageSampler
+    };
+
+    struct ConstantMember
+    {
+        std::string Name;
+        std::uint32_t Offset;
+        std::uint32_t Size;
+    };
+
     struct DescriptorBinding
     {
         std::uint32_t Set;
@@ -17,6 +33,9 @@ namespace AnyUnreal::Shader
         std::uint32_t Stride;
         std::string Type;
         std::string Name;
+        ResourceKind Kind;
+        std::uint32_t BlockSize;
+        std::vector<ConstantMember> Members;
     };
 
     ANYUNREALSHADERCOMPILER_API std::vector<DescriptorBinding> ReflectDescriptorLayout(std::span<const std::uint32_t> spirv, const std::string& entryPoint);

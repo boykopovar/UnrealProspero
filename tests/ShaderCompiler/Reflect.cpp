@@ -1,6 +1,7 @@
 #include "AnyUnreal/Shader/DescriptorLayout.h"
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <iterator>
 #include <stdexcept>
 
@@ -30,6 +31,8 @@ int main(int argumentCount, char** arguments)
         for (const auto& binding : bindings)
         {
             std::cout << binding.Set << ',' << binding.Binding << ',' << binding.Type << ',' << binding.Count << ',' << binding.Offset << ',' << binding.Stride << '\n';
+            std::cerr << std::quoted(binding.Name) << ' ' << static_cast<int>(binding.Kind) << ' ' << binding.BlockSize << '\n';
+            for (const auto& member : binding.Members) std::cerr << std::quoted(member.Name) << ' ' << member.Offset << ' ' << member.Size << '\n';
         }
         return 0;
     }

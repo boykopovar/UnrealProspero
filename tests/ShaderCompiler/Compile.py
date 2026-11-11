@@ -25,16 +25,29 @@ def main():
         ("fragment", "ps_6_2", "Color.frag.hlsl", []),
         ("compute", "cs_6_2", "Write.comp.hlsl", ["0,0,storage-buffer,1,0,16"]),
         ("fragment", "ps_6_2", "Texture.frag.hlsl", ["0,2,sampled-image,2,0,32", "0,7,sampler,1,64,16", "1,3,uniform-buffer,1,0,16"]),
+        ("fragment", "ps_6_2", "Globals.frag.hlsl", ["0,0,uniform-buffer,1,0,16"]),
+        ("compute", "cs_6_2", "ReadWrite.comp.hlsl", ["0,0,storage-buffer,1,0,16", "0,1,storage-buffer,1,16,16"]),
     )
+    details = {
+        "Fullscreen.vert.hlsl": [],
+        "Color.frag.hlsl": [],
+        "Write.comp.hlsl": ['"outputValues" 3 0'],
+        "Texture.frag.hlsl": ['"textures" 2 0', '"textureSampler" 1 0', '"Constants" 0 16', '"tint" 0 16'],
+        "Globals.frag.hlsl": ['"$Globals" 0 32', '"tint" 0 16', '"intensity" 16 4'],
+        "ReadWrite.comp.hlsl": ['"inputValues" 2 0', '"outputValues" 3 0'],
+    }
     for stage, profile, source, expected in stages:
         spirv = output / (source + ".spv")
         run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", shaders / source, "-Fo", spirv])
         data = spirv.read_bytes()
         if len(data) < 20 or len(data) % 4 or data[:4] != b"\x03\x02\x23\x07":
             raise RuntimeError(f"Invalid SPIR-V output: {spirv}")
-        reflected = subprocess.run([str(reflect), str(spirv)], check=True, capture_output=True, text=True, timeout=120).stdout.splitlines()
+        reflection = subprocess.run([str(reflect), str(spirv)], check=True, capture_output=True, text=True, timeout=120)
+        reflected = reflection.stdout.splitlines()
         if reflected != expected:
             raise RuntimeError(f"Unexpected reflection for {source}: {reflected}")
+        if reflection.stderr.splitlines() != details[source]:
+            raise RuntimeError(f"Unexpected resource details for {source}: {reflection.stderr}")
         descriptors = [argument for binding in reflected for argument in ("--descriptor", binding)]
         for target in ("windows", "linux", "ps5"):
             directory = output / target / source
