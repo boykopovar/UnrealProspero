@@ -14,6 +14,50 @@
 #include <vector>
 #include <limits>
 
+void CheckArrayMipData()
+{
+    using namespace AnyUnreal::RHI;
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
+    {
+        LinearTexture2D texture(13, 7, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
+        const auto bytes = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
+        std::fill(bytes.begin(), bytes.end(), std::byte{0xcd});
+        std::vector expected(bytes.begin(), bytes.end());
+        if (texture.GetArrayLayers() != 3 || texture.GetLayerPitch() * 3 != bytes.size()) throw std::runtime_error("Texture array allocation has an invalid layer stride");
+        for (std::uint32_t layer = 0; layer < 3; ++layer)
+        for (std::uint32_t level = 0; level < 4; ++level)
+        {
+            const auto& mip = texture.GetMipLayout(level);
+            const auto pitch = mip.RowBytes + 7;
+            std::vector<std::byte> input(pitch * mip.Height);
+            for (std::size_t index = 0; index < input.size(); ++index) input[index] = static_cast<std::byte>((index * 11 + layer * 37 + level * 19) & 255);
+            texture.Upload(input, pitch, level, layer);
+            for (std::size_t row = 0; row < mip.Height; ++row) std::copy_n(input.begin() + row * pitch, mip.RowBytes, expected.begin() + layer * texture.GetLayerPitch() + mip.Offset + row * mip.RowPitch);
+            if (!std::equal(bytes.begin(), bytes.end(), expected.begin())) throw std::runtime_error("Array upload changed another layer, mip or padding");
+            std::vector<std::byte> output(input.size(), std::byte{0x75});
+            texture.CopyRowsTo(output, pitch, level, layer);
+            for (std::size_t index = 0; index < output.size(); ++index)
+            {
+                if (output[index] != (index % pitch < mip.RowBytes ? input[index] : std::byte{0x75})) throw std::runtime_error("Array readback changed pixels or padding");
+            }
+        }
+        const auto full = texture.GetDescriptor();
+        const auto view = texture.CreateArrayViewDescriptor(false, 1, 2, 1, 2);
+        if ((full[3] >> 28) != 13 || full[4] != 2 || (view[3] >> 28) != 13 || view[4] != 0x10002 || ((view[3] >> 12) & 15) != 1 || ((view[3] >> 16) & 15) != 2 || texture.GetDescriptor() != full) throw std::runtime_error("Array view changed its resource or selected incorrect subresources");
+        for (const auto layer : {3u, std::numeric_limits<std::uint32_t>::max()})
+        {
+            bool rejected = false;
+            try { texture.GetMipRange(0, layer); }
+            catch (const std::out_of_range&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Texture array accepted an unavailable layer");
+        }
+        bool rejected = false;
+        try { texture.CreateArrayViewDescriptor(false, 1, 3); }
+        catch (const std::out_of_range&) { rejected = true; }
+        if (!rejected) throw std::runtime_error("Texture array view exceeded its layers");
+    }
+}
+
 void CheckVolumeMipData()
 {
     using namespace AnyUnreal::RHI;
@@ -325,6 +369,7 @@ int main()
     }
     if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
     CheckMipCopies();
+    CheckArrayMipData();
     CheckVolumeMipData();
     CheckVolumeMipClears();
     CheckVolumeCopies();

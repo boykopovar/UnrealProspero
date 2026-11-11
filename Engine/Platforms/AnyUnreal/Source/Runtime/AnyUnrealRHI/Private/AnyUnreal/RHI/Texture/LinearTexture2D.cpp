@@ -35,6 +35,12 @@ namespace AnyUnreal::RHI
             }
         }
 
+        std::uint32_t layerCount(std::uint32_t value)
+        {
+            if (value == 0 || value > 8192) throw std::out_of_range("Texture array layer count exceeds the descriptor range");
+            return value;
+        }
+
         std::uint32_t dimension(std::uint32_t value)
         {
             if (value == 0 || value > DeviceLimits::Texture2D) throw std::out_of_range("Texture dimension exceeds the hardware range");
@@ -64,10 +70,10 @@ namespace AnyUnreal::RHI
         return levels[firstMip].Offset + levels[firstMip].Size;
     }
 
-    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), storage(mipLayouts.front().Offset + mipLayouts.front().Size, addressHigh, alignment, usage)
+    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage, std::uint32_t arrayLayers) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), arrayLayers(layerCount(arrayLayers)), layerPitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(layerPitch * this->arrayLayers, addressHigh, alignment, usage)
     {
         if (usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Texture requires texture allocation usage");
-        descriptor = CreateDescriptor(width, height, format, storage.Data(), false, mipCount);
+        descriptor = arrayLayers == 1 ? CreateDescriptor(width, height, format, storage.Data(), false, mipCount) : CreateArrayViewDescriptor(false, 0, arrayLayers);
     }
 
     std::array<std::uint32_t, 8> LinearTexture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb, std::uint32_t mipCount)
@@ -89,21 +95,23 @@ namespace AnyUnreal::RHI
         };
     }
 
-    void LinearTexture2D::Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel)
+    void LinearTexture2D::Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         const auto& mip = GetMipLayout(mipLevel);
+        GetMipRange(mipLevel, arrayLayer);
         if (!source.data() || sourcePitch < mip.RowBytes || source.size() < mip.RowBytes || (mip.Height - 1) > (source.size() - mip.RowBytes) / sourcePitch) throw std::invalid_argument("Texture upload does not contain all source rows");
-        for (std::size_t row = 0; row < mip.Height; ++row) storage.Upload(mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
+        for (std::size_t row = 0; row < mip.Height; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
     }
 
-    void LinearTexture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel) const
+    void LinearTexture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel, std::uint32_t arrayLayer) const
     {
         const auto& mip = GetMipLayout(mipLevel);
+        const auto range = GetMipRange(mipLevel, arrayLayer);
         if (!destination.data() || destinationPitch < mip.RowBytes || destination.size() < mip.RowBytes || (mip.Height - 1) > (destination.size() - mip.RowBytes) / destinationPitch) throw std::invalid_argument("Texture readback does not contain all destination rows");
         const auto sourceAddress = reinterpret_cast<std::uintptr_t>(storage.Data());
         const auto destinationAddress = reinterpret_cast<std::uintptr_t>(destination.data());
         if ((destinationAddress >= sourceAddress && destinationAddress - sourceAddress < storage.Size()) || (sourceAddress >= destinationAddress && sourceAddress - destinationAddress < destination.size())) throw std::invalid_argument("Texture read destination overlaps its storage");
-        const auto* source = static_cast<const std::byte*>(storage.Data()) + mip.Offset;
+        const auto* source = range.data();
         for (std::size_t row = 0; row < mip.Height; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
     }
 
@@ -115,10 +123,11 @@ namespace AnyUnreal::RHI
 
     std::uint32_t LinearTexture2D::GetMipCount() const { return static_cast<std::uint32_t>(mipLayouts.size()); }
 
-    std::span<std::byte> LinearTexture2D::GetMipRange(std::uint32_t mipLevel) const
+    std::span<std::byte> LinearTexture2D::GetMipRange(std::uint32_t mipLevel, std::uint32_t arrayLayer) const
     {
         const auto& mip = GetMipLayout(mipLevel);
-        return storage.GetRange(mip.Offset, mip.Size);
+        if (arrayLayer >= arrayLayers) throw std::out_of_range("Texture array layer exceeds its allocation");
+        return storage.GetRange(arrayLayer * layerPitch + mip.Offset, mip.Size);
     }
 
     const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }
@@ -131,6 +140,18 @@ namespace AnyUnreal::RHI
         result[3] = (result[3] & ~0xff000u) | (firstMip << 12) | ((firstMip + mipCount - 1) << 16);
         return result;
     }
+
+    std::array<std::uint32_t, 8> LinearTexture2D::CreateArrayViewDescriptor(bool disableSrgb, std::uint32_t firstLayer, std::uint32_t count, std::uint32_t firstMip, std::uint32_t mipCount) const
+    {
+        if (firstLayer >= arrayLayers || count == 0 || count > arrayLayers - firstLayer) throw std::out_of_range("Texture array view exceeds its layers");
+        auto result = CreateViewDescriptor(disableSrgb, firstMip, mipCount);
+        result[3] = (result[3] & 0x0fffffffu) | (13u << 28);
+        result[4] = (firstLayer + count - 1) | (firstLayer << 16);
+        return result;
+    }
+
+    std::uint32_t LinearTexture2D::GetArrayLayers() const { return arrayLayers; }
+    std::size_t LinearTexture2D::GetLayerPitch() const { return layerPitch; }
 
     const BufferAllocation& LinearTexture2D::GetStorage() const { return storage; }
     std::size_t LinearTexture2D::GetRowPitch() const { return rowPitch; }
