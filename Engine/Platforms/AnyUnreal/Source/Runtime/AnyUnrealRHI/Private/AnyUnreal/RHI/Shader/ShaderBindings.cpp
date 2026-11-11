@@ -2,6 +2,7 @@
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
+#include "AnyUnreal/RHI/Texture/TextureView.h"
 #include <stdexcept>
 #include <utility>
 
@@ -21,7 +22,6 @@ namespace AnyUnreal::RHI
             break;
         case Type::ResourceView:
             if (resource->GetType() != RRT_ShaderResourceView) throw std::invalid_argument("Shader SRV parameter has the wrong resource type");
-            if (!static_cast<FRHIShaderResourceView*>(resource)->IsBuffer()) throw std::runtime_error("Texture resource bindings are not implemented");
             break;
         case Type::UnorderedAccessView:
             if (resource->GetType() != RRT_UnorderedAccessView) throw std::invalid_argument("Shader UAV parameter has the wrong resource type");
@@ -61,7 +61,7 @@ namespace AnyUnreal::RHI
                 allocation = &static_cast<TextureResource*>(resource.GetReference())->Capture()->GetStorage();
                 break;
             case RRT_ShaderResourceView:
-                allocation = static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage();
+                allocation = static_cast<FRHIShaderResourceView*>(resource.GetReference())->IsBuffer() ? static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage() : static_cast<TextureShaderResourceView*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_UnorderedAccessView:
                 allocation = static_cast<BufferUnorderedAccessView*>(resource.GetReference())->GetStorage();
@@ -100,8 +100,16 @@ namespace AnyUnreal::RHI
         case Type::ResourceView:
         {
             auto* view = static_cast<FRHIShaderResourceView*>(resource);
-            const auto& descriptor = static_cast<BufferShaderResourceView*>(view)->GetDescriptor();
-            descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(descriptor)));
+            if (view->IsBuffer())
+            {
+                const auto& descriptor = static_cast<BufferShaderResourceView*>(view)->GetDescriptor();
+                descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(descriptor)));
+            }
+            else
+            {
+                const auto& descriptor = static_cast<TextureShaderResourceView*>(view)->GetDescriptor();
+                descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(descriptor)));
+            }
             break;
         }
         case Type::UnorderedAccessView:

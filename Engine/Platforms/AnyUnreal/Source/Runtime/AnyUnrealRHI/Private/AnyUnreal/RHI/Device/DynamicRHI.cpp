@@ -9,6 +9,7 @@
 #include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
+#include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
@@ -117,8 +118,10 @@ namespace AnyUnreal::RHI
 
     FShaderResourceViewRHIRef DynamicRHI::RHICreateShaderResourceView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
     {
-        if (!resource || resource->GetType() != RRT_Buffer) throw std::runtime_error("Shader resource views require a buffer; texture views are not implemented");
-        return new BufferShaderResourceView(*static_cast<Buffer*>(resource), description);
+        if (!resource) throw std::invalid_argument("Shader resource view resource is null");
+        if (resource->GetType() == RRT_Buffer) return new BufferShaderResourceView(*static_cast<Buffer*>(resource), description);
+        if (resource->GetType() == RRT_Texture) return new TextureShaderResourceView(*static_cast<TextureResource*>(resource), description);
+        throw std::invalid_argument("Shader resource view requires a buffer or texture");
     }
 
     FUnorderedAccessViewRHIRef DynamicRHI::RHICreateUnorderedAccessView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
