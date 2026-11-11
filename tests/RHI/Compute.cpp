@@ -7,6 +7,7 @@
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -133,6 +134,7 @@ int main()
     descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
     {
+        RHI::MemoryBarrier barrier(layout.GetAddressHigh());
         const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
         if (withConstants)
         {
@@ -184,6 +186,9 @@ int main()
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
         RHI::WriteBufferFill(commands, fillOutput + 4, 32, static_cast<std::uint32_t>(iteration));
+        if (readWrite) RHI::WriteBufferFill(commands, input, 64 * sizeof(std::uint32_t), static_cast<std::uint32_t>(iteration));
+        barrier.Release(commands);
+        barrier.Acquire(commands, ranges);
         if (iteration == 1) RHI::WriteComputeDispatch(commands, shader, layout, inputs, 1, 1, 1);
         else RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), 2048);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
@@ -193,7 +198,8 @@ int main()
         }
         for (unsigned index = 0; index < 64; ++index)
         {
-            const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? input[index] : index) * 3 + 1;
+            if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
+            const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
             if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
