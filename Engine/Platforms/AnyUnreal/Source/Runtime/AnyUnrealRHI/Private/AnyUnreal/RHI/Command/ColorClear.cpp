@@ -1,7 +1,5 @@
 #include "AnyUnreal/RHI/Command/ColorClear.h"
-#include "AnyUnreal/RHI/Command/BufferCopy.h"
-#include "AnyUnreal/RHI/Command/MemoryAcquire.h"
-#include "prx/libSceAgc/DcbFlow/include/Memory.hpp"
+#include "AnyUnreal/RHI/Command/PatternFill.h"
 #include "AnyUnreal/RHI/Memory/HalfFloat.h"
 #include <algorithm>
 #include <bit>
@@ -73,16 +71,6 @@ namespace AnyUnreal::RHI
     {
         const auto values = pattern(texture.GetFormat(), color);
         const auto& storage = texture.GetStorage();
-        const GpuMemoryRange ranges[]{{storage.Data(), storage.Size()}};
-        WriteMemoryAcquire(commands, ranges);
-        sceAgcDcbWriteData(&commands, 5, 0, reinterpret_cast<std::uintptr_t>(storage.Data()), values.data(), static_cast<std::uint32_t>(values.size()), 0, 1);
-        std::size_t written = sizeof(values);
-        while (written < storage.Size())
-        {
-            const auto size = std::min(written, storage.Size() - written);
-            WriteBufferCopy(commands, storage.GetRange(written, size).data(), storage.Data(), size);
-            written += size;
-        }
-        WriteMemoryAcquire(commands, ranges);
+        WritePatternFill(commands, storage.Data(), storage.Size(), values);
     }
 }

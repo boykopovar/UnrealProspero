@@ -13,6 +13,7 @@
 #include "AnyUnreal/RHI/Command/DepthBounds.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "AnyUnreal/RHI/Command/PatternFill.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"
@@ -308,6 +309,9 @@ int main()
         memory.Upload(2048, std::as_bytes(std::span(dispatchGroups)));
         auto* fillOutput = reinterpret_cast<std::uint32_t*>(memory.GetRange(3072, 64).data());
         std::fill_n(fillOutput, 16, 0x12345678u);
+        auto patternOutput = memory.GetRange(3200, 256);
+        std::fill(patternOutput.begin(), patternOutput.end(), std::byte{0x39});
+        const std::array<std::uint32_t, 4> fillPattern{0x76543210u, 0xfedcba98u, static_cast<std::uint32_t>(iteration), 0x80000000u};
         auto copyOutput = memory.GetRange(4096, 272);
         std::fill(copyOutput.begin(), copyOutput.end(), std::byte{0x5a});
         std::array<std::byte, 31> uploadSource;
@@ -372,6 +376,13 @@ int main()
             catch (const std::invalid_argument&) { rejected = true; }
             if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid acquire range changed the command buffer");
         }
+        for (const auto invalid : {0u, 1u, 7u, 13u})
+        {
+            bool rejected = false;
+            try { RHI::WritePatternFill(commands, fillOutput, invalid, std::span(fillPattern).first(3)); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid pattern fill changed the command buffer");
+        }
         if (depthTexture) RHI::WriteDepthClear(commands, *depthTexture, iteration == 1 ? 1.0f : 0.0f);
         RHI::WriteViewport(commands, 0, {0, 0, 0, 1920, 1080, 1});
         RHI::WriteViewport(commands, 15, {16, 24, 1, 256, 128, 0});
@@ -384,6 +395,10 @@ int main()
         upload.Record(commands, uploadOutput.subspan(3, uploadExpected.size()));
         RHI::WriteBufferCopy(commands, copyOutput.data() + 7, input, sizeof(values));
         RHI::WriteBufferFill(commands, fillOutput + 4, 32, static_cast<std::uint32_t>(iteration));
+        for (std::size_t count = 1; count <= fillPattern.size(); ++count)
+        {
+            RHI::WritePatternFill(commands, patternOutput.data() + (count - 1) * 64 + 4, 48, std::span(fillPattern).first(count));
+        }
         if (readWrite) RHI::WriteBufferFill(commands, input, 64 * sizeof(std::uint32_t), static_cast<std::uint32_t>(iteration));
         barrier.Release(commands);
         barrier.Acquire(commands, ranges);
@@ -418,6 +433,12 @@ int main()
             if (copyOutput[index] != expectedByte) throw std::runtime_error("GPU copy changed bytes outside its destination or copied incorrect data");
         }
         if (!completion.IsComplete()) throw std::runtime_error("Submitted commands did not report completion");
+        for (std::size_t count = 1; count <= fillPattern.size(); ++count)
+        for (std::size_t offset = 0; offset < 64; ++offset)
+        {
+            const auto expected = offset >= 4 && offset < 52 ? std::as_bytes(std::span(fillPattern).first(count))[(offset - 4) % (count * 4)] : std::byte{0x39};
+            if (patternOutput[(count - 1) * 64 + offset] != expected) throw std::runtime_error("GPU pattern fill wrote incorrect elements or changed guard bytes");
+        }
         for (unsigned index = 0; index < 16; ++index)
         {
             if (fillOutput[index] != (index >= 4 && index < 12 ? iteration : 0x12345678u)) throw std::runtime_error("GPU fill changed data outside its range or failed to write its value");
