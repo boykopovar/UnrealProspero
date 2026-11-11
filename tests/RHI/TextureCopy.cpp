@@ -13,6 +13,61 @@
 #include <vector>
 #include <limits>
 
+void CheckVolumeCopies()
+{
+    using namespace AnyUnreal::RHI;
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (unsigned mode = 0; mode < 4; ++mode)
+    {
+        LinearTexture3D source(13, 7, 5, format, 2);
+        auto targetFormat = format;
+        if (mode == 3 && format == TextureFormat::Rgba8Srgb) targetFormat = TextureFormat::Rgba8Unorm;
+        if (mode == 3 && format == TextureFormat::Bgra8Srgb) targetFormat = TextureFormat::Bgra8Unorm;
+        LinearTexture3D other(17, 9, 7, targetFormat, 2);
+        const auto& destination = mode == 2 ? source : other;
+        const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
+        const auto targetBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
+        std::fill(targetBytes.begin(), targetBytes.end(), std::byte{0xee});
+        for (std::size_t index = 0; index < sourceBytes.size(); ++index) sourceBytes[index] = static_cast<std::byte>((index * 13 + index / source.GetSlicePitch()) % 251);
+        const std::vector original(sourceBytes.begin(), sourceBytes.end());
+        std::vector expected(targetBytes.begin(), targetBytes.end());
+        const auto region = mode == 0 ? VolumeCopyRegion{{0, 0, 0}, {0, 0, 0}, {13, 7, 5}} : VolumeCopyRegion{{1, 1, 0}, {3, 2, 3}, {5, 3, 2}};
+        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        for (std::size_t z = 0; z < region.Extent[2]; ++z)
+        for (std::size_t y = 0; y < region.Extent[1]; ++y)
+        {
+            const auto from = (z + region.Source[2]) * source.GetSlicePitch() + (y + region.Source[1]) * source.GetRowPitch() + region.Source[0] * pixelBytes;
+            const auto to = (z + region.Destination[2]) * destination.GetSlicePitch() + (y + region.Destination[1]) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
+            std::copy_n(original.begin() + from, region.Extent[0] * pixelBytes, expected.begin() + to);
+        }
+        CommandStorage storage(16384, 2);
+        auto& commands = storage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        for (std::size_t axis = 0; axis < 3; ++axis)
+        {
+            auto invalid = region;
+            invalid.Source[axis] = std::numeric_limits<std::uint32_t>::max();
+            const auto before = commands.cursor_up;
+            bool rejected = false;
+            try { WriteTextureCopy(commands, destination, source, invalid); }
+            catch (const std::out_of_range&) { rejected = true; }
+            if (!rejected || before != commands.cursor_up) throw std::runtime_error("Invalid volume copy changed commands");
+        }
+        const auto before = commands.cursor_up;
+        bool rejected = false;
+        try { WriteTextureCopy(commands, source, source, {{1, 1, 1}, {2, 2, 2}, {3, 3, 3}}); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        if (!rejected || before != commands.cursor_up) throw std::runtime_error("Overlapping volume copy changed commands");
+        WriteTextureCopy(commands, destination, source, region);
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        SubmitAndWait(commands, fence, 1, 10000000);
+        if (!std::equal(targetBytes.begin(), targetBytes.end(), expected.begin())) throw std::runtime_error("Volume copy changed incorrect pixels or padding");
+        if (mode != 2 && !std::equal(sourceBytes.begin(), sourceBytes.end(), original.begin())) throw std::runtime_error("Volume copy modified its source");
+    }
+    std::cout << "Volume copies verified for nine formats, whole and partial regions, disjoint self copies and linear views\n";
+}
+
 void CheckVolumeUploads()
 {
     using namespace AnyUnreal::RHI;
@@ -65,6 +120,7 @@ int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    CheckVolumeCopies();
     CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})

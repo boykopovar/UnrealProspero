@@ -54,6 +54,24 @@ namespace AnyUnreal::RHI
             if (activeRenderPass) throw std::runtime_error("Texture copy cannot execute inside a render pass");
             if (!source || !destination) throw std::invalid_argument("Texture copy requires source and destination textures");
             if (info.SourceMipIndex != 0 || info.DestMipIndex != 0 || info.NumMips != 1 || info.SourceSliceIndex != 0 || info.DestSliceIndex != 0 || info.NumSlices != 1) throw std::invalid_argument("Texture copy requires the available mip and slice");
+            if (source->GetDesc().Dimension == ETextureDimension::Texture3D || destination->GetDesc().Dimension == ETextureDimension::Texture3D)
+            {
+                if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z < 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z < 0) throw std::invalid_argument("Invalid volume copy position");
+                auto from = static_cast<TextureResource*>(source)->CaptureVolume();
+                auto to = static_cast<TextureResource*>(destination)->CaptureVolume();
+                const bool whole = info.Size == FIntVector::ZeroValue;
+                if (!whole && (info.Size.X <= 0 || info.Size.Y <= 0 || info.Size.Z <= 0)) throw std::invalid_argument("Invalid volume copy size");
+                const VolumeCopyRegion region{
+                    {static_cast<uint32>(info.SourcePosition.X), static_cast<uint32>(info.SourcePosition.Y), static_cast<uint32>(info.SourcePosition.Z)},
+                    {static_cast<uint32>(info.DestPosition.X), static_cast<uint32>(info.DestPosition.Y), static_cast<uint32>(info.DestPosition.Z)},
+                    {whole ? from->GetWidth() : static_cast<uint32>(info.Size.X), whole ? from->GetHeight() : static_cast<uint32>(info.Size.Y), whole ? from->GetDepth() : static_cast<uint32>(info.Size.Z)}
+                };
+                copiedVolumes.reserve(copiedVolumes.size() + 2);
+                copiedVolumes.push_back(from);
+                copiedVolumes.push_back(to);
+                WriteTextureCopy(commands, *to, *from, region);
+                return;
+            }
             if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z != 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z != 0) throw std::invalid_argument("Invalid two-dimensional texture copy position");
             auto sourceStorage = static_cast<TextureResource*>(source)->Capture();
             auto destinationStorage = static_cast<TextureResource*>(destination)->Capture();
@@ -73,7 +91,7 @@ namespace AnyUnreal::RHI
         {
             if (activeRenderPass) throw std::runtime_error("Volume upload cannot execute inside a render pass");
             if (!destination || !upload) throw std::invalid_argument("Volume upload requires storage and data");
-            uploadedVolumes.push_back(destination);
+            copiedVolumes.push_back(destination);
             volumeUploads.push_back(upload);
             upload->Record(commands, *destination, x, y, z);
         });

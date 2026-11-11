@@ -15,6 +15,38 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region)
+    {
+        if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Volume copy formats are incompatible");
+        const std::array sourceSize{source.GetWidth(), source.GetHeight(), source.GetDepth()};
+        const std::array destinationSize{destination.GetWidth(), destination.GetHeight(), destination.GetDepth()};
+        bool overlap = source.GetStorage().Data() == destination.GetStorage().Data();
+        for (std::size_t axis = 0; axis < 3; ++axis)
+        {
+            const auto size = region.Extent[axis];
+            if (size == 0) throw std::invalid_argument("Volume copy requires a nonempty region");
+            if (region.Source[axis] >= sourceSize[axis] || size > sourceSize[axis] - region.Source[axis]) throw std::out_of_range("Volume copy exceeds its source");
+            if (region.Destination[axis] >= destinationSize[axis] || size > destinationSize[axis] - region.Destination[axis]) throw std::out_of_range("Volume copy exceeds its destination");
+            overlap = overlap && region.Source[axis] < region.Destination[axis] + size && region.Destination[axis] < region.Source[axis] + size;
+        }
+        if (overlap) throw std::invalid_argument("Volume copy regions overlap");
+        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, source.GetFormat());
+        const auto rowBytes = region.Extent[0] * pixelBytes;
+        const auto& sourceStorage = source.GetStorage();
+        const auto& destinationStorage = destination.GetStorage();
+        const GpuMemoryRange ranges[]{{sourceStorage.Data(), sourceStorage.Size()}, {destinationStorage.Data(), destinationStorage.Size()}};
+        WriteMemoryAcquire(commands, ranges);
+        for (std::uint32_t z = 0; z < region.Extent[2]; ++z)
+        {
+            for (std::uint32_t y = 0; y < region.Extent[1]; ++y)
+            {
+                const auto from = (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * source.GetRowPitch() + region.Source[0] * pixelBytes;
+                const auto to = (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
+                WriteBufferCopy(commands, destinationStorage.GetRange(to, rowBytes).data(), sourceStorage.GetRange(from, rowBytes).data(), rowBytes);
+            }
+        }
+    }
+
     void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
     {
         if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Texture copy formats are incompatible");

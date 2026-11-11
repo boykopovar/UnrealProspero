@@ -58,7 +58,7 @@ namespace AnyUnreal::RHI
         std::vector<std::shared_ptr<const LinearTexture2D>> copiedTextures;
         std::vector<std::shared_ptr<TextureUpload>> textureUploads;
         std::vector<std::shared_ptr<VolumeUpload>> volumeUploads;
-        std::vector<std::shared_ptr<const LinearTexture3D>> uploadedVolumes;
+        std::vector<std::shared_ptr<const LinearTexture3D>> copiedVolumes;
         FLinearColor blendFactor{1, 1, 1, 1};
         TRefCountPtr<GraphicsPipeline> pipeline;
         std::unique_ptr<ShaderParameters> vertexParameters;
