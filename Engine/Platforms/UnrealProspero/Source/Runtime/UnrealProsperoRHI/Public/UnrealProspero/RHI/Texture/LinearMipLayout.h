@@ -16,9 +16,10 @@ namespace UnrealProspero::RHI
         std::size_t RowPitch;
         std::size_t Offset;
         std::size_t Size;
+        std::uint32_t RowCount;
     };
 
-    UNREALPROSPERORHI_API std::vector<LinearMipLayout> CalculateLinearMipLayout(std::uint32_t width, std::uint32_t height, std::uint32_t depth, std::size_t pixelBytes, std::uint32_t mipCount);
+    UNREALPROSPERORHI_API std::vector<LinearMipLayout> CalculateLinearMipLayout(std::uint32_t width, std::uint32_t height, std::uint32_t depth, std::size_t blockBytes, std::uint32_t mipCount, std::uint32_t blockWidth = 1, std::uint32_t blockHeight = 1);
 }
 
 #endif

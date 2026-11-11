@@ -350,6 +350,32 @@ int main()
 {
     {
         using namespace UnrealProspero::RHI;
+        for (std::size_t blockBytes : {8u, 16u})
+        {
+            const auto compressed = CalculateLinearMipLayout(13, 10, 1, blockBytes, 4, 4, 4);
+            const std::size_t offsets[]{1024, 512, 256, 0};
+            const std::uint32_t rows[]{3, 2, 1, 1};
+            const std::uint32_t columns[]{4, 2, 1, 1};
+            for (std::size_t level = 0; level < compressed.size(); ++level)
+            {
+                if (compressed[level].Offset != offsets[level] || compressed[level].RowCount != rows[level] || compressed[level].RowBytes != columns[level] * blockBytes || compressed[level].RowPitch != 256) throw std::runtime_error("Compressed mip block layout is incorrect");
+            }
+            const auto tiny = CalculateLinearMipLayout(1, 1, 1, blockBytes, 1, 4, 4).front();
+            if (tiny.Width != 1 || tiny.Height != 1 || tiny.RowCount != 1 || tiny.RowBytes != blockBytes || tiny.Size != 256) throw std::runtime_error("Sub-block texture layout is incorrect");
+        }
+        for (std::uint32_t blockWidth : {0u, 1u, 2u, 8u})
+        {
+            bool rejected = false;
+            try { CalculateLinearMipLayout(13, 10, 1, 8, 4, blockWidth, 4); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Invalid compressed block dimensions were accepted");
+        }
+        {
+            bool rejected = false;
+            try { CalculateLinearMipLayout(13, 10, 1, 4, 4, 4, 4); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Invalid compressed block size was accepted");
+        }
         const auto volumeLevels = CalculateLinearMipLayout(13, 7, 5, 4, 4);
         const std::size_t volumeOffsets[]{1792, 768, 256, 0};
         const std::uint32_t volumeDepths[]{5, 2, 1, 1};
