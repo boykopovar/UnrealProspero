@@ -128,7 +128,7 @@ int RunChecks(int argc, const char* const* argv)
         const auto bytes = std::span(reinterpret_cast<const std::uint8_t*>(text.data()), text.size());
         reject([&] { AnyUnreal::Shader::UserDataLayout::Read(bytes, stage); });
     };
-    rejectField("version", "22");
+    rejectField("version", "0");
     rejectField("user_sgpr_count", "17");
     rejectField("push_constants_valid", "2");
     rejectField("scratch_bytes_per_wave", "1");
