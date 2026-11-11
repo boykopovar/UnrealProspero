@@ -77,8 +77,9 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    if (operation != "write" && operation != "read-write") throw std::invalid_argument("Unknown compute operation");
+    if (operation != "write" && operation != "read-write" && operation != "constants") throw std::invalid_argument("Unknown compute operation");
     const bool readWrite = operation == "read-write";
+    const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
     const auto code = read(arguments[2]);
     const auto metadata = read(arguments[3]);
@@ -112,6 +113,7 @@ int main()
     std::vector<Shaders::RuntimeBinding> bindings;
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
     bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite ? 1u : 0u, 1, readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
     Shaders::UserDataInputs inputs;
     bool rejected = false;
@@ -120,9 +122,12 @@ int main()
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
     descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+    if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 2; ++iteration)
     {
+        const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
+        memory.Upload(1024, std::as_bytes(std::span(constants)));
         std::array<std::uint32_t, 64> values{};
         for (unsigned index = 0; index < values.size(); ++index)
         {
@@ -135,13 +140,23 @@ int main()
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, secondMemory.Data(), secondMemory.Size(), 40);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, shader.Get().code, shader.Get().shader_size, 40);
-        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, reinterpret_cast<const void*>(inputs.DescriptorSets[0]), bindings.size() * 16, 40);
+        for (std::size_t set = 0; set < inputs.DescriptorSets.size(); ++set)
+        {
+            if (inputs.DescriptorSets[set] == 0) continue;
+            std::size_t size = 0;
+            for (const auto& binding : bindings)
+            {
+                if (binding.Set == set) size = std::max(size, static_cast<std::size_t>(binding.Offset) + binding.Count * binding.Stride);
+            }
+            sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, reinterpret_cast<const void*>(inputs.DescriptorSets[set]), size, 40);
+        }
         RHI::WriteShaderRegisters(commands, shader, layout, inputs);
         sceAgcCbDispatch(&commands, 1, 1, 1, shader.Get().specials->dispatch_modifier);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         for (unsigned index = 0; index < 64; ++index)
         {
-            if (output[index] != (readWrite ? input[index] : index) * 3 + 1) throw std::runtime_error("GPU compute output does not match the shader");
+            const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? input[index] : index) * 3 + 1;
+            if (output[index] != expected) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
     std::cout << "GPU compute output verified for two dispatches\n";
