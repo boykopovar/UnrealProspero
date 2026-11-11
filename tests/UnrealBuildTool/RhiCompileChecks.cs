@@ -12,6 +12,7 @@ internal static class RhiCompileChecks
         CppCompileEnvironment compile = new(platformCompile);
         string runtime = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms/AnyUnreal/Source/Runtime");
         string[] modules = { "AnyUnrealShaderCommon", "AnyUnrealRHI" };
+        compile.UserIncludePaths.Add(new DirectoryReference(Path.Combine(runtime, "ApplicationCore", "Public")));
         foreach (string module in modules) compile.UserIncludePaths.Add(new DirectoryReference(Path.Combine(runtime, module, "Public")));
         foreach (string module in new[] { "RHI", "RHICore", "RenderCore" }) compile.SystemIncludePaths.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Source/Runtime", module, "Public"));
         compile.Definitions.AddRange(new[] { "ANYUNREALSHADERCOMMON_API=", "ANYUNREALRHI_API=", "RHI_API=", "RHICORE_API=", "RENDERCORE_API=" });
