@@ -11,6 +11,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(ComputeCheck Compute.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/Readback.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Completion.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"

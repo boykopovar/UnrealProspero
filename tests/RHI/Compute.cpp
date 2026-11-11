@@ -11,6 +11,7 @@
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
+#include "AnyUnreal/RHI/Memory/Readback.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -134,6 +135,8 @@ int main()
     {
         RHI::MemoryBarrier barrier(layout.GetAddressHigh());
         RHI::Completion completion(layout.GetAddressHigh());
+        RHI::Readback readback(249, layout.GetAddressHigh());
+        RHI::MemoryBarrier readbackBarrier(layout.GetAddressHigh());
         const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
         if (withConstants)
         {
@@ -198,10 +201,20 @@ int main()
         barrier.Acquire(commands, ranges);
         if (iteration == 1) RHI::WriteComputeDispatch(commands, shader, layout, inputs, 1, 1, 1);
         else RHI::WriteIndirectComputeDispatch(commands, shader, layout, inputs, memory.Data(), memory.Size(), 2048);
+        readbackBarrier.Release(commands);
+        readbackBarrier.Acquire(commands, ranges);
+        const auto readbackSource = std::as_bytes(std::span(output, 64)).subspan(3, 249);
+        readback.Record(commands, readbackSource);
+        bool prematureReadRejected = false;
+        try { readback.GetRange(0, 249); }
+        catch (const std::runtime_error&) { prematureReadRejected = true; }
+        if (!prematureReadRejected) throw std::runtime_error("Readback accepted a read before GPU submission");
         completion.Write(commands);
         if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         completion.Wait(10000000);
+        const auto result = readback.GetRange(0, 249);
+        if (!std::equal(result.begin(), result.end(), readbackSource.begin())) throw std::runtime_error("Readback differs from compute shader output");
         for (std::size_t index = 0; index < copyOutput.size(); ++index)
         {
             const auto expectedByte = index >= 7 && index < 7 + sizeof(values) ? std::as_bytes(std::span(values))[index - 7] : std::byte{0x5a};
