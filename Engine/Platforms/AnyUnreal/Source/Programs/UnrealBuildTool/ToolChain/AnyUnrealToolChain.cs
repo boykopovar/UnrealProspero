@@ -31,6 +31,8 @@ internal sealed partial class AnyUnrealToolChain : ClangToolChain
 
     protected override ClangToolChainInfo GetToolChainInfo() => new(null, new FileReference(profile.Compiler), new FileReference(profile.Archiver), Logger);
 
+    protected override string GetPreprocessorDefinitionArgument(string definition) => quoteResponseArgument("-D" + definition);
+
     protected override void GetCompileArguments_Global(CppCompileEnvironment environment, List<string> arguments)
     {
         if (environment.Architecture != UnrealArch.X64) throw new BuildException("AnyUnreal requires x86-64");
