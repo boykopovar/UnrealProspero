@@ -12,7 +12,7 @@ namespace AnyUnreal::RHI
 {
     void WriteIndirectDraw(CommandBuffer& commands, const Shader::UserDataLayout& layout, const BufferAllocation& arguments, std::uint32_t argumentOffset, const BufferAllocation* indices, std::uint32_t indexStride)
     {
-        if (layout.GetStage() != Shader::ShaderStage::Vertex) throw std::invalid_argument("Indirect draw requires vertex shader metadata");
+        if (layout.GetStage() != Shader::ShaderStage::Vertex && layout.GetStage() != Shader::ShaderStage::Geometry) throw std::invalid_argument("Indirect draw requires vertex shader metadata");
         if (argumentOffset % 4 != 0) throw std::invalid_argument("Indirect draw offset must be aligned to four bytes");
         arguments.GetRange(argumentOffset, indices ? 20 : 16);
         if (indices)

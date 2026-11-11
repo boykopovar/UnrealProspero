@@ -46,6 +46,8 @@ namespace AnyUnreal::RHI
             TRefCountPtr<GraphicsPipeline> pipeline;
             std::unique_ptr<ShaderBindings> vertexBindings;
             std::unique_ptr<ShaderBindings> pixelBindings;
+            std::unique_ptr<ShaderBindings> geometryBindings;
+            std::unique_ptr<MergedDescriptorTables> mergedDescriptors;
             std::unique_ptr<VertexBufferTable> vertexBuffers;
             std::shared_ptr<BufferAllocation> indexBuffer;
             std::shared_ptr<BufferAllocation> arguments;
@@ -63,6 +65,7 @@ namespace AnyUnreal::RHI
         TRefCountPtr<GraphicsPipeline> pipeline;
         std::unique_ptr<ShaderParameters> vertexParameters;
         std::unique_ptr<ShaderParameters> pixelParameters;
+        std::unique_ptr<ShaderParameters> geometryParameters;
         uint32 stencilReference = 0;
         VertexStreams vertexStreams;
         std::vector<std::unique_ptr<RenderPass>> renderPasses;

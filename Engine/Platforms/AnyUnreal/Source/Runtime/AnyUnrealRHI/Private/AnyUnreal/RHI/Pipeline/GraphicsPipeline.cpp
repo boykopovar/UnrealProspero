@@ -31,7 +31,7 @@ namespace AnyUnreal::RHI
     GraphicsPipeline::GraphicsPipeline(const FGraphicsPipelineStateInitializer& initializer) : description(initializer), primitiveType(convertPrimitiveType(initializer.PrimitiveType))
     {
         const auto& stages = initializer.BoundShaderState;
-        if (stages.GetMeshShader() || stages.GetAmplificationShader() || stages.GetGeometryShader() || stages.GetWorkGraphShader()) throw std::runtime_error("Graphics pipeline shader stage is not implemented");
+        if (stages.GetMeshShader() || stages.GetAmplificationShader() || stages.GetWorkGraphShader()) throw std::runtime_error("Graphics pipeline shader stage is not implemented");
         if (!stages.VertexShaderRHI || !initializer.BlendState || !initializer.DepthStencilState || !initializer.RasterizerState) throw std::invalid_argument("Graphics pipeline requires a vertex shader and fixed function states");
         if (initializer.RenderTargetsEnabled > MaxSimultaneousRenderTargets) throw std::out_of_range("Graphics pipeline exceeds the render target limit");
         if (initializer.NumSamples != 1) throw std::runtime_error("Multisample graphics pipelines are not implemented");
@@ -49,8 +49,8 @@ namespace AnyUnreal::RHI
         depthStencil = static_cast<DepthStencilState*>(initializer.DepthStencilState);
         rasterizer = static_cast<RasterizerState*>(initializer.RasterizerState);
         auto& vertex = *static_cast<VertexShader*>(stages.VertexShaderRHI);
-        if (!declaration && vertex.GetCode().GetUserData().GetVertexBufferUsageMask() != 0) throw std::invalid_argument("Vertex inputs require a vertex declaration");
-        shaders = std::make_unique<GraphicsShaders>(vertex, static_cast<PixelShader*>(stages.PixelShaderRHI), primitiveType);
+        shaders = std::make_unique<GraphicsShaders>(vertex, static_cast<PixelShader*>(stages.PixelShaderRHI), static_cast<GeometryShader*>(stages.GetGeometryShader()), primitiveType);
+        if (!declaration && shaders->GetVertexInputLayout().GetVertexBufferUsageMask() != 0) throw std::invalid_argument("Vertex inputs require a vertex declaration");
     }
 
     FRHIGraphicsShader* GraphicsPipeline::GetShader(EShaderFrequency frequency) const
@@ -59,7 +59,7 @@ namespace AnyUnreal::RHI
         {
         case SF_Vertex: return &shaders->GetVertexShader();
         case SF_Pixel: return shaders->GetPixelShader();
-        case SF_Geometry:
+        case SF_Geometry: return shaders->GetGeometryShader();
         case SF_Mesh:
         case SF_Amplification: return nullptr;
         default: throw std::invalid_argument("Requested shader frequency is not a graphics stage");

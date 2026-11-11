@@ -128,7 +128,7 @@ namespace AnyUnreal::RHI
             if (vertexCount == 0) return;
             instanceCount = std::max(1u, instanceCount);
             if (baseVertexIndex > std::numeric_limits<uint32>::max() - (vertexCount - 1)) throw std::overflow_error("Draw vertex index exceeds the hardware field");
-            const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
+            const auto& layout = pipeline->GetShaders().GetVertexInputLayout();
             const auto* declaration = pipeline->GetVertexDeclaration();
             if (declaration)
             {
@@ -150,13 +150,14 @@ namespace AnyUnreal::RHI
 
     void GraphicsContext::prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer, std::shared_ptr<BufferAllocation> arguments)
     {
-        const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
+        const auto& layout = pipeline->GetShaders().GetVertexInputLayout();
         const auto* declaration = pipeline->GetVertexDeclaration();
         auto vertexBuffers = declaration ? vertexStreams.CaptureTable(*declaration, layout) : std::make_unique<VertexBufferTable>(0, std::span<const VertexBufferBinding>{}, layout.GetAddressHigh());
         auto vertexBindings = vertexParameters->CreateBindings();
         auto pixelBindings = pixelParameters ? pixelParameters->CreateBindings() : nullptr;
-        draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers), std::move(indexBuffer), std::move(arguments)});
-        const auto& draw = draws.back();
+        auto geometryBindings = geometryParameters ? geometryParameters->CreateBindings() : nullptr;
+        draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(geometryBindings), {}, std::move(vertexBuffers), std::move(indexBuffer), std::move(arguments)});
+        auto& draw = draws.back();
         Shader::UserDataInputs inputs;
         inputs.BaseVertex = baseVertexIndex;
         inputs.StartInstance = firstInstance;
@@ -165,7 +166,7 @@ namespace AnyUnreal::RHI
             const std::array ranges{GpuMemoryRange{draw.indexBuffer->Data(), draw.indexBuffer->Size()}};
             WriteMemoryAcquire(commands, ranges);
         }
-        draw.pipeline->GetShaders().Record(commands, *draw.vertexBindings, draw.pixelBindings.get(), *draw.vertexBuffers, inputs);
+        draw.mergedDescriptors = draw.pipeline->GetShaders().Record(commands, *draw.vertexBindings, draw.pixelBindings.get(), draw.geometryBindings.get(), *draw.vertexBuffers, inputs);
         draw.pipeline->RecordColorState(commands, stencilReference, blendFactor);
     }
 
@@ -200,7 +201,7 @@ namespace AnyUnreal::RHI
         auto arguments = static_cast<Buffer*>(argumentBuffer)->Capture();
         arguments->GetRange(argumentOffset, indices ? 20 : 16);
         prepareDraw(commands, 0, 0, indices, arguments);
-        WriteIndirectDraw(commands, pipeline->GetShaders().GetVertexShader().GetCode().GetUserData(), *arguments, argumentOffset, indices.get(), indexStride);
+        WriteIndirectDraw(commands, pipeline->GetShaders().GetVertexInputLayout(), *arguments, argumentOffset, indices.get(), indexStride);
     }
 
     void GraphicsContext::RHIDrawPrimitiveIndirect(FRHIBuffer* argumentBuffer, uint32 argumentOffset)
@@ -255,17 +256,22 @@ namespace AnyUnreal::RHI
             auto* nextPipeline = static_cast<GraphicsPipeline*>(pipelineState);
             auto& vertex = nextPipeline->GetShaders().GetVertexShader();
             auto* pixel = nextPipeline->GetShaders().GetPixelShader();
+            auto* geometry = nextPipeline->GetShaders().GetGeometryShader();
             auto nextVertex = vertexParameters && &vertexParameters->GetShader() == &vertex ? std::make_unique<ShaderParameters>(*vertexParameters) : std::make_unique<ShaderParameters>(vertex);
             std::unique_ptr<ShaderParameters> nextPixel;
             if (pixel) nextPixel = pixelParameters && &pixelParameters->GetShader() == pixel ? std::make_unique<ShaderParameters>(*pixelParameters) : std::make_unique<ShaderParameters>(*pixel);
+            std::unique_ptr<ShaderParameters> nextGeometry;
+            if (geometry) nextGeometry = geometryParameters && &geometryParameters->GetShader() == geometry ? std::make_unique<ShaderParameters>(*geometryParameters) : std::make_unique<ShaderParameters>(*geometry);
             if (applyAdditionalState)
             {
                 ApplyStaticUniformBuffers(*nextVertex);
                 if (nextPixel) ApplyStaticUniformBuffers(*nextPixel);
+                if (nextGeometry) ApplyStaticUniformBuffers(*nextGeometry);
             }
             pipeline = nextPipeline;
             vertexParameters = std::move(nextVertex);
             pixelParameters = std::move(nextPixel);
+            geometryParameters = std::move(nextGeometry);
             stencilReference = stencilRef;
         });
     }
@@ -279,6 +285,7 @@ namespace AnyUnreal::RHI
             ShaderParameters* parameters = nullptr;
             if (vertexParameters && &vertexParameters->GetShader() == shader) parameters = vertexParameters.get();
             else if (pixelParameters && &pixelParameters->GetShader() == shader) parameters = pixelParameters.get();
+            else if (geometryParameters && &geometryParameters->GetShader() == shader) parameters = geometryParameters.get();
             if (!parameters) throw std::invalid_argument("Graphics parameters require a shader from the active pipeline");
             parameters->SetConstants(parametersData, shaderParameters);
             parameters->SetResources(resourceParameters);
