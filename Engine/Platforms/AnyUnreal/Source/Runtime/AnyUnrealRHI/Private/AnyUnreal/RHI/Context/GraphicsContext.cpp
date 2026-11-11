@@ -134,7 +134,7 @@ namespace AnyUnreal::RHI
         });
     }
 
-    void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel)
+    void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer)
     {
         RecordCommands([&](CommandBuffer& commands)
         {
@@ -142,7 +142,7 @@ namespace AnyUnreal::RHI
             if (!destination || !upload) throw std::invalid_argument("Texture upload requires storage and data");
             copiedTextures.push_back(destination);
             textureUploads.push_back(upload);
-            upload->Record(commands, *destination, x, y, mipLevel);
+            upload->Record(commands, *destination, x, y, mipLevel, arrayLayer);
         });
     }
 

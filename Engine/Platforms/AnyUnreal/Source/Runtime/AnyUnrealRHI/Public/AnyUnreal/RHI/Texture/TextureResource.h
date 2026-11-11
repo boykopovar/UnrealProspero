@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <vector>
+#include <utility>
 
 namespace AnyUnreal::RHI
 {
@@ -20,6 +21,7 @@ namespace AnyUnreal::RHI
         {
             EResourceLockMode Mode;
             std::uint32_t MipLevel;
+            std::uint32_t ArrayLayer;
             std::size_t Pitch;
             std::vector<std::byte> Data;
         };
@@ -29,8 +31,8 @@ namespace AnyUnreal::RHI
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, std::span<void* const> initialMipData);
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);
-        void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch);
-        LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel);
+        void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch, std::uint32_t arrayLayer = 0);
+        LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer = 0);
         void* MapReadback();
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
@@ -56,7 +58,7 @@ namespace AnyUnreal::RHI
         bool initialized;
         std::vector<std::byte> volumeInitialData;
         FCriticalSection lockMutex;
-        std::map<std::uint32_t, LockedData> lockedMips;
+        std::map<std::pair<std::uint32_t, std::uint32_t>, LockedData> lockedMips;
         std::optional<std::vector<std::byte>> mappedData;
     };
 

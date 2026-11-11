@@ -128,20 +128,20 @@ namespace AnyUnreal::RHI
         if (reinterpret_cast<std::uintptr_t>(storage->GetStorage().Data()) % CalculateAlignment(description) != 0) throw std::invalid_argument("External texture storage does not meet its alignment");
     }
 
-    void* TextureResource::Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch)
+    void* TextureResource::Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch, std::uint32_t arrayLayer)
     {
         FScopeLock lock(&lockMutex);
-        if (lockedMips.contains(mipLevel) || mappedData) throw std::runtime_error("Texture is already locked or mapped");
+        if (lockedMips.contains({arrayLayer, mipLevel}) || mappedData) throw std::runtime_error("Texture is already locked or mapped");
         if (mode != RLM_ReadOnly && mode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         const auto texture = Capture();
         const auto& mip = texture->GetMipLayout(mipLevel);
-        LockedData next{mode, mipLevel, mip.RowPitch, std::vector<std::byte>(mip.Size)};
+        const auto range = texture->GetMipRange(mipLevel, arrayLayer);
+        LockedData next{mode, mipLevel, arrayLayer, mip.RowPitch, std::vector<std::byte>(mip.Size)};
         if (mode == RLM_ReadOnly)
         {
-            const auto source = texture->GetMipRange(mipLevel);
-            std::copy(source.begin(), source.end(), next.Data.begin());
+            std::copy(range.begin(), range.end(), next.Data.begin());
         }
-        auto& entry = lockedMips.emplace(mipLevel, std::move(next)).first->second;
+        auto& entry = lockedMips.emplace(std::pair{arrayLayer, mipLevel}, std::move(next)).first->second;
         size = entry.Data.size();
         pitch = entry.Pitch;
         return entry.Data.data();
@@ -167,10 +167,10 @@ namespace AnyUnreal::RHI
         mappedData.reset();
     }
 
-    TextureResource::LockedData TextureResource::Unlock(EResourceLockMode mode, std::uint32_t mipLevel)
+    TextureResource::LockedData TextureResource::Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         FScopeLock lock(&lockMutex);
-        const auto found = lockedMips.find(mipLevel);
+        const auto found = lockedMips.find({arrayLayer, mipLevel});
         if (found == lockedMips.end()) throw std::runtime_error("Texture mip is not locked");
         if (found->second.Mode != mode) throw std::invalid_argument("Texture unlock does not match its lock mode");
         auto result = std::move(found->second);
