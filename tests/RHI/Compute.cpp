@@ -157,8 +157,10 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
-    const bool volumeRead = operation == "volume-texture" || operation == "volume-write";
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view") throw std::invalid_argument("Unknown compute operation");
+    const bool volumeMipView = operation == "volume-mip-view";
+    const bool volumeMipRead = operation == "volume-mip-texture" || volumeMipView;
+    const bool volumeRead = operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
     const bool mipView = operation == "mip-view";
     const bool mipRead = operation == "mip-texture" || mipView;
     const bool halfRead = operation == "half-texture";
@@ -246,18 +248,36 @@ int main()
     std::unique_ptr<RHI::LinearTexture3D> volume;
     if (volumeRead)
     {
-        volume = std::make_unique<RHI::LinearTexture3D>(5, 3, 5, RHI::TextureFormat::R32Float, layout.GetAddressHigh());
-        std::array<float, 75> values{};
-        for (std::size_t index = 0; index < values.size(); ++index) values[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
-        const auto source = std::as_bytes(std::span(values));
-        volume->Upload(source, 5 * sizeof(float), 15 * sizeof(float));
-        bool rejected = false;
-        try { volume->Upload(source.first(source.size() - 1), 5 * sizeof(float), 15 * sizeof(float)); }
-        catch (const std::invalid_argument&) { rejected = true; }
-        if (!rejected) throw std::runtime_error("Incomplete volume upload was accepted");
-        std::array<float, 75> copied{};
-        volume->CopyTo(std::as_writable_bytes(std::span(copied)), 5 * sizeof(float), 15 * sizeof(float));
-        if (copied != values || volume->GetRowPitch() != 256 || volume->GetSlicePitch() != 768) throw std::runtime_error("Volume layout did not preserve its texels");
+        if (volumeMipRead)
+        {
+            const auto extent = volumeMipView ? 16u : 8u;
+            volume = std::make_unique<RHI::LinearTexture3D>(extent, extent, extent, RHI::TextureFormat::R32Float, layout.GetAddressHigh(), volumeMipView ? 5u : 4u);
+            for (std::uint32_t level = 0; level < volume->GetMipCount(); ++level)
+            {
+                const auto& mip = volume->GetMipLayout(level);
+                std::vector<float> values(mip.Width * mip.Height * mip.Depth);
+                for (std::size_t index = 0; index < values.size(); ++index) values[index] = static_cast<float>(level * 1000 + index * 3 + 1);
+                volume->Upload(std::as_bytes(std::span(values)), mip.RowBytes, mip.RowBytes * mip.Height, level);
+                std::vector<float> copied(values.size());
+                volume->CopyTo(std::as_writable_bytes(std::span(copied)), mip.RowBytes, mip.RowBytes * mip.Height, level);
+                if (copied != values) throw std::runtime_error("Volume mip upload or readback changed texels");
+            }
+        }
+        else
+        {
+            volume = std::make_unique<RHI::LinearTexture3D>(5, 3, 5, RHI::TextureFormat::R32Float, layout.GetAddressHigh());
+            std::array<float, 75> values{};
+            for (std::size_t index = 0; index < values.size(); ++index) values[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
+            const auto source = std::as_bytes(std::span(values));
+            volume->Upload(source, 5 * sizeof(float), 15 * sizeof(float));
+            bool rejected = false;
+            try { volume->Upload(source.first(source.size() - 1), 5 * sizeof(float), 15 * sizeof(float)); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Incomplete volume upload was accepted");
+            std::array<float, 75> copied{};
+            volume->CopyTo(std::as_writable_bytes(std::span(copied)), 5 * sizeof(float), 15 * sizeof(float));
+            if (copied != values || volume->GetRowPitch() != 256 || volume->GetSlicePitch() != 768) throw std::runtime_error("Volume layout did not preserve its texels");
+        }
         bindings.push_back({textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, textureWrite ? "storage-image" : "sampled-image"});
     }
     std::unique_ptr<RHI::DepthTexture2D> depthTexture;
@@ -290,7 +310,7 @@ int main()
     if (readWrite) bindBuffer(descriptors, Shaders::ResourceKind::ShaderResource, 0, input);
     if (volume)
     {
-        const auto descriptor = volume->GetDescriptor();
+        const auto descriptor = volume->CreateViewDescriptor(false, volumeMipView ? 1u : 0u);
         descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(descriptor)));
     }
     if (depthTexture)
@@ -491,6 +511,15 @@ int main()
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
             auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
             if (volumeRead) expected = index * 3 + 1;
+            if (volumeMipRead)
+            {
+                const auto level = index % 4;
+                const auto width = 8u >> level;
+                const auto voxel = index / 4;
+                const auto z = (voxel * 3 + 1) % width;
+                const auto pixel = (z * width + (voxel / width) % width) * width + voxel % width;
+                expected = (level + (volumeMipView ? 1u : 0u)) * 1000 + pixel * 3 + 1;
+            }
             if (mipRead)
             {
                 const auto level = index % 4;
