@@ -27,6 +27,9 @@ namespace AnyUnreal::RHI
         void RHIProcessDeleteQueue() override;
         void RHIBlockUntilGPUIdle() override;
         FGPUFenceRHIRef RHICreateGPUFence(const FName& name) override;
+        FStagingBufferRHIRef RHICreateStagingBuffer() override;
+        void* RHILockStagingBuffer(FRHIStagingBuffer* buffer, FRHIGPUFence* fence, uint32 offset, uint32 size) override;
+        void RHIUnlockStagingBuffer(FRHIStagingBuffer* buffer) override;
 
     protected:
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);

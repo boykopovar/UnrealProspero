@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Context/ComputeContext.h"
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
@@ -102,6 +103,26 @@ namespace AnyUnreal::RHI
             const GpuMemoryRange ranges[]{{destinationRange.data(), destinationRange.size()}, {sourceRange.data(), sourceRange.size()}};
             WriteMemoryAcquire(commands, ranges);
             WriteBufferCopy(commands, destinationRange.data(), sourceRange.data(), size);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
+    void ComputeContext::RHICopyToStagingBuffer(FRHIBuffer* source, FRHIStagingBuffer* destination, uint32 offset, uint32 size)
+    {
+        requireWritable();
+        if (!source || !destination) throw std::invalid_argument("Staging copy requires source and destination buffers");
+        auto storage = static_cast<Buffer*>(source)->Capture();
+        const auto range = storage->GetRange(offset, size);
+        try
+        {
+            auto readback = std::make_shared<Readback>(size, addressHigh);
+            copiedBuffers.push_back(std::move(storage));
+            readbacks.push_back(readback);
+            static_cast<StagingBuffer*>(destination)->Record(commands, readback, range);
         }
         catch (...)
         {

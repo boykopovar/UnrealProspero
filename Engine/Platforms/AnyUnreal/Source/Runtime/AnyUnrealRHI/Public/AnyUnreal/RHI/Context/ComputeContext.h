@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"
+#include "AnyUnreal/RHI/Memory/Readback.h"
 
 namespace AnyUnreal::RHI
 {
@@ -25,6 +26,7 @@ namespace AnyUnreal::RHI
         void RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values) override;
         void RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size) override;
         void RHIWriteGPUFence(FRHIGPUFence* fence) override;
+        void RHICopyToStagingBuffer(FRHIBuffer* source, FRHIStagingBuffer* destination, uint32 offset, uint32 size) override;
         void RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ) override;
         void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers) override;
@@ -58,6 +60,7 @@ namespace AnyUnreal::RHI
         std::vector<std::shared_ptr<BufferTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         std::vector<std::shared_ptr<Completion>> fenceMarkers;
+        std::vector<std::shared_ptr<Readback>> readbacks;
         std::uint32_t addressHigh;
         bool failed = false;
         bool finalized = false;

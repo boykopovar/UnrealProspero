@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
 #include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
@@ -15,6 +16,24 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FStagingBufferRHIRef DynamicRHI::RHICreateStagingBuffer()
+    {
+        return new StagingBuffer();
+    }
+
+    void* DynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* buffer, FRHIGPUFence* fence, uint32 offset, uint32 size)
+    {
+        if (!buffer) throw std::invalid_argument("Staging buffer is null");
+        if (fence && !fence->Poll()) throw std::runtime_error("Staging buffer fence has not completed");
+        return buffer->Lock(offset, size);
+    }
+
+    void DynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* buffer)
+    {
+        if (!buffer) throw std::invalid_argument("Staging buffer is null");
+        buffer->Unlock();
     }
 
     FGPUFenceRHIRef DynamicRHI::RHICreateGPUFence(const FName& name)
