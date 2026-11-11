@@ -73,6 +73,10 @@ namespace AnyUnreal::Shader
         result.count = fields.Get("user_sgpr_count");
         result.addressHigh = fields.Get("address32_hi");
         result.pushConstantSize = fields.Get("push_constant_size");
+        result.vertexBufferUsageMask = fields.Get("vertex_buffer_usage_mask");
+        result.vertexBuffersPerAttribute = fields.Flag("vertex_buffer_per_attribute");
+        const auto hasVertexBuffers = fields.Flag("vertex_buffer_table_valid");
+        if (hasVertexBuffers != (result.vertexBufferUsageMask != 0) || (!hasVertexBuffers && result.vertexBuffersPerAttribute) || (hasVertexBuffers && stage != ShaderStage::Vertex)) throw std::invalid_argument("Invalid AGC vertex buffer table metadata");
         if (result.count > 16) throw std::invalid_argument("AGC user data exceeds register capacity");
         if (fields.Flag("scratch_valid") || fields.Flag("streamout_valid")) throw std::invalid_argument("AGC scratch and streamout bindings are not supported");
         for (const auto* name : {"scratch_bytes_per_wave", "scratch_size_per_thread", "scratch_buffer_table_user_data_dword", "streamout_buffer_table_user_data_dword", "streamout_enabled_stream_buffers_mask", "streamout_config_sgpr", "streamout_write_index_sgpr"})
@@ -154,4 +158,6 @@ namespace AnyUnreal::Shader
     std::uint32_t UserDataLayout::GetAddressHigh() const { return addressHigh; }
     std::uint32_t UserDataLayout::GetPushConstantSize() const { return pushConstantSize; }
     ShaderStage UserDataLayout::GetStage() const { return stage; }
+    std::uint32_t UserDataLayout::GetVertexBufferUsageMask() const { return vertexBufferUsageMask; }
+    bool UserDataLayout::UsesVertexBuffersPerAttribute() const { return vertexBuffersPerAttribute; }
 }

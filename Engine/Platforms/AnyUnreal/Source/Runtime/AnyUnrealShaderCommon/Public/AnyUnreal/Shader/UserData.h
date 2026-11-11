@@ -30,6 +30,8 @@ namespace AnyUnreal::Shader
         std::uint32_t GetAddressHigh() const;
         std::uint32_t GetPushConstantSize() const;
         ShaderStage GetStage() const;
+        std::uint32_t GetVertexBufferUsageMask() const;
+        bool UsesVertexBuffersPerAttribute() const;
 
     private:
         enum class Input { DescriptorSet, VertexBuffers, PushConstants, RingTable, BaseVertex, StartInstance, DrawId, ViewIndex, Constant };
@@ -39,6 +41,8 @@ namespace AnyUnreal::Shader
         std::uint32_t count = 0;
         std::uint32_t addressHigh = 0;
         std::uint32_t pushConstantSize = 0;
+        std::uint32_t vertexBufferUsageMask = 0;
+        bool vertexBuffersPerAttribute = false;
         ShaderStage stage = ShaderStage::Vertex;
     };
 }

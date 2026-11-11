@@ -110,7 +110,7 @@ int RunChecks(int argc, const char* const* argv)
     {
         if (registers[index] != 0) throw std::runtime_error("AGC user data exceeds its declared window");
     }
-    if (stage == ShaderStage::Vertex && (registers[0] != 17 || registers[1] != 0)) throw std::runtime_error("Unexpected fullscreen vertex draw parameters");
+    if (stage == ShaderStage::Vertex && layout.GetVertexBufferUsageMask() == 0 && (registers[0] != 17 || registers[1] != 0)) throw std::runtime_error("Unexpected fullscreen vertex draw parameters");
     if (stage == ShaderStage::Compute && registers[2] != 0x10000) throw std::runtime_error("Unexpected compute descriptor pointer");
     reject([&] { AnyUnreal::Shader::UserDataLayout::Read({}, stage); });
     auto duplicateMetadata = metadata;
@@ -131,6 +131,13 @@ int RunChecks(int argc, const char* const* argv)
     rejectField("user_sgpr_count", "17");
     rejectField("push_constants_valid", "2");
     rejectField("scratch_bytes_per_wave", "1");
+    rejectField("vertex_buffer_per_attribute", "2");
+    if (layout.GetVertexBufferUsageMask() == 0)
+    {
+        if (layout.UsesVertexBuffersPerAttribute()) throw std::runtime_error("Absent vertex buffers have an attribute layout");
+        rejectField("vertex_buffer_usage_mask", "1");
+        rejectField("vertex_buffer_per_attribute", "1");
+    }
     if (stage == ShaderStage::Vertex) rejectField("ngg_lds_layout_user_data_dword", "0");
     if (stage == ShaderStage::Compute)
     {
