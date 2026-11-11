@@ -1,4 +1,7 @@
 #include "AnyUnreal/RHI/Command/ColorClear.h"
+#include "AnyUnreal/RHI/Command/PatternFill.h"
+#include "AnyUnreal/RHI/Texture/ClearValue.h"
+#include "AnyUnreal/RHI/Texture/LinearTexture3D.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -116,6 +119,34 @@ int main()
             if (bytes[index] != pixel[index % pixelSize]) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }
     }
-    std::cout << "Color clears verified for eleven formats and 132 cases\n";
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    {
+        LinearTexture3D texture(7, 3, 5, format, 2);
+        const std::array<std::uint32_t, 4> values{0x76543210u, 0xfedcba98u, 0x13579bdfu, 0x2468ace0u};
+        const auto pixelSize = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto channelSize = format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float ? 4u : IsHalfTextureFormat(format) ? 2u : 1u;
+        std::array<std::byte, 16> pixel{};
+        for (std::size_t byte = 0; byte < pixelSize; ++byte)
+        {
+            const auto channel = byte / channelSize;
+            const auto source = format == TextureFormat::Bgra8Unorm && channel < 3 ? 2 - channel : channel;
+            pixel[byte] = static_cast<std::byte>((values[source] >> ((byte % channelSize) * 8)) & 255u);
+        }
+        const auto& allocation = texture.GetStorage();
+        const auto bytes = allocation.GetRange(0, allocation.Size());
+        std::fill(bytes.begin(), bytes.end(), std::byte{0xa5});
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        CommandStorage storage(16384, 2);
+        auto& commands = storage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        WritePatternFill(commands, allocation.Data(), allocation.Size(), EncodeTextureClear(format, values));
+        SubmitAndWait(commands, fence, 1, 10000000);
+        for (std::size_t byte = 0; byte < bytes.size(); ++byte)
+        {
+            if (bytes[byte] != pixel[byte % pixelSize]) throw std::runtime_error("Integer volume clear changed component bits");
+        }
+    }
+    std::cout << "Color clears verified for eleven formats, 132 float cases and nine integer volumes\n";
     return 0;
 }

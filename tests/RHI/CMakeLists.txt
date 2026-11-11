@@ -45,6 +45,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Query/OcclusionSnapshot.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Completion.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/ClearValue.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/IndirectDraw.cpp"
@@ -92,8 +93,10 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
     target_sources(TextureCopyCheck PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/VolumeUpload.cpp" "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture3D.cpp")
     adk_link_libraries(TextureCopyCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(ColorClearCheck ColorClear.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture3D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/HalfPixels.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/ClearValue.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
@@ -106,6 +109,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
     adk_add_executable(SwapChainCheck SwapChain.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Presentation/SwapChain.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/ClearValue.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/PatternFill.cpp"
