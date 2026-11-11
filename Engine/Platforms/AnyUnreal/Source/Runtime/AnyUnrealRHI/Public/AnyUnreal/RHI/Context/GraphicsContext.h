@@ -19,6 +19,8 @@ namespace AnyUnreal::RHI
         void RHIEndRenderPass() override;
         void RHISetBlendFactor(const FLinearColor& factor) override;
         void RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount) override;
+        void RHIDrawPrimitiveIndirect(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
+        void RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* indexBuffer, FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDrawIndexedPrimitive(FRHIBuffer* indexBuffer, int32 baseVertexIndex, uint32 firstInstance, uint32 vertexCount, uint32 startIndex, uint32 primitiveCount, uint32 instanceCount) override;
         void RHISetStreamSource(uint32 streamIndex, FRHIBuffer* vertexBuffer, uint32 offset) override;
         void RHISetViewport(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) override;
@@ -37,9 +39,11 @@ namespace AnyUnreal::RHI
             std::unique_ptr<ShaderBindings> pixelBindings;
             std::unique_ptr<VertexBufferTable> vertexBuffers;
             std::shared_ptr<BufferAllocation> indexBuffer;
+            std::shared_ptr<BufferAllocation> arguments;
         };
 
-        void prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer);
+        void prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer, std::shared_ptr<BufferAllocation> arguments = {});
+        void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
         std::vector<Draw> draws;
         FLinearColor blendFactor{1, 1, 1, 1};
         TRefCountPtr<GraphicsPipeline> pipeline;

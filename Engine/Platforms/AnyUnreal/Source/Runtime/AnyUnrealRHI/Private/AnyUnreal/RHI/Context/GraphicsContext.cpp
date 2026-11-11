@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
+#include "AnyUnreal/RHI/Command/IndirectDraw.h"
 #include "RHI.h"
 #include <stdexcept>
 #include <limits>
@@ -56,14 +57,14 @@ namespace AnyUnreal::RHI
         });
     }
 
-    void GraphicsContext::prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer)
+    void GraphicsContext::prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer, std::shared_ptr<BufferAllocation> arguments)
     {
         const auto& layout = pipeline->GetShaders().GetVertexShader().GetCode().GetUserData();
         const auto* declaration = pipeline->GetVertexDeclaration();
         auto vertexBuffers = declaration ? vertexStreams.CaptureTable(*declaration, layout) : std::make_unique<VertexBufferTable>(0, std::span<const VertexBufferBinding>{}, layout.GetAddressHigh());
         auto vertexBindings = vertexParameters->CreateBindings();
         auto pixelBindings = pixelParameters ? pixelParameters->CreateBindings() : nullptr;
-        draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers), std::move(indexBuffer)});
+        draws.push_back({pipeline, std::move(vertexBindings), std::move(pixelBindings), std::move(vertexBuffers), std::move(indexBuffer), std::move(arguments)});
         const auto& draw = draws.back();
         Shader::UserDataInputs inputs;
         inputs.BaseVertex = baseVertexIndex;
@@ -96,6 +97,34 @@ namespace AnyUnreal::RHI
             sceAgcDcbSetIndexSize(&commands, stride == 2 ? 0 : 1, 0);
             sceAgcDcbSetNumInstances(&commands, instanceCount);
             sceAgcDcbDrawIndex(&commands, indexCount, range.data(), 0);
+        });
+    }
+
+    void GraphicsContext::recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride)
+    {
+        if (!pipeline || !activeRenderPass) throw std::runtime_error("Indirect draw requires a graphics pipeline and render pass");
+        activeRenderPass->ValidatePipeline(pipeline->GetDescription());
+        if (!argumentBuffer || !EnumHasAnyFlags(argumentBuffer->GetUsage(), EBufferUsageFlags::DrawIndirect)) throw std::invalid_argument("Indirect draw requires an indirect argument buffer");
+        if (argumentOffset % 4 != 0) throw std::invalid_argument("Indirect draw argument offset must be aligned to four bytes");
+        auto arguments = static_cast<Buffer*>(argumentBuffer)->Capture();
+        arguments->GetRange(argumentOffset, indices ? 20 : 16);
+        prepareDraw(commands, 0, 0, indices, arguments);
+        WriteIndirectDraw(commands, pipeline->GetShaders().GetVertexShader().GetCode().GetUserData(), *arguments, argumentOffset, indices.get(), indexStride);
+    }
+
+    void GraphicsContext::RHIDrawPrimitiveIndirect(FRHIBuffer* argumentBuffer, uint32 argumentOffset)
+    {
+        RecordCommands([&](CommandBuffer& commands) { recordIndirectDraw(commands, argumentBuffer, argumentOffset, {}, 0); });
+    }
+
+    void GraphicsContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* indexBuffer, FRHIBuffer* argumentBuffer, uint32 argumentOffset)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!indexBuffer || !EnumHasAnyFlags(indexBuffer->GetUsage(), EBufferUsageFlags::IndexBuffer)) throw std::invalid_argument("Indexed indirect draw requires an index buffer");
+            const auto stride = indexBuffer->GetStride();
+            if (stride != 2 && stride != 4) throw std::invalid_argument("Index stride must be two or four bytes");
+            recordIndirectDraw(commands, argumentBuffer, argumentOffset, static_cast<Buffer*>(indexBuffer)->Capture(), stride);
         });
     }
 
