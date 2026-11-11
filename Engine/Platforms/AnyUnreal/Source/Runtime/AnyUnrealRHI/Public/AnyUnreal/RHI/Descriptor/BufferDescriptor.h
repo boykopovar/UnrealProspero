@@ -8,6 +8,7 @@
 namespace AnyUnreal::RHI
 {
     ANYUNREALRHI_API std::array<std::uint32_t, 4> CreateByteAddressBufferDescriptor(const void* address, std::size_t size);
+    ANYUNREALRHI_API std::array<std::uint32_t, 4> CreateVertexBufferDescriptor(const void* address, std::size_t size, std::uint32_t stride);
 }
 
 #endif

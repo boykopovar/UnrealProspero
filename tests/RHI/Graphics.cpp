@@ -61,13 +61,7 @@ int main()
     const std::array<float, 12> colorValues{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
     positions.Upload(0, std::as_bytes(std::span(positionValues)));
     colors.Upload(0, std::as_bytes(std::span(colorValues)));
-    std::array tables{CreateByteAddressBufferDescriptor(positions.Data(), positions.Size()), CreateByteAddressBufferDescriptor(colors.Data(), colors.Size())};
-    for (std::size_t index = 0; index < tables.size(); ++index)
-    {
-        tables[index][1] |= (index == 0 ? 12u : 16u) << 16;
-        tables[index][2] = 3;
-        tables[index][3] &= ~0x30000000u;
-    }
+    const std::array tables{CreateVertexBufferDescriptor(positions.Data(), positions.Size(), 12), CreateVertexBufferDescriptor(colors.Data(), colors.Size(), 16)};
     descriptors.Upload(0, std::as_bytes(std::span(tables)));
     auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
     CommandStorage storage(16384, aperture);
