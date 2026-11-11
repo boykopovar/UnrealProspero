@@ -14,6 +14,17 @@ namespace AnyUnreal::RHI
         std::shared_ptr<BufferAllocation> Capture() const;
 
     private:
+        friend class BufferInitializer;
+        enum class InitializationState
+        {
+            Ready,
+            Pending,
+            Writing
+        };
+
+        void* beginInitialization();
+        void finishInitialization();
+        InitializationState initializationState = InitializationState::Ready;
         std::shared_ptr<BufferAllocation> storage;
     };
 }

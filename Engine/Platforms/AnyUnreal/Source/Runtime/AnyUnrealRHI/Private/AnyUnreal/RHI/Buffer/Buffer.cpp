@@ -32,7 +32,8 @@ namespace AnyUnreal::RHI
                 if (!description.InitialData || !description.InitialData->GetResourceData() || description.InitialData->GetResourceDataSize() != description.Size) throw std::invalid_argument("Buffer initial data does not match its size");
                 break;
             case ERHIBufferInitAction::Initializer:
-                throw std::runtime_error("RHI buffer initializers are not implemented");
+                if (description.InitialData) throw std::invalid_argument("Deferred buffer initialization cannot also upload a resource array");
+                break;
             default:
                 throw std::invalid_argument("Unknown buffer initialization action");
             }
@@ -44,6 +45,7 @@ namespace AnyUnreal::RHI
     {
         if (description.Usage == EBufferUsageFlags::NullResource) return;
         storage = std::make_shared<BufferAllocation>(description.Size, addressHigh);
+        if (description.InitAction == ERHIBufferInitAction::Initializer) initializationState = InitializationState::Pending;
         if (description.InitAction == ERHIBufferInitAction::ResourceArray)
         {
             const auto* source = static_cast<const std::byte*>(description.InitialData->GetResourceData());
@@ -52,8 +54,22 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void* Buffer::beginInitialization()
+    {
+        if (initializationState != InitializationState::Pending || !storage) throw std::runtime_error("Buffer is not awaiting initialization");
+        initializationState = InitializationState::Writing;
+        return storage->Data();
+    }
+
+    void Buffer::finishInitialization()
+    {
+        if (initializationState != InitializationState::Writing) throw std::runtime_error("Buffer initialization has not started");
+        initializationState = InitializationState::Ready;
+    }
+
     std::shared_ptr<BufferAllocation> Buffer::Capture() const
     {
+        if (initializationState != InitializationState::Ready) throw std::runtime_error("Buffer initialization has not been finalized");
         if (!storage) throw std::runtime_error("Null buffer has no GPU allocation");
         return storage;
     }
