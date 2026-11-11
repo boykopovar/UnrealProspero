@@ -7,7 +7,7 @@ public class AnyUnrealRHI : ModuleRules
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
         PublicDependencyModuleNames.AddRange(new[] { "Core", "RHI", "AnyUnrealShaderCommon" });
-        PrivateDependencyModuleNames.Add("RenderCore");
+        PrivateDependencyModuleNames.AddRange(new[] { "RenderCore", "RHICore" });
         PublicSystemLibraries.Add("libSceAgc");
         PublicSystemLibraries.Add("libSceAgcDriver");
     }
