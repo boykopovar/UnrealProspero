@@ -7,12 +7,39 @@
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "prx/libSceAgc/DcbState/include/ContextState.hpp"
+#include "prx/libSceAgc/DcbState/include/Marker.hpp"
+#include "Containers/StringConv.h"
+#include "RHICommandList.h"
 #include <bit>
 #include <stdexcept>
 #include <utility>
 
 namespace AnyUnreal::RHI
 {
+#if WITH_RHI_BREADCRUMBS
+    void ComputeContext::RHIBeginBreadcrumbGPU(FRHIBreadcrumbNode* breadcrumb)
+    {
+        RecordCommands([&](CommandBuffer& buffer)
+        {
+            if (!breadcrumb) throw std::invalid_argument("GPU breadcrumb is null");
+            if (!ShouldEmitBreadcrumbs()) return;
+            const auto path = breadcrumb->GetFullPath();
+            const auto text = StringCast<UTF8CHAR>(*path);
+            if (text.Length() >= 65536) throw std::length_error("GPU breadcrumb exceeds the AGC marker size");
+            sceAgcDcbPushMarker(&buffer, reinterpret_cast<const char*>(text.Get()), breadcrumb->Data.Color.ToPackedARGB());
+        });
+    }
+
+    void ComputeContext::RHIEndBreadcrumbGPU(FRHIBreadcrumbNode* breadcrumb)
+    {
+        RecordCommands([&](CommandBuffer& buffer)
+        {
+            if (!breadcrumb) throw std::invalid_argument("GPU breadcrumb is null");
+            if (ShouldEmitBreadcrumbs()) sceAgcDcbPopMarker(&buffer);
+        });
+    }
+#endif
+
     ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(addressHigh), commands(commandStorage.Get()), addressHigh(addressHigh)
     {
         sceAgcDcbContextStateOp(&commands, 0);

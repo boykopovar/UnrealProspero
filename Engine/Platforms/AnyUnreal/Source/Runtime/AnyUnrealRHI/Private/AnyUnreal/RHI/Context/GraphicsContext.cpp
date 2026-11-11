@@ -11,12 +11,14 @@
 #include <utility>
 #include <cmath>
 #include <algorithm>
+#include <type_traits>
 #include "prx/libSceAgc/DcbDraw/include/IndexBuffer.hpp"
 #include "prx/libSceAgc/DcbDraw/include/DrawIndexed.hpp"
 #include "prx/libSceAgc/DcbDraw/include/Instancing.hpp"
 
 namespace AnyUnreal::RHI
 {
+    static_assert(!std::is_abstract_v<GraphicsContext>);
     void GraphicsContext::RHIBeginRenderQuery(FRHIRenderQuery* query)
     {
         RecordCommands([&](CommandBuffer& commands)

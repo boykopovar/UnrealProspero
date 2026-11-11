@@ -13,6 +13,7 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API GraphicsContext : public ComputeContext
     {
     public:
+        GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
         using ComputeContext::RHISetShaderParameters;
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
@@ -35,7 +36,6 @@ namespace AnyUnreal::RHI
         void RHISetScissorRect(bool enable, uint32 minX, uint32 minY, uint32 maxX, uint32 maxY) override;
 
     protected:
-        GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
         void ValidateFinalization() const override;
 
     private:

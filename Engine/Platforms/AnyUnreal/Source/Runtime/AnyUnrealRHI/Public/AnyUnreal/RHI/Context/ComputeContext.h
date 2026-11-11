@@ -19,6 +19,10 @@ namespace AnyUnreal::RHI
         ~ComputeContext() noexcept override = default;
         using IRHICommandContext::RHISetShaderParameters;
         ERHIPipeline GetPipeline() const override { return ERHIPipeline::Graphics; }
+#if WITH_RHI_BREADCRUMBS
+        void RHIBeginBreadcrumbGPU(FRHIBreadcrumbNode* breadcrumb) override;
+        void RHIEndBreadcrumbGPU(FRHIBreadcrumbNode* breadcrumb) override;
+#endif
         void RHIBeginTransitions(TArrayView<const FRHITransition*> transitions) override;
         void RHIEndTransitions(TArrayView<const FRHITransition*> transitions) override;
         void RHISetComputePipelineState(FRHIComputePipelineState* pipelineState) override;

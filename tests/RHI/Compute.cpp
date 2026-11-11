@@ -19,6 +19,7 @@
 #include "AnyUnreal/RHI/Memory/Upload.h"
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
 #include "AnyUnreal/RHI/Command/DepthTarget.h"
+#include "prx/libSceAgc/DcbState/include/Marker.hpp"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -228,6 +229,7 @@ int main()
         RHI::CommandStorage commandStorage(64, layout.GetAddressHigh());
         auto& commands = commandStorage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
+        sceAgcDcbPushMarker(&commands, "ComputeCheck", 0xff4080c0);
         std::vector<RHI::GpuMemoryRange> ranges{
             {memory.Data(), memory.Size()},
             {secondMemory.Data(), secondMemory.Size()},
@@ -303,6 +305,7 @@ int main()
         try { readback.GetRange(0, 249); }
         catch (const std::runtime_error&) { prematureReadRejected = true; }
         if (!prematureReadRejected) throw std::runtime_error("Readback accepted a read before GPU submission");
+        sceAgcDcbPopMarker(&commands);
         completion.Write(commands);
         if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
         RHI::WriteDepthBounds(commands, 0.25f, 0.75f);
