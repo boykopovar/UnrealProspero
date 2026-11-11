@@ -54,6 +54,14 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
+    adk_add_executable(DepthCheck ${graphics_sources}
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/DepthTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/DepthTarget.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp")
+    target_compile_definitions(DepthCheck PRIVATE ANYUNREAL_TEST_DEPTH=1 ANYUNREAL_TEST_OCCLUSION=0)
+    adk_link_libraries(DepthCheck libc libkernel libSceAgc libSceAgcDriver)
+    list(APPEND test_targets DepthCheck)
     adk_add_executable(TextureCopyCheck TextureCopy.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/TextureCopy.cpp"

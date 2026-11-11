@@ -6,6 +6,10 @@
 #include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/ColorTarget.h"
 #include "AnyUnreal/RHI/Command/ColorClear.h"
+#if ANYUNREAL_TEST_DEPTH
+#include "AnyUnreal/RHI/Command/DepthTarget.h"
+#include "AnyUnreal/RHI/Command/MemoryBarrier.h"
+#endif
 #if ANYUNREAL_TEST_OCCLUSION
 #include "AnyUnreal/RHI/Query/OcclusionSnapshot.h"
 #endif
@@ -60,17 +64,35 @@ int main()
     const AgcShader vertex({Shaders::ShaderStage::Vertex, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, Shaders::ShaderStage::Vertex, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
+#if ANYUNREAL_TEST_DEPTH
+    for (const auto dimensions : {std::array{0u, 1u}, std::array{1u, 0u}, std::array{16385u, 1u}, std::array{1u, 16385u}})
+    {
+        bool rejected = false;
+        try { static_cast<void>(DepthTexture2D::CalculateDataSize(dimensions[0], dimensions[1])); }
+        catch (const std::out_of_range&) { rejected = true; }
+        if (!rejected) throw std::runtime_error("Invalid depth dimensions were accepted");
+    }
+    if (DepthTexture2D::CalculateDataSize(128, 128) != 65536 || DepthTexture2D::CalculateDataSize(129, 128) != 131072 || DepthTexture2D::CalculateDataSize(129, 129) != 262144) throw std::runtime_error("Depth tile allocation size is incorrect");
+    for (const auto depthMode : {0u, 1u, 2u})
+#endif
     for (unsigned vertexFormat = 0; vertexFormat < (dynamic ? 2u : 1u); ++vertexFormat)
     for (unsigned instanceMode = 0; instanceMode < (dynamic ? 4u : 1u); ++instanceMode)
     for (const auto indirect : {false, true})
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
-    for (const auto dimensions : {std::array{64u, 64u}, std::array{67u, 39u}, std::array{13u, 7u}})
+    for (const auto dimensions : {std::array{64u, 64u}, std::array{67u, 39u}, std::array{13u, 7u}, std::array{259u, 137u}})
     {
         const auto width = dimensions[0];
         const auto height = dimensions[1];
+        std::string caseName = std::to_string(width) + "x" + std::to_string(height) + " indirect " + std::to_string(indirect) + " index stride " + std::to_string(indexStride) + " base vertex " + std::to_string(baseVertex);
+#if ANYUNREAL_TEST_DEPTH
+        caseName += " depth mode " + std::to_string(depthMode);
+#endif
         LinearTexture2D targetTexture(width, height, format, aperture);
+#if ANYUNREAL_TEST_DEPTH
+        LinearTexture2D secondTarget(width, height, format, aperture);
+#endif
         const auto& output = targetTexture.GetStorage();
         auto positions = std::make_shared<BufferAllocation>(52 + baseVertex * 12, aperture);
         auto colors = std::make_shared<BufferAllocation>(128, aperture);
@@ -156,6 +178,14 @@ int main()
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
         WriteColorClear(commands, targetTexture, {});
+#if ANYUNREAL_TEST_DEPTH
+        WriteColorClear(commands, secondTarget, {});
+        DepthTexture2D depthTexture(width, height, aperture);
+        MemoryBarrier depthBarrier(aperture);
+        if (reinterpret_cast<std::uintptr_t>(depthTexture.GetStorage().Data()) % 65536 != 0 || depthTexture.GetStorage().Size() != DepthTexture2D::CalculateDataSize(width, height)) throw std::runtime_error("Depth texture allocation does not match its tiled layout");
+        WriteDepthTarget(commands, depthTexture);
+        WriteDepthClear(commands, depthTexture, depthMode == 0 ? 0.0f : 1.0f);
+#endif
         const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{indexStorage.Data(), indexStorage.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
         WriteMemoryAcquire(commands, ranges);
         WriteMemoryAcquire(commands, descriptors.GetMemoryRanges());
@@ -173,6 +203,9 @@ int main()
             ShaderRegister{0x2fa, 0x3f800000}, ShaderRegister{0x2fb, 0x3f800000}, ShaderRegister{0x2fc, 0x3f800000}, ShaderRegister{0x2fd, 0x3f800000}
         };
         for (const auto value : state) sceAgcDcbSetCxRegisterDirect(&commands, value);
+#if ANYUNREAL_TEST_DEPTH
+        sceAgcDcbSetCxRegisterDirect(&commands, {0x200, 0x16});
+#endif
         WriteViewport(commands, 0, {0, 0, 0, static_cast<float>(width), static_cast<float>(height), 1});
         WriteViewportScissor(commands, 0, {0, 0, width, height});
         WriteScissor(commands, {width / 8, height / 8, width - width / 8, height - height / 8});
@@ -189,13 +222,28 @@ int main()
         occlusion.Begin(commands);
 #endif
         sceAgcDcbSetNumInstances(&commands, instanceCount);
-        if (indirect) WriteIndirectDraw(commands, vertexLayout, argumentStorage, 4, indexStride ? &indexStorage : nullptr, indexStride);
-        else if (indexStride)
+        const auto draw = [&]
         {
-            sceAgcDcbSetIndexSize(&commands, indexStride == 2 ? 0 : 1, 0);
-            sceAgcDcbDrawIndex(&commands, 3, static_cast<std::byte*>(indexStorage.Data()) + indexStride, 0);
+            if (indirect) WriteIndirectDraw(commands, vertexLayout, argumentStorage, 4, indexStride ? &indexStorage : nullptr, indexStride);
+            else if (indexStride)
+            {
+                sceAgcDcbSetIndexSize(&commands, indexStride == 2 ? 0 : 1, 0);
+                sceAgcDcbDrawIndex(&commands, 3, static_cast<std::byte*>(indexStorage.Data()) + indexStride, 0);
+            }
+            else sceAgcDcbDrawIndexAuto(&commands, 3, 0);
+        };
+        draw();
+#if ANYUNREAL_TEST_DEPTH
+        if (depthMode == 2)
+        {
+            const auto& depthStorage = depthTexture.GetStorage();
+            const std::array depthRanges{GpuMemoryRange{depthStorage.Data(), depthStorage.Size()}, GpuMemoryRange{output.Data(), output.Size()}};
+            depthBarrier.Release(commands);
+            depthBarrier.Acquire(commands, depthRanges);
+            WriteColorTarget(commands, 0, secondTarget);
+            draw();
         }
-        else sceAgcDcbDrawIndexAuto(&commands, 3, 0);
+#endif
 #if ANYUNREAL_TEST_OCCLUSION
         occlusion.End(commands);
         if (occlusion.TryGetResult(sampleCount, false) || sampleCount != 123) throw std::runtime_error("Unsubmitted query returned a result");
@@ -217,12 +265,18 @@ int main()
         case TextureFormat::Rgba32Float: break;
         }
         const auto* pixels = static_cast<const std::uint8_t*>(output.Data());
+#if ANYUNREAL_TEST_DEPTH
+        if (depthMode == 2) pixels = static_cast<const std::uint8_t*>(secondTarget.GetStorage().Data());
+#endif
         const auto pixelBytes = targetTexture.GetRowBytes() / width;
         for (unsigned y = 0; y < height; ++y)
         {
             for (unsigned x = 0; x < width; ++x)
             {
-                const bool inside = x >= width / 8 && x < width - width / 8 && y >= height / 8 && y < height - height / 8;
+                bool inside = x >= width / 8 && x < width - width / 8 && y >= height / 8 && y < height - height / 8;
+#if ANYUNREAL_TEST_DEPTH
+                inside = inside && depthMode == 1;
+#endif
                 if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float)
                 {
                     const std::array<float, 4> values{0.5f, 0.25f, 0.75f, 1};
@@ -238,7 +292,7 @@ int main()
                 {
                     const auto expected = inside ? color[component] : 0;
                     const auto actual = pixels[y * targetTexture.GetRowPitch() + x * pixelBytes + component];
-                    if (std::abs(static_cast<int>(actual) - expected) > (inside ? 1 : 0)) throw std::runtime_error("Graphics pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + ": " + std::to_string(actual));
+                    if (std::abs(static_cast<int>(actual) - expected) > (inside ? 1 : 0)) throw std::runtime_error("Graphics pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + ": " + std::to_string(actual) + " " + caseName);
                 }
             }
         }
