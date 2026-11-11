@@ -27,6 +27,7 @@ def main():
         ("compute", "cs_6_2", "TextureView.comp.hlsl", ["0,0,sampled-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("vertex", "vs_6_2", "Fullscreen.vert.hlsl", []),
         ("vertex", "vs_6_2", "VertexStreams.vert.hlsl", []),
+        ("vertex", "vs_6_2", "VertexTypes.vert.hlsl", []),
         ("fragment", "ps_6_2", "Color.frag.hlsl", []),
         ("compute", "cs_6_2", "Constants.comp.hlsl", ["0,0,storage-buffer,1,0,16", "1,0,uniform-buffer,1,0,16"]),
         ("compute", "cs_6_2", "Write.comp.hlsl", ["0,0,storage-buffer,1,0,16"]),
@@ -42,6 +43,7 @@ def main():
         "TextureLoad.comp.hlsl": ['"inputTexture" 2 0', '"outputValues" 3 0'],
         "Fullscreen.vert.hlsl": [],
         "VertexStreams.vert.hlsl": [],
+        "VertexTypes.vert.hlsl": [],
         "Color.frag.hlsl": [],
         "Constants.comp.hlsl": ['"outputValues" 3 0', '"Constants" 0 16', '"multiplier" 0 4', '"addend" 4 4'],
         "Write.comp.hlsl": ['"outputValues" 3 0'],
@@ -62,10 +64,19 @@ def main():
             raise RuntimeError(f"Unexpected reflection for {source}: {reflected}")
         if reflection.stderr.splitlines() != details[source]:
             raise RuntimeError(f"Unexpected resource details for {source}: {reflection.stderr}")
+        inputs = subprocess.run([str(reflect), str(spirv), "--vertex-inputs"], capture_output=True, text=True, timeout=120)
+        if stage == "vertex":
+            expected_inputs = {"Fullscreen.vert.hlsl": [], "VertexStreams.vert.hlsl": ["0,3,0", "1,4,0"], "VertexTypes.vert.hlsl": ["0,2,0", "1,2,1", "2,4,2"]}[source]
+            if inputs.returncode or inputs.stdout.splitlines() != expected_inputs:
+                raise RuntimeError(f"Unexpected vertex inputs for {source}: {inputs.stdout} {inputs.stderr}")
+        elif inputs.returncode == 0:
+            raise RuntimeError(f"Non-vertex entry point accepted: {source}")
         descriptors = [argument for binding in reflected for argument in ("--descriptor", binding)]
         attributes = []
         if source == "VertexStreams.vert.hlsl":
             attributes = ["--vertex-attribute", "0,3,r32g32b32_float,0,12,4,0", "--vertex-attribute", "1,7,r32g32b32a32_float,0,16,4,0"]
+        if source == "VertexTypes.vert.hlsl":
+            attributes = ["--vertex-attribute", "0,0,r32g32_float,0,8,4,0", "--vertex-attribute", "1,1,r32g32_sint,0,8,4,0", "--vertex-attribute", "2,2,r32g32b32a32_uint,0,16,4,0"]
         for target in ("windows", "linux", "ps5"):
             directory = output / target / source
             directory.mkdir(parents=True)

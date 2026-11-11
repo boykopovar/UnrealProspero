@@ -23,7 +23,7 @@ set(reflect_root "${UNREAL_ROOT}/Engine/Source/ThirdParty/SPIRV-Reflect/SPIRV-Re
 set(compiler_root "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/AnyUnreal/Source/Developer/AnyUnrealShaderCompiler")
 add_library(UnrealSpirvReflect STATIC "${reflect_root}/spirv_reflect.c")
 target_include_directories(UnrealSpirvReflect SYSTEM PUBLIC "${reflect_root}")
-add_executable(Reflect Reflect.cpp "${compiler_root}/Private/AnyUnreal/Shader/DescriptorLayout.cpp")
+add_executable(Reflect Reflect.cpp "${compiler_root}/Private/AnyUnreal/Shader/DescriptorLayout.cpp" "${compiler_root}/Private/AnyUnreal/Shader/SpirvReflection.cpp" "${compiler_root}/Private/AnyUnreal/Shader/VertexInputs.cpp")
 target_include_directories(Reflect PRIVATE "${compiler_root}/Public" "${common_root}/Public")
 target_compile_definitions(Reflect PRIVATE ANYUNREALSHADERCOMPILER_API= ANYUNREALSHADERCOMMON_API=)
 target_compile_features(Reflect PRIVATE cxx_std_20)

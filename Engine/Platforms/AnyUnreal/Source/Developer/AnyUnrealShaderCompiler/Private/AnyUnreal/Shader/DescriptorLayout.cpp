@@ -1,5 +1,5 @@
 #include "AnyUnreal/Shader/DescriptorLayout.h"
-#include "spirv_reflect.h"
+#include "AnyUnreal/Shader/SpirvReflection.h"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -9,32 +9,6 @@ namespace AnyUnreal::Shader
 {
     namespace
     {
-        void check(SpvReflectResult result)
-        {
-            if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("SPIR-V reflection failed: " + std::to_string(result));
-        }
-
-        class Reflection final
-        {
-        public:
-            explicit Reflection(std::span<const std::uint32_t> spirv)
-            {
-                check(spvReflectCreateShaderModule(spirv.size_bytes(), spirv.data(), &module));
-            }
-
-            ~Reflection()
-            {
-                spvReflectDestroyShaderModule(&module);
-            }
-
-            Reflection(const Reflection&) = delete;
-            Reflection& operator=(const Reflection&) = delete;
-            const SpvReflectShaderModule* Get() const { return &module; }
-
-        private:
-            SpvReflectShaderModule module{};
-        };
-
         std::pair<const char*, std::uint32_t> describe(SpvReflectDescriptorType type)
         {
             switch (type)
@@ -68,14 +42,13 @@ namespace AnyUnreal::Shader
 
     std::vector<DescriptorBinding> ReflectDescriptorLayout(std::span<const std::uint32_t> spirv, const std::string& entryPoint)
     {
-        if (spirv.size() < 5 || spirv.front() != 0x07230203) throw std::invalid_argument("Invalid SPIR-V header");
         if (entryPoint.empty() || entryPoint.find('\0') != std::string::npos) throw std::invalid_argument("Invalid shader entry point");
-        Reflection reflection(spirv);
+        SpirvReflection reflection(spirv);
         if (!spvReflectGetEntryPoint(reflection.Get(), entryPoint.c_str())) throw std::invalid_argument("Shader entry point does not exist");
         std::uint32_t count = 0;
-        check(spvReflectEnumerateEntryPointDescriptorBindings(reflection.Get(), entryPoint.c_str(), &count, nullptr));
+        SpirvReflection::Check(spvReflectEnumerateEntryPointDescriptorBindings(reflection.Get(), entryPoint.c_str(), &count, nullptr));
         std::vector<SpvReflectDescriptorBinding*> bindings(count);
-        if (count != 0) check(spvReflectEnumerateEntryPointDescriptorBindings(reflection.Get(), entryPoint.c_str(), &count, bindings.data()));
+        if (count != 0) SpirvReflection::Check(spvReflectEnumerateEntryPointDescriptorBindings(reflection.Get(), entryPoint.c_str(), &count, bindings.data()));
         std::sort(bindings.begin(), bindings.end(), [](const auto* left, const auto* right)
         {
             return std::tie(left->set, left->binding) < std::tie(right->set, right->binding);

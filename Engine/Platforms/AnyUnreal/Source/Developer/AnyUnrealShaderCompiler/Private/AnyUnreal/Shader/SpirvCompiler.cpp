@@ -31,6 +31,7 @@ namespace AnyUnreal::Shader
             const FTCHARToUTF8 utf8(*source, source.Len());
             SpirvCompilation result;
             result.Words = CompileHlslToSpirv(std::string_view(utf8.Get(), static_cast<std::size_t>(utf8.Length())), input, output);
+            if (input.Target.GetFrequency() == SF_Vertex) result.VertexInputs = ReflectVertexInputs(result.Words, TCHAR_TO_UTF8(*input.EntryPointName));
             result.Descriptors = ReflectDescriptorLayout(result.Words, TCHAR_TO_UTF8(*input.EntryPointName));
             output.bSucceeded = true;
             result.Parameters = RegisterParameters(result.Descriptors, input, parser, output);

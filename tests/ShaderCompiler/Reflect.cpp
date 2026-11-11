@@ -1,4 +1,5 @@
 #include "AnyUnreal/Shader/DescriptorLayout.h"
+#include "AnyUnreal/Shader/VertexInputs.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -9,7 +10,7 @@ int main(int argumentCount, char** arguments)
 {
     try
     {
-        if (argumentCount != 2) throw std::invalid_argument("Expected a SPIR-V file");
+        if (argumentCount != 2 && argumentCount != 3) throw std::invalid_argument("Expected a SPIR-V file");
         std::ifstream input(arguments[1], std::ios::binary);
         if (!input) throw std::runtime_error("Cannot open SPIR-V file");
         const std::vector<unsigned char> bytes{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
@@ -18,6 +19,12 @@ int main(int argumentCount, char** arguments)
         for (std::size_t index = 0; index < words.size(); ++index)
         {
             for (unsigned byte = 0; byte < 4; ++byte) words[index] |= static_cast<std::uint32_t>(bytes[index * 4 + byte]) << (byte * 8);
+        }
+        if (argumentCount == 3)
+        {
+            if (std::string(arguments[2]) != "--vertex-inputs") throw std::invalid_argument("Unknown reflection mode");
+            for (const auto& input : AnyUnreal::Shader::ReflectVertexInputs(words, "main")) std::cout << input.Location << ',' << input.Components << ',' << static_cast<int>(input.Type) << '\n';
+            return 0;
         }
         const auto bindings = AnyUnreal::Shader::ReflectDescriptorLayout(words, "main");
         try
