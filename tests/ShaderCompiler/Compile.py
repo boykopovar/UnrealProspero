@@ -40,7 +40,7 @@ def main():
     }
     for stage, profile, source, expected in stages:
         spirv = output / (source + ".spv")
-        run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", shaders / source, "-Fo", spirv])
+        run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-fspv-use-legacy-buffer-matrix-order", "-WX", "-T", profile, "-E", "main", shaders / source, "-Fo", spirv])
         data = spirv.read_bytes()
         if len(data) < 20 or len(data) % 4 or data[:4] != b"\x03\x02\x23\x07":
             raise RuntimeError(f"Invalid SPIR-V output: {spirv}")

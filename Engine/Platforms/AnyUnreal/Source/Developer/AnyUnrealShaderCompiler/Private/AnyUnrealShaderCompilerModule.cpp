@@ -1,3 +1,14 @@
 #include "Modules/ModuleManager.h"
+#include "DXCWrapper.h"
+#include "ShaderConductorContext.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, AnyUnrealShaderCompiler)
+class FAnyUnrealShaderCompilerModule final : public IModuleInterface, public FShaderConductorModuleWrapper
+{
+public:
+    void ShutdownModule() override
+    {
+        CrossCompiler::FShaderConductorContext::Shutdown();
+    }
+};
+
+IMPLEMENT_MODULE(FAnyUnrealShaderCompilerModule, AnyUnrealShaderCompiler)
