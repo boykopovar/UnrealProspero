@@ -6,6 +6,7 @@
 
 struct FAnyUnrealPlatformApplicationMisc : FGenericPlatformApplicationMisc
 {
+    static GenericApplication* CreateApplication();
     static bool IsThisApplicationForeground();
     static void PumpMessages(bool fromMainLoop);
 };

@@ -1,7 +1,13 @@
 #include "AnyUnreal/AnyUnrealPlatformApplicationMisc.h"
 #include "AnyUnreal/Kernel/Result.h"
+#include "AnyUnreal/Windowing/Application.h"
 #include "prx/libSceSystemService/include/SystemService.hpp"
 #include "prx/libSceAgc/Misc/include/Suspend.hpp"
+
+GenericApplication* FAnyUnrealPlatformApplicationMisc::CreateApplication()
+{
+    return new AnyUnreal::Windowing::Application();
+}
 
 bool FAnyUnrealPlatformApplicationMisc::IsThisApplicationForeground()
 {
