@@ -6,11 +6,13 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <map>
 #include <stdexcept>
 #include <string_view>
 
 #if ANYUNREAL_TEST_CREATE_SHADER
 #include "AnyUnreal/RHI/Shader/AgcShader.h"
+#include "AnyUnreal/RHI/Shader/ShaderCommands.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -18,6 +20,52 @@
 
 namespace
 {
+#if ANYUNREAL_TEST_CREATE_SHADER
+    bool APS5_VABI exhausted(CommandBuffer*, std::uint32_t, void*)
+    {
+        throw std::length_error("AGC test command buffer exhausted");
+    }
+
+    void checkCommands(const AnyUnreal::RHI::AgcShader& shader, const AnyUnreal::Shader::UserDataLayout& layout, const AnyUnreal::Shader::UserDataInputs& inputs)
+    {
+        std::array<std::uint32_t, 256> words{};
+        CommandBuffer commands{words.data(), words.data() + words.size(), words.data(), words.data() + words.size(), exhausted, nullptr, 0};
+        AnyUnreal::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
+        const auto size = static_cast<std::size_t>(commands.cursor_up - words.data());
+        std::map<std::uint32_t, std::uint32_t> registers;
+        for (std::size_t offset = 0; offset < size;)
+        {
+            const auto header = words[offset];
+            const auto count = static_cast<std::size_t>((header >> 16) & 0x3fff) + 2;
+            if ((header >> 30) != 3 || ((header >> 8) & 255) != 0x76 || count < 3 || count > size - offset) throw std::runtime_error("Invalid AGC shader register packet");
+            const auto base = words[offset + 1];
+            for (std::size_t index = 2; index < count; ++index) registers[base + static_cast<std::uint32_t>(index - 2)] = words[offset + index];
+            offset += count;
+        }
+        for (unsigned index = 0; index < shader.Get().num_sh_registers; ++index)
+        {
+            const auto& expected = shader.Get().sh_registers[index];
+            if (registers.at(expected.offset) != expected.value) throw std::runtime_error("AGC program register was not written");
+        }
+        using AnyUnreal::Shader::ShaderStage;
+        const auto base = layout.GetStage() == ShaderStage::Compute ? 0x240u : layout.GetStage() == ShaderStage::Vertex ? 0x8cu : 0xcu;
+        const auto expected = layout.Build(inputs);
+        for (unsigned index = 0; index < layout.GetCount(); ++index)
+        {
+            if (registers.at(base + index) != expected[index]) throw std::runtime_error("AGC user data register was not written");
+        }
+        commands = {words.data(), words.data() + 1, words.data(), words.data() + 1, exhausted, nullptr, 0};
+        try
+        {
+            AnyUnreal::RHI::WriteShaderRegisters(commands, shader, layout, inputs);
+        }
+        catch (const std::length_error&)
+        {
+            return;
+        }
+        throw std::runtime_error("AGC command buffer overflow was accepted");
+    }
+#endif
     std::vector<std::uint8_t> read(const char* path)
     {
         std::ifstream file(path, std::ios::binary);
@@ -112,6 +160,7 @@ int RunChecks(int argc, const char* const* argv)
     reject([&] { AnyUnreal::RHI::AgcShader shader(binary, stage, static_cast<AnyUnreal::Shader::AgcTarget>(99)); });
     AnyUnreal::RHI::AgcShader shader(binary, stage, target);
     if (!shader.Get().code || shader.Get().shader_size != code.size()) throw std::runtime_error("AGC shader creation failed");
+    checkCommands(shader, layout, inputs);
 #endif
     std::cout << "AGC header and shader checks passed\n";
     return 0;

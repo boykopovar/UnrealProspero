@@ -7,6 +7,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
     find_package(AnyDevKit CONFIG REQUIRED)
     adk_add_executable(AgcHeaderCheck AgcHeader.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_link_libraries(AgcHeaderCheck libc libkernel libSceAgc)
     set_target_properties(AgcHeaderCheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
