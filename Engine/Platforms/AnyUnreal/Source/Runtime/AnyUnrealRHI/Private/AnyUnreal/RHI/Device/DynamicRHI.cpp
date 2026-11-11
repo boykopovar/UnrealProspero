@@ -10,6 +10,7 @@
 #include "AnyUnreal/RHI/State/SamplerState.h"
 #include "AnyUnreal/RHI/State/RasterizerState.h"
 #include "AnyUnreal/RHI/State/DepthStencilState.h"
+#include "AnyUnreal/RHI/State/BlendState.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "RHICommandList.h"
@@ -27,6 +28,11 @@ namespace AnyUnreal::RHI
     FRHITextureInitializer DynamicRHI::RHICreateTextureInitializer(FRHICommandListBase& commandList, const FRHITextureCreateDesc& description)
     {
         return CreateTextureInitializer(commandList, description, addressHigh);
+    }
+
+    FBlendStateRHIRef DynamicRHI::RHICreateBlendState(const FBlendStateInitializerRHI& initializer)
+    {
+        return new BlendState(initializer);
     }
 
     FDepthStencilStateRHIRef DynamicRHI::RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& initializer)
