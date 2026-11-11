@@ -1,7 +1,9 @@
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include "Containers/ResourceArray.h"
 #include "RHITextureReference.h"
+#include "Misc/ScopeLock.h"
 #include <stdexcept>
+#include <algorithm>
 
 namespace AnyUnreal::RHI
 {
@@ -68,6 +70,34 @@ namespace AnyUnreal::RHI
             storage->Upload({static_cast<const std::byte*>(description.BulkData->GetResourceBulkData()), size}, storage->GetRowBytes());
             description.BulkData->Discard();
         }
+    }
+
+    void* TextureResource::Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch)
+    {
+        FScopeLock lock(&lockMutex);
+        if (lockedData) throw std::runtime_error("Texture is already locked");
+        if (mode != RLM_ReadOnly && mode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
+        const auto texture = Capture();
+        const auto& allocation = texture->GetStorage();
+        LockedData next{mode, texture->GetRowPitch(), std::vector<std::byte>(allocation.Size())};
+        if (mode == RLM_ReadOnly)
+        {
+            const auto source = allocation.GetRange(0, allocation.Size());
+            std::copy(source.begin(), source.end(), next.Data.begin());
+        }
+        lockedData = std::move(next);
+        size = lockedData->Data.size();
+        pitch = lockedData->Pitch;
+        return lockedData->Data.data();
+    }
+
+    TextureResource::LockedData TextureResource::Unlock()
+    {
+        FScopeLock lock(&lockMutex);
+        if (!lockedData) throw std::runtime_error("Texture is not locked");
+        auto result = std::move(*lockedData);
+        lockedData.reset();
+        return result;
     }
 
     std::size_t TextureResource::GetAllocationSize() const { return storage->GetStorage().AllocationSize(); }

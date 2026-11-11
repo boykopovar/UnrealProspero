@@ -12,6 +12,8 @@ namespace AnyUnreal::RHI
     {
     public:
         void RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData) override;
+        FRHILockTextureResult RHILockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;
+        void RHIUnlockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;
         uint32 RHIComputeMemorySize(FRHITexture* texture) override;
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
