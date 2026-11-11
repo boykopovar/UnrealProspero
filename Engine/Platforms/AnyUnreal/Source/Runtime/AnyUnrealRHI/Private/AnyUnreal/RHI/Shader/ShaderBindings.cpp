@@ -46,6 +46,7 @@ namespace AnyUnreal::RHI
         if (!finalized || failed) throw std::runtime_error("Shader bindings are not finalized");
         auto result = descriptors.GetMemoryRanges();
         std::set<const BufferAllocation*> allocations;
+        for (const auto& allocation : bufferAllocations) if (allocation) allocations.insert(allocation.get());
         for (const auto& entry : constantBuffers) allocations.insert(entry.second.get());
         for (const auto& uniform : uniforms)
         {
@@ -60,10 +61,10 @@ namespace AnyUnreal::RHI
                 allocation = &static_cast<TextureResource*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_ShaderResourceView:
-                allocation = static_cast<FRHIShaderResourceView*>(resource.GetReference())->IsBuffer() ? static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage() : static_cast<TextureShaderResourceView*>(resource.GetReference())->GetStorage();
+                allocation = static_cast<FRHIShaderResourceView*>(resource.GetReference())->IsBuffer() ? nullptr : static_cast<TextureShaderResourceView*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_UnorderedAccessView:
-                allocation = static_cast<FRHIUnorderedAccessView*>(resource.GetReference())->IsBuffer() ? static_cast<BufferUnorderedAccessView*>(resource.GetReference())->GetStorage() : static_cast<TextureUnorderedAccessView*>(resource.GetReference())->GetStorage();
+                allocation = static_cast<FRHIUnorderedAccessView*>(resource.GetReference())->IsBuffer() ? nullptr : static_cast<TextureUnorderedAccessView*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_UniformBuffer:
             case RRT_SamplerState:
@@ -101,7 +102,9 @@ namespace AnyUnreal::RHI
             auto* view = static_cast<FRHIShaderResourceView*>(resource);
             if (view->IsBuffer())
             {
-                const auto& descriptor = static_cast<BufferShaderResourceView*>(view)->GetDescriptor();
+                const auto snapshot = static_cast<BufferShaderResourceView*>(view)->Capture();
+                bufferAllocations.push_back(snapshot.CaptureStorage());
+                const auto& descriptor = snapshot.GetDescriptor();
                 descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(descriptor)));
             }
             else
@@ -116,7 +119,9 @@ namespace AnyUnreal::RHI
             auto* view = static_cast<FRHIUnorderedAccessView*>(resource);
             if (view->IsBuffer())
             {
-                const auto& descriptor = static_cast<BufferUnorderedAccessView*>(view)->GetDescriptor();
+                const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
+                bufferAllocations.push_back(snapshot.CaptureStorage());
+                const auto& descriptor = snapshot.GetDescriptor();
                 descriptors.SetDescriptor(Shader::ResourceKind::UnorderedAccess, index, std::as_bytes(std::span(descriptor)));
             }
             else

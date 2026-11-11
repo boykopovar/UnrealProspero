@@ -35,6 +35,7 @@ namespace AnyUnreal::RHI
         Shader::ConstantData constants;
         std::vector<TRefCountPtr<FRHIResource>> resources;
         std::vector<UniformBufferBinding> uniforms;
+        std::vector<std::shared_ptr<BufferAllocation>> bufferAllocations;
         std::map<std::uint32_t, std::unique_ptr<BufferAllocation>> constantBuffers;
         std::set<std::uint32_t> uniformIndices;
         bool finalized = false;

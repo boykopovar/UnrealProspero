@@ -90,11 +90,12 @@ namespace AnyUnreal::RHI
     {
         requireWritable();
         if (!view || !view->IsBuffer()) throw std::invalid_argument("UAV clear requires a buffer view");
-        const auto range = static_cast<BufferUnorderedAccessView*>(view)->GetRange();
+        const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
+        const auto range = snapshot.GetRange();
         if (range.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
         try
         {
-            clearedViews.emplace_back(view);
+            clearedBuffers.push_back(snapshot.CaptureStorage());
             WriteBufferFill(commands, range.data(), range.size(), value);
         }
         catch (...)

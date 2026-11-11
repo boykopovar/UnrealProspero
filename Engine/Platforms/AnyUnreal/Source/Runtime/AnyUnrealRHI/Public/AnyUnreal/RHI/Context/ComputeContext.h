@@ -80,7 +80,7 @@ namespace AnyUnreal::RHI
         std::unique_ptr<ShaderParameters> parameters;
         std::vector<Dispatch> dispatches;
         StaticUniformBuffers staticUniforms;
-        std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
+        std::vector<std::shared_ptr<BufferAllocation>> clearedBuffers;
         std::vector<std::shared_ptr<ResourceTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         std::vector<std::shared_ptr<Completion>> fenceMarkers;

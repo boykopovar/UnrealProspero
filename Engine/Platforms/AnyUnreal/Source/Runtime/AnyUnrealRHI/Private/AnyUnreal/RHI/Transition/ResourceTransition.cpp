@@ -35,7 +35,13 @@ namespace AnyUnreal::RHI
             {
                 if (!entry.IsAllMips() || !entry.IsAllArraySlices() || !entry.IsAllPlaneSlices()) throw std::invalid_argument("UAV transitions select the complete view");
                 if (entry.Resource->GetType() != RRT_UnorderedAccessView) throw std::invalid_argument("UAV transition has the wrong resource type");
-                allocation = entry.UAV->IsBuffer() ? static_cast<BufferUnorderedAccessView*>(entry.UAV)->GetStorage() : static_cast<TextureUnorderedAccessView*>(entry.UAV)->GetStorage();
+                if (entry.UAV->IsBuffer())
+                {
+                    auto storage = static_cast<BufferUnorderedAccessView*>(entry.UAV)->Capture().CaptureStorage();
+                    allocation = storage.get();
+                    allocations.push_back(std::move(storage));
+                }
+                else allocation = static_cast<TextureUnorderedAccessView*>(entry.UAV)->GetStorage();
                 if (!allocation) throw std::invalid_argument("Resource transition requires a nonempty buffer view");
             }
             else throw std::runtime_error("Resource transition type is not implemented");

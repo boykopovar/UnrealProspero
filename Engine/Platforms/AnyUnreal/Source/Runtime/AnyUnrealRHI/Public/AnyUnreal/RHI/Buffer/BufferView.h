@@ -15,6 +15,7 @@ namespace AnyUnreal::RHI
         BufferViewData(Buffer& buffer, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 4>& GetDescriptor() const;
         const BufferAllocation* GetStorage() const { return storage.get(); }
+        std::shared_ptr<BufferAllocation> CaptureStorage() const { return storage; }
         std::span<std::byte> GetRange() const { return range; }
 
     private:
@@ -29,13 +30,12 @@ namespace AnyUnreal::RHI
         static_assert((std::is_same_v<TBase, FRHIShaderResourceView> && TType == FRHIViewDesc::EViewType::BufferSRV) || (std::is_same_v<TBase, FRHIUnorderedAccessView> && TType == FRHIViewDesc::EViewType::BufferUAV));
 
     public:
-        BufferView(Buffer& buffer, const FRHIViewDesc& description) : TBase(&buffer, CheckBufferViewDescription(buffer, description, TType)), data(buffer, description) {}
-        const std::array<std::uint32_t, 4>& GetDescriptor() const { return data.GetDescriptor(); }
-        const BufferAllocation* GetStorage() const { return data.GetStorage(); }
-        std::span<std::byte> GetRange() const { return data.GetRange(); }
+        BufferView(Buffer& buffer, const FRHIViewDesc& description) : TBase(&buffer, CheckBufferViewDescription(buffer, description, TType)), buffer(&buffer), description(description) {}
+        BufferViewData Capture() const { return BufferViewData(*buffer, description); }
 
     private:
-        BufferViewData data;
+        TRefCountPtr<Buffer> buffer;
+        FRHIViewDesc description;
     };
 
     extern template class ANYUNREALRHI_API BufferView<FRHIShaderResourceView, FRHIViewDesc::EViewType::BufferSRV>;
