@@ -40,8 +40,8 @@ namespace AnyUnreal::RHI
         {
             for (std::uint32_t y = 0; y < region.Extent[1]; ++y)
             {
-                const auto from = (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * source.GetRowPitch() + region.Source[0] * pixelBytes;
-                const auto to = (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
+                const auto from = source.GetMipLayout(0).Offset + (region.Source[2] + z) * source.GetSlicePitch() + (region.Source[1] + y) * source.GetRowPitch() + region.Source[0] * pixelBytes;
+                const auto to = destination.GetMipLayout(0).Offset + (region.Destination[2] + z) * destination.GetSlicePitch() + (region.Destination[1] + y) * destination.GetRowPitch() + region.Destination[0] * pixelBytes;
                 WriteBufferCopy(commands, destinationStorage.GetRange(to, rowBytes).data(), sourceStorage.GetRange(from, rowBytes).data(), rowBytes);
             }
         }

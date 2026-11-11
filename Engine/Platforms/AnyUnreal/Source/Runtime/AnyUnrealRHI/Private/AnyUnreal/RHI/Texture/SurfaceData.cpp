@@ -79,7 +79,7 @@ namespace AnyUnreal::RHI
             const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
             for (int32 z = zRange.X; z < zRange.Y; ++z)
             {
-                auto values = ExpandHalfPixels(texture.GetStorage().GetRange(offset + static_cast<std::size_t>(z) * texture.GetSlicePitch(), bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
+                auto values = ExpandHalfPixels(texture.GetStorage().GetRange(texture.GetMipLayout(0).Offset + offset + static_cast<std::size_t>(z) * texture.GetSlicePitch(), bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
                 ConvertRawR16G16B16A16FDataToFFloat16Color(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData() + static_cast<std::size_t>(z - zRange.X) * slicePixels);
             }
         }

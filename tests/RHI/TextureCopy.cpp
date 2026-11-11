@@ -13,6 +13,43 @@
 #include <vector>
 #include <limits>
 
+void CheckVolumeMipData()
+{
+    using namespace AnyUnreal::RHI;
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
+    for (const auto dimensions : {std::array{13u, 7u, 5u}, std::array{1u, 1u, 8u}})
+    {
+        LinearTexture3D texture(dimensions[0], dimensions[1], dimensions[2], format, 2, 4);
+        auto allocation = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
+        std::fill(allocation.begin(), allocation.end(), std::byte{0xa5});
+        std::vector expected(allocation.begin(), allocation.end());
+        for (std::uint32_t level = 0; level < 4; ++level)
+        {
+            const auto& mip = texture.GetMipLayout(level);
+            const auto rowPitch = mip.RowBytes + 3;
+            const auto slicePitch = rowPitch * mip.Height + 5;
+            std::vector<std::byte> input(slicePitch * mip.Depth);
+            for (std::size_t index = 0; index < input.size(); ++index) input[index] = static_cast<std::byte>((index * 17 + level * 29) & 255);
+            texture.Upload(input, rowPitch, slicePitch, level);
+            for (std::size_t z = 0; z < mip.Depth; ++z)
+            for (std::size_t y = 0; y < mip.Height; ++y) std::copy_n(input.begin() + z * slicePitch + y * rowPitch, mip.RowBytes, expected.begin() + mip.Offset + z * texture.GetSlicePitch() + y * mip.RowPitch);
+            if (!std::equal(allocation.begin(), allocation.end(), expected.begin())) throw std::runtime_error("Volume mip upload changed another level or padding");
+            std::vector<std::byte> output(input.size(), std::byte{0xcc});
+            texture.CopyTo(output, rowPitch, slicePitch, level);
+            for (std::size_t z = 0; z < mip.Depth; ++z)
+            for (std::size_t index = 0; index < slicePitch; ++index)
+            {
+                const bool pixel = index / rowPitch < mip.Height && index % rowPitch < mip.RowBytes;
+                if (output[z * slicePitch + index] != (pixel ? input[z * slicePitch + index] : std::byte{0xcc})) throw std::runtime_error("Volume mip readback changed pixels or padding");
+            }
+            bool rejected = false;
+            try { texture.GetSliceRange(level, mip.Depth); }
+            catch (const std::out_of_range&) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Volume mip accepted an unavailable slice");
+        }
+    }
+}
+
 void CheckVolumeCopies()
 {
     using namespace AnyUnreal::RHI;
@@ -235,6 +272,7 @@ int main()
     }
     if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
     CheckMipCopies();
+    CheckVolumeMipData();
     CheckVolumeCopies();
     CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
