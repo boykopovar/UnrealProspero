@@ -42,6 +42,8 @@ namespace AnyUnreal::RHI
         void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
         void RHIProcessDeleteQueue() override;
         void RHIBlockUntilGPUIdle() override;
+        FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType type) override;
+        bool RHIGetRenderQueryResult(FRHIRenderQuery* query, uint64& result, bool wait, uint32 gpuIndex = INDEX_NONE) override;
         FGPUFenceRHIRef RHICreateGPUFence(const FName& name) override;
         FStagingBufferRHIRef RHICreateStagingBuffer() override;
         void* RHILockStagingBuffer(FRHIStagingBuffer* buffer, FRHIGPUFence* fence, uint32 offset, uint32 size) override;

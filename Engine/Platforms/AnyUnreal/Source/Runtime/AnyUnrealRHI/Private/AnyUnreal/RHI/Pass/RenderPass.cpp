@@ -46,7 +46,7 @@ namespace AnyUnreal::RHI
             height = depthTarget->GetHeight();
         }
         if (info.ShadingRateTexture || info.MultiViewCount != 0 || info.SubpassHint != ESubpassHint::None) throw std::runtime_error("Render pass shading rate, multiview and subpasses are not implemented");
-        if (info.bOcclusionQueries || info.NumOcclusionQueries != 0) throw std::runtime_error("Render pass occlusion queries are not implemented");
+        if (info.NumOcclusionQueries < 0 || (!info.bOcclusionQueries && info.NumOcclusionQueries != 0)) throw std::invalid_argument("Render pass occlusion query count is inconsistent");
         for (uint32 index = 0; index < targets.size(); ++index)
         {
             const auto& entry = info.ColorRenderTargets[index];

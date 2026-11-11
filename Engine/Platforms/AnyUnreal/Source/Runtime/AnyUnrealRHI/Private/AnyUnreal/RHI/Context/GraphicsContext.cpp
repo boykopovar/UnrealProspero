@@ -17,6 +17,24 @@
 
 namespace AnyUnreal::RHI
 {
+    void GraphicsContext::RHIBeginRenderQuery(FRHIRenderQuery* query)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!query) throw std::invalid_argument("Render query is null");
+            querySnapshots.push_back(static_cast<RenderQuery*>(query)->Begin(commands, GetAddressHigh()));
+        });
+    }
+
+    void GraphicsContext::RHIEndRenderQuery(FRHIRenderQuery* query)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (!query) throw std::invalid_argument("Render query is null");
+            querySnapshots.push_back(static_cast<RenderQuery*>(query)->End(commands));
+        });
+    }
+
     void GraphicsContext::RHISetDepthBounds(float minDepth, float maxDepth)
     {
         RecordCommands([&](CommandBuffer& commands) { WriteDepthBounds(commands, minDepth, maxDepth); });

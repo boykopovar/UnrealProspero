@@ -6,6 +6,7 @@
 #include "AnyUnreal/RHI/Pipeline/GraphicsPipeline.h"
 #include "AnyUnreal/RHI/Pass/RenderPass.h"
 #include "AnyUnreal/RHI/Memory/TextureUpload.h"
+#include "AnyUnreal/RHI/Query/RenderQuery.h"
 
 namespace AnyUnreal::RHI
 {
@@ -15,6 +16,8 @@ namespace AnyUnreal::RHI
         using ComputeContext::RHISetShaderParameters;
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
+        void RHIBeginRenderQuery(FRHIRenderQuery* query) override;
+        void RHIEndRenderQuery(FRHIRenderQuery* query) override;
         void RHISetStencilRef(uint32 reference) override;
         void RHISetDepthBounds(float minDepth, float maxDepth) override;
         void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
@@ -48,6 +51,7 @@ namespace AnyUnreal::RHI
 
         void prepareDraw(CommandBuffer& commands, uint32 baseVertexIndex, uint32 firstInstance, std::shared_ptr<BufferAllocation> indexBuffer, std::shared_ptr<BufferAllocation> arguments = {});
         void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
+        std::vector<std::shared_ptr<OcclusionSnapshot>> querySnapshots;
         std::vector<Draw> draws;
         std::vector<std::shared_ptr<const LinearTexture2D>> copiedTextures;
         std::vector<std::shared_ptr<TextureUpload>> textureUploads;

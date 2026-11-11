@@ -10,6 +10,7 @@
 #include "AnyUnreal/RHI/Transition/ResourceTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
+#include "AnyUnreal/RHI/Query/RenderQuery.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
 #include "AnyUnreal/RHI/State/RasterizerState.h"
 #include "AnyUnreal/RHI/State/DepthStencilState.h"
@@ -26,6 +27,19 @@
 
 namespace AnyUnreal::RHI
 {
+    FRenderQueryRHIRef DynamicRHI::RHICreateRenderQuery(ERenderQueryType type)
+    {
+        return new RenderQuery(type);
+    }
+
+    bool DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* query, uint64& result, bool wait, uint32 gpuIndex)
+    {
+        if (!query) throw std::invalid_argument("Render query is null");
+        if (gpuIndex != 0 && gpuIndex != static_cast<uint32>(INDEX_NONE)) throw std::invalid_argument("Render query supports only GPU zero");
+        if (wait) FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+        return static_cast<RenderQuery*>(query)->TryGetResult(result, wait);
+    }
+
     FBoundShaderStateRHIRef DynamicRHI::RHICreateBoundShaderState(FRHIVertexDeclaration* declaration, FRHIVertexShader* vertex, FRHIPixelShader* pixel, FRHIGeometryShader* geometry)
     {
         return new BoundShaderState(declaration, vertex, pixel, geometry);
