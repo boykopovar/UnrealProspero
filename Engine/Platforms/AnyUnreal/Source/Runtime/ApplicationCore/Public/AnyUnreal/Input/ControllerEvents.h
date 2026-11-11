@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "AnyUnreal/Input/ControllerHub.h"
+#include "AnyUnreal/Input/ControllerState.h"
 #include <array>
 #include <map>
 
@@ -13,7 +14,7 @@ namespace AnyUnreal::Input
     {
     public:
         explicit ControllerEvents(int initialUser);
-        void Dispatch(const std::vector<ControllerSample>& samples, FGenericApplicationMessageHandler& handler, bool enabled);
+        void Dispatch(const std::vector<ControllerSample>& samples, FGenericApplicationMessageHandler& handler, bool enabled, double deltaSeconds);
         bool IsAttached() const;
 
     private:
@@ -21,11 +22,10 @@ namespace AnyUnreal::Input
         {
             FPlatformUserId User;
             FInputDeviceId Id;
-            std::array<bool, 16> Buttons{};
-            std::array<float, 6> Axes{};
+            ControllerState State;
             bool Connected = false;
         };
-        void dispatchDevice(Device& device, const PadData* sample, FGenericApplicationMessageHandler& handler, bool enabled);
+        void dispatchDevice(Device& device, const PadData* sample, FGenericApplicationMessageHandler& handler, bool enabled, double deltaSeconds);
         std::map<int, Device> devices;
         int initialUser;
     };

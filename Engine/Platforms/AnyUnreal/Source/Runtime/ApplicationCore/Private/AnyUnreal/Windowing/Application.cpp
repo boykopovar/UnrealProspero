@@ -48,11 +48,11 @@ namespace AnyUnreal::Windowing
         metrics = MoveTemp(result);
     }
 
-    void Application::PollGameDeviceState(float)
+    void Application::PollGameDeviceState(float deltaTime)
     {
         if (!controllers) throw std::runtime_error("Application has been destroyed");
         const bool enabled = window.IsValid() && !window->IsDestroyed() && window->IsVisible() && window->GetDefinition().AcceptsInput && window->IsForegroundWindow();
-        controllerEvents->Dispatch(controllers->Poll(), GetMessageHandler().Get(), enabled);
+        controllerEvents->Dispatch(controllers->Poll(), GetMessageHandler().Get(), enabled, deltaTime);
     }
 
     bool Application::IsGamepadAttached() const
@@ -62,7 +62,7 @@ namespace AnyUnreal::Windowing
 
     void Application::DestroyApplication()
     {
-        if (controllerEvents) controllerEvents->Dispatch({}, GetMessageHandler().Get(), false);
+        if (controllerEvents) controllerEvents->Dispatch({}, GetMessageHandler().Get(), false, 0);
         if (controllers) controllers->Close();
         controllerEvents.reset();
         controllers.reset();
