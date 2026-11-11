@@ -6,22 +6,31 @@
 
 namespace UnrealProspero::RHI
 {
+    namespace
+    {
+        std::vector<LinearMipLayout> calculateMipLayout(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t mipCount)
+        {
+            const auto info = DescribeTextureFormat(format);
+            return CalculateLinearMipLayout(width, height, depth, info.BlockBytes, mipCount, info.BlockWidth, info.BlockHeight);
+        }
+    }
+
     std::size_t LinearTexture3D::CalculateDataSize(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
     {
         if (width == 0 || height == 0 || depth == 0 || width > DeviceLimits::Texture3D || height > DeviceLimits::Texture3D || depth > DeviceLimits::Texture3D) throw std::out_of_range("Volume texture dimensions exceed the hardware range");
-        const auto levels = CalculateLinearMipLayout(width, height, depth, LinearTexture2D::CalculateRowBytes(1, format), mipCount);
+        const auto levels = calculateMipLayout(width, height, depth, format, mipCount);
         if (firstMip >= levels.size()) throw std::out_of_range("Volume allocation selects an unavailable mip");
         const auto size = (levels[firstMip].Offset + levels[firstMip].Size) * depth;
         BufferAllocation::CalculateAllocationSize(size);
         return size;
     }
 
-    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount) : width(width), height(height), depth(depth), format(format), mipLayouts(CalculateLinearMipLayout(width, height, depth, LinearTexture2D::CalculateRowBytes(1, format), mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Texture) {}
+    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount) : width(width), height(height), depth(depth), format(format), mipLayouts(calculateMipLayout(width, height, depth, format, mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Texture) {}
 
     std::size_t LinearTexture3D::validateLayout(std::size_t size, std::size_t dataRowPitch, std::size_t dataSlicePitch, const LinearMipLayout& mip) const
     {
-        if (dataRowPitch < mip.RowBytes || dataRowPitch > std::numeric_limits<std::size_t>::max() / mip.Height || dataSlicePitch < dataRowPitch * mip.Height) throw std::invalid_argument("Volume row or slice pitch is too small");
-        const auto lastSliceBytes = dataRowPitch * (mip.Height - 1) + mip.RowBytes;
+        if (dataRowPitch < mip.RowBytes || dataRowPitch > std::numeric_limits<std::size_t>::max() / mip.RowCount || dataSlicePitch < dataRowPitch * mip.RowCount) throw std::invalid_argument("Volume row or slice pitch is too small");
+        const auto lastSliceBytes = dataRowPitch * (mip.RowCount - 1) + mip.RowBytes;
         if (size < lastSliceBytes || mip.Depth - 1 > (size - lastSliceBytes) / dataSlicePitch) throw std::invalid_argument("Volume data does not contain all slices");
         return dataSlicePitch * (mip.Depth - 1) + lastSliceBytes;
     }
@@ -36,7 +45,7 @@ namespace UnrealProspero::RHI
         if ((input >= address && input - address < storage.Size()) || (address >= input && address - input < bytes)) throw std::invalid_argument("Volume upload overlaps its storage");
         for (std::size_t z = 0; z < mip.Depth; ++z)
         {
-            for (std::size_t y = 0; y < mip.Height; ++y) storage.Upload(mip.Offset + z * slicePitch + y * mip.RowPitch, source.subspan(z * sourceSlicePitch + y * sourceRowPitch, mip.RowBytes));
+            for (std::size_t y = 0; y < mip.RowCount; ++y) storage.Upload(mip.Offset + z * slicePitch + y * mip.RowPitch, source.subspan(z * sourceSlicePitch + y * sourceRowPitch, mip.RowBytes));
         }
     }
 
@@ -51,7 +60,7 @@ namespace UnrealProspero::RHI
         const auto* source = static_cast<const std::byte*>(storage.Data());
         for (std::size_t z = 0; z < mip.Depth; ++z)
         {
-            for (std::size_t y = 0; y < mip.Height; ++y) std::memcpy(destination.data() + z * destinationSlicePitch + y * destinationRowPitch, source + mip.Offset + z * slicePitch + y * mip.RowPitch, mip.RowBytes);
+            for (std::size_t y = 0; y < mip.RowCount; ++y) std::memcpy(destination.data() + z * destinationSlicePitch + y * destinationRowPitch, source + mip.Offset + z * slicePitch + y * mip.RowPitch, mip.RowBytes);
         }
     }
 

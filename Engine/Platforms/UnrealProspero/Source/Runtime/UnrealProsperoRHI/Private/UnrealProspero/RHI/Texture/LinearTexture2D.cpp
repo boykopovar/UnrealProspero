@@ -9,34 +9,6 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        struct Format
-        {
-            std::uint32_t Code;
-            std::uint32_t Bytes;
-            std::uint32_t Swizzle;
-        };
-
-        Format describe(TextureFormat format)
-        {
-            switch (format)
-            {
-            case TextureFormat::R8Unorm: return {1, 1, 4 | (1 << 9)};
-            case TextureFormat::Rg8Unorm: return {14, 2, 4 | (5 << 3) | (1 << 9)};
-            case TextureFormat::Rgba8Unorm: return {56, 4, 0xfac};
-            case TextureFormat::Rgba8Srgb: return {130, 4, 0xfac};
-            case TextureFormat::Bgra8Unorm: return {56, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
-            case TextureFormat::Bgra8Srgb: return {130, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
-            case TextureFormat::R16Float: return {13, 2, 4 | (1 << 9)};
-            case TextureFormat::Rg16Float: return {29, 4, 4 | (5 << 3) | (1 << 9)};
-            case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9)};
-            case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9)};
-            case TextureFormat::R32Float: return {22, 4, 4 | (1 << 9)};
-            case TextureFormat::Rgba16Float: return {71, 8, 0xfac};
-            case TextureFormat::Rgba32Float: return {77, 16, 0xfac};
-            default: throw std::invalid_argument("Unknown linear texture format");
-            }
-        }
-
         std::uint32_t layerCount(std::uint32_t value)
         {
             if (value == 0 || value > 8192) throw std::out_of_range("Texture array layer count exceeds the descriptor range");
@@ -52,12 +24,14 @@ namespace UnrealProspero::RHI
 
     std::vector<LinearTexture2D::MipLayout> LinearTexture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
     {
-        return CalculateLinearMipLayout(width, height, 1, describe(format).Bytes, mipCount);
+        const auto info = DescribeTextureFormat(format);
+        return CalculateLinearMipLayout(width, height, 1, info.BlockBytes, mipCount, info.BlockWidth, info.BlockHeight);
     }
 
     std::size_t LinearTexture2D::CalculateRowBytes(std::uint32_t width, TextureFormat format)
     {
-        return dimension(width) * describe(format).Bytes;
+        const auto info = DescribeTextureFormat(format);
+        return ((dimension(width) + info.BlockWidth - 1) / info.BlockWidth) * info.BlockBytes;
     }
 
     std::size_t LinearTexture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format)
@@ -85,9 +59,7 @@ namespace UnrealProspero::RHI
         if (mipCount == 0 || mipCount > static_cast<std::uint32_t>(std::bit_width(std::max(width, height)))) throw std::invalid_argument("Texture descriptor mip count exceeds its dimensions");
         const auto address = reinterpret_cast<std::uintptr_t>(data);
         if (address == 0 || address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");
-        if (disableSrgb && format == TextureFormat::Rgba8Srgb) format = TextureFormat::Rgba8Unorm;
-        if (disableSrgb && format == TextureFormat::Bgra8Srgb) format = TextureFormat::Bgra8Unorm;
-        const auto info = describe(format);
+        const auto info = DescribeTextureFormat(format, disableSrgb);
         return {
             static_cast<std::uint32_t>(address >> 8),
             static_cast<std::uint32_t>(address >> 40) | (info.Code << 20) | (((width - 1) & 3) << 30),
@@ -101,20 +73,20 @@ namespace UnrealProspero::RHI
     {
         const auto& mip = GetMipLayout(mipLevel);
         GetMipRange(mipLevel, arrayLayer);
-        if (!source.data() || sourcePitch < mip.RowBytes || source.size() < mip.RowBytes || (mip.Height - 1) > (source.size() - mip.RowBytes) / sourcePitch) throw std::invalid_argument("Texture upload does not contain all source rows");
-        for (std::size_t row = 0; row < mip.Height; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
+        if (!source.data() || sourcePitch < mip.RowBytes || source.size() < mip.RowBytes || (mip.RowCount - 1) > (source.size() - mip.RowBytes) / sourcePitch) throw std::invalid_argument("Texture upload does not contain all source rows");
+        for (std::size_t row = 0; row < mip.RowCount; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
     }
 
     void LinearTexture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel, std::uint32_t arrayLayer) const
     {
         const auto& mip = GetMipLayout(mipLevel);
         const auto range = GetMipRange(mipLevel, arrayLayer);
-        if (!destination.data() || destinationPitch < mip.RowBytes || destination.size() < mip.RowBytes || (mip.Height - 1) > (destination.size() - mip.RowBytes) / destinationPitch) throw std::invalid_argument("Texture readback does not contain all destination rows");
+        if (!destination.data() || destinationPitch < mip.RowBytes || destination.size() < mip.RowBytes || (mip.RowCount - 1) > (destination.size() - mip.RowBytes) / destinationPitch) throw std::invalid_argument("Texture readback does not contain all destination rows");
         const auto sourceAddress = reinterpret_cast<std::uintptr_t>(storage.Data());
         const auto destinationAddress = reinterpret_cast<std::uintptr_t>(destination.data());
         if ((destinationAddress >= sourceAddress && destinationAddress - sourceAddress < storage.Size()) || (sourceAddress >= destinationAddress && sourceAddress - destinationAddress < destination.size())) throw std::invalid_argument("Texture read destination overlaps its storage");
         const auto* source = range.data();
-        for (std::size_t row = 0; row < mip.Height; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
+        for (std::size_t row = 0; row < mip.RowCount; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
     }
 
     const LinearTexture2D::MipLayout& LinearTexture2D::GetMipLayout(std::uint32_t mipLevel) const

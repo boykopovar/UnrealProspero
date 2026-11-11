@@ -98,7 +98,7 @@ namespace UnrealProspero::RHI
             for (std::uint32_t level = 0; level < volumeStorage->GetMipCount(); ++level)
             {
                 const auto& mip = volumeStorage->GetMipLayout(level);
-                size += mip.RowBytes * mip.Height * mip.Depth;
+                size += mip.RowBytes * mip.RowCount * mip.Depth;
             }
             volumeInitialData.resize(size);
         }
@@ -119,7 +119,7 @@ namespace UnrealProspero::RHI
         for (std::uint32_t level = 0; level < initialMipData.size(); ++level)
         {
             const auto& mip = storage->GetMipLayout(level);
-            storage->Upload({static_cast<const std::byte*>(initialMipData[level]), mip.RowBytes * mip.Height}, mip.RowBytes, level);
+            storage->Upload({static_cast<const std::byte*>(initialMipData[level]), mip.RowBytes * mip.RowCount}, mip.RowBytes, level);
         }
     }
 
@@ -286,7 +286,7 @@ namespace UnrealProspero::RHI
             for (std::uint32_t level = 0; level < storage->GetMipCount(); ++level)
             {
                 const auto& mip = storage->GetMipLayout(level);
-                required += mip.RowBytes * mip.Height;
+                required += mip.RowBytes * mip.RowCount;
             }
             if (data.size() != required * storage->GetArrayLayers()) throw std::invalid_argument("Initial texture data does not match its mip chain");
             std::size_t offset = 0;
@@ -294,7 +294,7 @@ namespace UnrealProspero::RHI
             for (std::uint32_t layer = 0; layer < storage->GetArrayLayers(); ++layer)
             {
                 const auto& mip = storage->GetMipLayout(level);
-                const auto size = mip.RowBytes * mip.Height;
+                const auto size = mip.RowBytes * mip.RowCount;
                 storage->Upload(data.subspan(offset, size), mip.RowBytes, level, layer);
                 offset += size;
             }
@@ -305,14 +305,14 @@ namespace UnrealProspero::RHI
         for (std::uint32_t level = 0; level < volumeStorage->GetMipCount(); ++level)
         {
             const auto& mip = volumeStorage->GetMipLayout(level);
-            required += mip.RowBytes * mip.Height * mip.Depth;
+            required += mip.RowBytes * mip.RowCount * mip.Depth;
         }
         if (data.size() != required) throw std::invalid_argument("Initial volume data does not match its mip chain");
         std::size_t offset = 0;
         for (std::uint32_t level = 0; level < volumeStorage->GetMipCount(); ++level)
         {
             const auto& mip = volumeStorage->GetMipLayout(level);
-            const auto sliceBytes = mip.RowBytes * mip.Height;
+            const auto sliceBytes = mip.RowBytes * mip.RowCount;
             const auto size = sliceBytes * mip.Depth;
             volumeStorage->Upload(data.subspan(offset, size), mip.RowBytes, sliceBytes, level);
             offset += size;
@@ -356,10 +356,10 @@ namespace UnrealProspero::RHI
             for (int32 level = 0; level < index.MipIndex; ++level)
             {
                 const auto& mip = volumeStorage->GetMipLayout(level);
-                offset += mip.RowBytes * mip.Height * mip.Depth;
+                offset += mip.RowBytes * mip.RowCount * mip.Depth;
             }
             const auto& mip = volumeStorage->GetMipLayout(index.MipIndex);
-            return {volumeInitialData.data() + offset, mip.RowBytes * mip.Height * mip.Depth, mip.RowBytes};
+            return {volumeInitialData.data() + offset, mip.RowBytes * mip.RowCount * mip.Depth, mip.RowBytes};
         }
         const auto& allocation = getAllocation();
         return {allocation.Data(), allocation.Size(), getRowPitch()};

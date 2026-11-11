@@ -19,6 +19,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Viewport.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/SamplerDescriptor.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/Upload.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/Readback.cpp"
@@ -52,6 +53,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/IndirectDraw.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorTarget.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/VertexBufferTable.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/GraphicsShaderLink.cpp"
@@ -89,6 +91,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
@@ -106,6 +109,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
@@ -121,6 +125,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Submission.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/ApplicationCore/Private/UnrealProspero/Video/Output.cpp"
@@ -138,6 +143,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
     list(APPEND test_targets DrawArgumentsCheck)
     adk_add_executable(MemoryAccountingCheck MemoryAccounting.cpp
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/DepthTexture2D.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
