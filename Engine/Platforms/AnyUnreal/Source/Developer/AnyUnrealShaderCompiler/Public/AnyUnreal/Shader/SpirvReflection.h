@@ -15,6 +15,7 @@ namespace AnyUnreal::Shader
         SpirvReflection(const SpirvReflection&) = delete;
         SpirvReflection& operator=(const SpirvReflection&) = delete;
         const SpvReflectShaderModule* Get() const;
+        void RemapBinding(const SpvReflectDescriptorBinding* descriptor, std::uint32_t binding);
         static void Check(SpvReflectResult result);
 
     private:

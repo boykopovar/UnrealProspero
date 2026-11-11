@@ -12,12 +12,22 @@ def main():
     parser.add_argument("--dxc", type=Path, required=True)
     parser.add_argument("--adk", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--descriptor-check", type=Path)
     options = parser.parse_args()
     dxc = options.dxc.resolve(strict=True)
     adk = options.adk.resolve(strict=True)
     output = options.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     sources = Path(__file__).resolve().parent / "pipelines"
+    if options.descriptor_check:
+        descriptor_check = options.descriptor_check.resolve(strict=True)
+        for stage, profile in (("vert", "vs_6_2"), ("geom", "gs_6_2")):
+            run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", sources / ("PipelineResources." + stage + ".hlsl"), "-Fo", output / ("resources." + stage + ".spv")])
+        vertex = output / "resources-vertex-remapped.spv"
+        geometry = output / "resources-geometry-remapped.spv"
+        run([descriptor_check, output / "resources.vert.spv", output / "resources.geom.spv", vertex, geometry])
+        for target in ("windows", "linux", "ps5"):
+            run([adk, "shader-pipeline", "--input-format", "spirv", "--vertex", vertex, "--geometry", geometry, "--output", output / (target + "-geometry-resources"), "--target", target, "--descriptor", "0,0,uniform-buffer,1,0,16", "--descriptor", "0,1,uniform-buffer,1,16,16"])
     stages = (("Triangle.vert.hlsl", "vs_6_2"), ("EmitTriangle.geom.hlsl", "gs_6_2"), ("Triangle.tesc.hlsl", "hs_6_2"), ("Triangle.tese.hlsl", "ds_6_2"))
     for name, profile in stages:
         run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", sources / name, "-Fo", output / (name + ".spv")])
