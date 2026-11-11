@@ -2,7 +2,8 @@
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
-#include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "AnyUnreal/RHI/Command/PatternFill.h"
+#include "AnyUnreal/RHI/Buffer/ClearValue.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
@@ -86,17 +87,20 @@ namespace AnyUnreal::RHI
         recordTransitions(transitions, false);
     }
 
-    void ComputeContext::clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value)
+    template<typename TValue>
+    void ComputeContext::clearBufferView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values)
     {
         requireWritable();
         if (!view || !view->IsBuffer()) throw std::invalid_argument("UAV clear requires a buffer view");
         const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
         const auto range = snapshot.GetRange();
         if (range.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
+        const auto pattern = EncodeBufferClear(snapshot.GetFormat(), values);
+        const auto words = snapshot.GetFormat() == BufferFormat::Untyped ? 1u : GetBufferElementSize(snapshot.GetFormat()) / 4;
         try
         {
             clearedBuffers.push_back(snapshot.CaptureStorage());
-            WriteBufferFill(commands, range.data(), range.size(), value);
+            WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(words));
         }
         catch (...)
         {
@@ -107,12 +111,12 @@ namespace AnyUnreal::RHI
 
     void ComputeContext::RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values)
     {
-        clearBufferView(view, values.X);
+        clearBufferView(view, std::array<std::uint32_t, 4>{values.X, values.Y, values.Z, values.W});
     }
 
     void ComputeContext::RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values)
     {
-        clearBufferView(view, std::bit_cast<std::uint32_t>(values.X));
+        clearBufferView(view, std::array<float, 4>{values.X, values.Y, values.Z, values.W});
     }
 
     void ComputeContext::RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size)

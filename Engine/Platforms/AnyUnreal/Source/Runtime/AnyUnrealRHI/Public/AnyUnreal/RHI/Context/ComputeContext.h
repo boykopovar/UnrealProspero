@@ -71,7 +71,7 @@ namespace AnyUnreal::RHI
 
         void requireWritable() const;
         void recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin);
-        void clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value);
+        template<typename TValue> void clearBufferView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         CommandStorage commandStorage;
         Completion completion;

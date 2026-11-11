@@ -2,6 +2,7 @@
 #define ANYUNREAL_RHI_BUFFER_VIEW_H
 
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
+#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 #include <array>
 #include <type_traits>
 
@@ -14,6 +15,7 @@ namespace AnyUnreal::RHI
     public:
         BufferViewData(Buffer& buffer, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 4>& GetDescriptor() const;
+        BufferFormat GetFormat() const { return format; }
         const BufferAllocation* GetStorage() const { return storage.get(); }
         std::shared_ptr<BufferAllocation> CaptureStorage() const { return storage; }
         std::span<std::byte> GetRange() const { return range; }
@@ -22,6 +24,7 @@ namespace AnyUnreal::RHI
         std::shared_ptr<BufferAllocation> storage;
         std::array<std::uint32_t, 4> descriptor{};
         std::span<std::byte> range;
+        BufferFormat format = BufferFormat::Untyped;
     };
 
     template<typename TBase, FRHIViewDesc::EViewType TType>

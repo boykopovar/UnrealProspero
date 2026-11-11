@@ -54,7 +54,8 @@ namespace AnyUnreal::RHI
         storage = buffer.Capture();
         range = storage->GetRange(info.OffsetInBytes, info.SizeInBytes);
         const auto& view = description.Common.ViewType == FRHIViewDesc::EViewType::BufferSRV ? static_cast<const FRHIViewDesc::FBuffer&>(description.Buffer.SRV) : description.Buffer.UAV;
-        descriptor = view.BufferType == FRHIViewDesc::EBufferType::Typed ? CreateTypedBufferDescriptor(range.data(), range.size(), ResolveTypedBufferFormat(view.Format)) : CreateByteAddressBufferDescriptor(range.data(), range.size());
+        format = view.BufferType == FRHIViewDesc::EBufferType::Typed ? ResolveTypedBufferFormat(view.Format) : BufferFormat::Untyped;
+        descriptor = format != BufferFormat::Untyped ? CreateTypedBufferDescriptor(range.data(), range.size(), format) : CreateByteAddressBufferDescriptor(range.data(), range.size());
     }
 
     const std::array<std::uint32_t, 4>& BufferViewData::GetDescriptor() const { return descriptor; }
