@@ -20,6 +20,8 @@ namespace AnyUnreal::RHI
         std::shared_ptr<LinearTexture2D> storage;
         bool initialized;
     };
+
+    ANYUNREALRHI_API TextureResource& ResolveTextureResource(FRHIResource* resource);
 }
 
 #endif

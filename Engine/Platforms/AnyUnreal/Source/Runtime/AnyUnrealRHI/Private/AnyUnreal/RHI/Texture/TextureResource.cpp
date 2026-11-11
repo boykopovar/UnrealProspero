@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include "Containers/ResourceArray.h"
+#include "RHITextureReference.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -48,6 +49,14 @@ namespace AnyUnreal::RHI
             }
             return description;
         }
+    }
+
+    TextureResource& ResolveTextureResource(FRHIResource* resource)
+    {
+        if (!resource) throw std::invalid_argument("Texture resource is null");
+        if (resource->GetType() == RRT_TextureReference) resource = static_cast<FRHITextureReference*>(resource)->GetReferencedTexture();
+        if (!resource || resource->GetType() != RRT_Texture) throw std::invalid_argument("Texture reference does not resolve to a texture resource");
+        return *static_cast<TextureResource*>(resource);
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), storage(std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh)), initialized(description.InitAction != ERHITextureInitAction::Initializer)

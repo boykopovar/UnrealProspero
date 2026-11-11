@@ -14,8 +14,7 @@ namespace AnyUnreal::RHI
         switch (type)
         {
         case Type::Texture:
-            if (resource->GetType() != RRT_Texture) throw std::invalid_argument("Texture parameter requires a texture resource");
-            if (!EnumHasAnyFlags(static_cast<FRHITexture*>(resource)->GetDesc().Flags, ETextureCreateFlags::ShaderResource)) throw std::invalid_argument("Texture was not created for shader access");
+            if (!EnumHasAnyFlags(ResolveTextureResource(resource).GetDesc().Flags, ETextureCreateFlags::ShaderResource)) throw std::invalid_argument("Texture was not created for shader access");
             break;
         case Type::Sampler:
             if (resource->GetType() != RRT_SamplerState) throw std::invalid_argument("Sampler parameter has the wrong resource type");
@@ -87,6 +86,7 @@ namespace AnyUnreal::RHI
         {
         case Type::Texture:
         {
+            resource = &ResolveTextureResource(resource);
             const auto texture = static_cast<TextureResource*>(resource)->Capture();
             descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(texture->GetDescriptor())));
             break;
