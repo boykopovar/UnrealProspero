@@ -23,6 +23,7 @@ namespace AnyUnreal::RHI
         void RHISetShaderParameters(FRHIComputeShader* computeShader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
         void RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values) override;
         void RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values) override;
+        void RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size) override;
         void RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ) override;
         void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers) override;
@@ -54,6 +55,7 @@ namespace AnyUnreal::RHI
         StaticUniformBuffers staticUniforms;
         std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
         std::vector<std::shared_ptr<BufferTransition>> retainedTransitions;
+        std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         bool failed = false;
         bool finalized = false;
     };

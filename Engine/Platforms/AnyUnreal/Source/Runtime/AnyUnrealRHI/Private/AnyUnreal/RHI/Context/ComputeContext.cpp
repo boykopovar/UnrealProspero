@@ -2,6 +2,8 @@
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
+#include "AnyUnreal/RHI/Command/BufferCopy.h"
+#include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "prx/libSceAgc/DcbState/include/ContextState.hpp"
 #include <bit>
 #include <stdexcept>
@@ -80,6 +82,31 @@ namespace AnyUnreal::RHI
     void ComputeContext::RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values)
     {
         clearBufferView(view, std::bit_cast<std::uint32_t>(values.X));
+    }
+
+    void ComputeContext::RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size)
+    {
+        requireWritable();
+        if (!destination || !source) throw std::invalid_argument("Buffer copy requires source and destination buffers");
+        auto destinationStorage = static_cast<Buffer*>(destination)->Capture();
+        auto sourceStorage = static_cast<Buffer*>(source)->Capture();
+        const auto destinationRange = destinationStorage->GetRange(destinationOffset, size);
+        const auto sourceRange = sourceStorage->GetRange(sourceOffset, size);
+        if (destinationStorage == sourceStorage && destinationOffset < sourceOffset + size && sourceOffset < destinationOffset + size) throw std::invalid_argument("Buffer copy ranges overlap");
+        try
+        {
+            copiedBuffers.reserve(copiedBuffers.size() + 2);
+            copiedBuffers.push_back(std::move(destinationStorage));
+            copiedBuffers.push_back(std::move(sourceStorage));
+            const GpuMemoryRange ranges[]{{destinationRange.data(), destinationRange.size()}, {sourceRange.data(), sourceRange.size()}};
+            WriteMemoryAcquire(commands, ranges);
+            WriteBufferCopy(commands, destinationRange.data(), sourceRange.data(), size);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
     }
 
     void ComputeContext::requireWritable() const
