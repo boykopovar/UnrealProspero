@@ -120,7 +120,7 @@ void CheckMipCopies()
 {
     using namespace AnyUnreal::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
-    for (const auto mode : {0u, 1u, 2u})
+    for (const auto mode : {0u, 1u, 2u, 3u})
     {
         LinearTexture2D source(67, 19, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6);
         LinearTexture2D other(91, 37, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 7);
@@ -132,7 +132,7 @@ void CheckMipCopies()
         const std::vector original(sourceBytes.begin(), sourceBytes.end());
         std::vector expected(destinationBytes.begin(), destinationBytes.end());
         std::vector<TextureCopyRegion> regions;
-        if (mode == 0) regions.push_back({1, 1, 2, 0, 6, 3, 2, 3});
+        if (mode == 0 || mode == 3) regions.push_back({1, 1, 2, 0, 6, 3, 2, 3});
         else if (mode == 1) regions.push_back({0, 0, 1, 1, 4, 2, 3, 2});
         else
         {
@@ -157,7 +157,19 @@ void CheckMipCopies()
         CommandStorage storage(16384, 2);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
-        for (const auto& region : regions) WriteTextureCopy(commands, destination, source, region);
+        std::unique_ptr<TextureUpload> upload;
+        if (mode == 3)
+        {
+            const auto& region = regions.front();
+            const auto& from = source.GetMipLayout(region.SourceMip);
+            const auto pitch = region.Width * pixelBytes + 7;
+            std::vector<std::byte> pixels(pitch * region.Height, std::byte{0xbb});
+            for (std::size_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, pixels.begin() + row * pitch);
+            upload = std::make_unique<TextureUpload>(region.Width, region.Height, format, pixels, pitch, 2);
+            std::fill(pixels.begin(), pixels.end(), std::byte{0xff});
+            upload->Record(commands, destination, region.DestinationX, region.DestinationY, region.DestinationMip);
+        }
+        else for (const auto& region : regions) WriteTextureCopy(commands, destination, source, region);
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Mip copy changed adjacent levels, padding or incorrect texels");
         if (mode != 1 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Mip copy changed its source");
@@ -294,16 +306,17 @@ int main()
     rejectSource(uploadBytes, 11);
     rejectSource(std::span{uploadBytes}.first(23), 12);
     TextureUpload upload(3, 2, TextureFormat::Rgba8Unorm, uploadBytes, 12, 2);
-    const auto rejectUpload = [&](const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y)
+    const auto rejectUpload = [&](const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel = 0)
     {
         const auto before = commands.cursor_up;
         bool rejected = false;
-        try { upload.Record(commands, destination, x, y); }
+        try { upload.Record(commands, destination, x, y, mipLevel); }
         catch (const std::invalid_argument&) { rejected = true; }
         catch (const std::out_of_range&) { rejected = true; }
         if (!rejected || commands.cursor_up != before) throw std::runtime_error("Invalid texture upload was recorded");
     };
     rejectUpload(incompatible, 0, 0);
+    rejectUpload(texture, 0, 0, 1);
     rejectUpload(texture, 15, 0);
     rejectUpload(texture, 0, 6);
     rejectUpload(texture, std::numeric_limits<std::uint32_t>::max(), 0);
