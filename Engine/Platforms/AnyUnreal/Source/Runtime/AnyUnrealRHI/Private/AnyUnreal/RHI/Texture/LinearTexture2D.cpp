@@ -37,9 +37,14 @@ namespace AnyUnreal::RHI
         }
     }
 
+    std::size_t LinearTexture2D::CalculateRowBytes(std::uint32_t width, TextureFormat format)
+    {
+        return dimension(width) * describe(format).Bytes;
+    }
+
     std::size_t LinearTexture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format)
     {
-        return (dimension(width) * describe(format).Bytes + 255) & ~std::size_t{255};
+        return (CalculateRowBytes(width, format) + 255) & ~std::size_t{255};
     }
 
     std::size_t LinearTexture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format)
@@ -47,12 +52,19 @@ namespace AnyUnreal::RHI
         return CalculateRowPitch(width, format) * dimension(height);
     }
 
-    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(this->width * describe(format).Bytes), rowPitch(CalculateRowPitch(width, format)), storage(rowPitch * this->height, addressHigh, alignment, AllocationUsage::Texture)
+    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), storage(rowPitch * this->height, addressHigh, alignment, AllocationUsage::Texture)
     {
-        const auto address = reinterpret_cast<std::uintptr_t>(storage.Data());
-        if (address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");
+        descriptor = CreateDescriptor(width, height, format, storage.Data());
+    }
+
+    std::array<std::uint32_t, 8> LinearTexture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data)
+    {
+        dimension(width);
+        dimension(height);
+        const auto address = reinterpret_cast<std::uintptr_t>(data);
+        if (address == 0 || address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");
         const auto info = describe(format);
-        descriptor = {
+        return {
             static_cast<std::uint32_t>(address >> 8),
             static_cast<std::uint32_t>(address >> 40) | (info.Code << 20) | (((width - 1) & 3) << 30),
             ((width - 1) >> 2) | ((height - 1) << 14),
