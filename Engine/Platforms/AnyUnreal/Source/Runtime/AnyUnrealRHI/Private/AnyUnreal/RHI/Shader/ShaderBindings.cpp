@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Shader/ShaderBindings.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/State/SamplerState.h"
 #include <stdexcept>
 #include <utility>
 
@@ -11,6 +12,9 @@ namespace AnyUnreal::RHI
         using Type = FRHIShaderParameterResource::EType;
         switch (type)
         {
+        case Type::Sampler:
+            if (resource->GetType() != RRT_SamplerState) throw std::invalid_argument("Sampler parameter has the wrong resource type");
+            break;
         case Type::ResourceView:
             if (resource->GetType() != RRT_ShaderResourceView) throw std::invalid_argument("Shader SRV parameter has the wrong resource type");
             if (!static_cast<FRHIShaderResourceView*>(resource)->IsBuffer()) throw std::runtime_error("Texture resource bindings are not implemented");
@@ -56,6 +60,7 @@ namespace AnyUnreal::RHI
                 allocation = static_cast<BufferUnorderedAccessView*>(resource.GetReference())->GetStorage();
                 break;
             case RRT_UniformBuffer:
+            case RRT_SamplerState:
                 break;
             default:
                 throw std::runtime_error("Shader binding contains an unsupported resource");
@@ -72,6 +77,12 @@ namespace AnyUnreal::RHI
         using Type = FRHIShaderParameterResource::EType;
         switch (type)
         {
+        case Type::Sampler:
+        {
+            const auto& descriptor = static_cast<SamplerState*>(resource)->GetDescriptor();
+            descriptors.SetDescriptor(Shader::ResourceKind::Sampler, index, std::as_bytes(std::span(descriptor)));
+            break;
+        }
         case Type::ResourceView:
         {
             auto* view = static_cast<FRHIShaderResourceView*>(resource);
