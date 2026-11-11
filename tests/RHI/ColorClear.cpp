@@ -24,6 +24,8 @@ int main()
         LinearTexture2D texture(dimensions[0], dimensions[1], format, 2);
         const auto& allocation = texture.GetStorage();
         if (allocation.AllocationSize() < allocation.Size() || allocation.AllocationSize() % 16384 != 0 || allocation.AllocationSize() - allocation.Size() >= 16384) throw std::runtime_error("Texture allocation size does not match kernel pages");
+        const auto predictedSize = LinearTexture2D::CalculateDataSize(dimensions[0], dimensions[1], format);
+        if (predictedSize != allocation.Size() || LinearTexture2D::CalculateRowPitch(dimensions[0], format) != texture.GetRowPitch() || BufferAllocation::CalculateAllocationSize(predictedSize) != allocation.AllocationSize()) throw std::runtime_error("Texture size query differs from its allocation");
         const auto bytes = allocation.GetRange(0, allocation.Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xa5});
         std::array<std::byte, 16> pixel{};

@@ -20,6 +20,7 @@ namespace AnyUnreal::RHI
             std::vector<std::byte> Data;
         };
 
+        static std::size_t CalculateAllocationSize(const FRHITextureDesc& description);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         void* Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch);
         LockedData Unlock();

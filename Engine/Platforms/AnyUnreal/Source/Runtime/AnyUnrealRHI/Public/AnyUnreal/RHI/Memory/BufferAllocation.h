@@ -9,6 +9,7 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API BufferAllocation final
     {
     public:
+        static std::size_t CalculateAllocationSize(std::size_t size);
         BufferAllocation(std::size_t size, std::uint32_t addressHigh);
         BufferAllocation(const BufferAllocation&) = delete;
         BufferAllocation& operator=(const BufferAllocation&) = delete;

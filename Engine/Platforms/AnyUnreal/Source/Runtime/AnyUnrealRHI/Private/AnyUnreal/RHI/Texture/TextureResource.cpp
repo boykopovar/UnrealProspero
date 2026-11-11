@@ -9,7 +9,7 @@ namespace AnyUnreal::RHI
 {
     namespace
     {
-        TextureFormat format(const FRHITextureCreateDesc& description)
+        TextureFormat format(const FRHITextureDesc& description)
         {
             const bool srgb = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB);
             switch (description.Format)
@@ -30,7 +30,7 @@ namespace AnyUnreal::RHI
             }
         }
 
-        const FRHITextureCreateDesc& validate(const FRHITextureCreateDesc& description)
+        void validateDescription(const FRHITextureDesc& description)
         {
             if (description.Dimension != ETextureDimension::Texture2D || description.Depth != 1 || description.ArraySize != 1 || description.NumMips != 1 || description.NumSamples != 1) throw std::runtime_error("Texture creation currently requires a single-mip non-multisampled 2D texture");
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > 16384 || description.Extent.Y > 16384) throw std::invalid_argument("Texture extent exceeds hardware limits");
@@ -38,6 +38,11 @@ namespace AnyUnreal::RHI
             using Flags = ETextureCreateFlags;
             constexpr auto supported = Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
             if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior");
+        }
+
+        const FRHITextureCreateDesc& validate(const FRHITextureCreateDesc& description)
+        {
+            validateDescription(description);
             switch (description.InitAction)
             {
             case ERHITextureInitAction::Default:
@@ -59,6 +64,12 @@ namespace AnyUnreal::RHI
         if (resource->GetType() == RRT_TextureReference) resource = static_cast<FRHITextureReference*>(resource)->GetReferencedTexture();
         if (!resource || resource->GetType() != RRT_Texture) throw std::invalid_argument("Texture reference does not resolve to a texture resource");
         return *static_cast<TextureResource*>(resource);
+    }
+
+    std::size_t TextureResource::CalculateAllocationSize(const FRHITextureDesc& description)
+    {
+        validateDescription(description);
+        return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, format(description)));
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), storage(std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, format(description), addressHigh)), initialized(description.InitAction != ERHITextureInitAction::Initializer)

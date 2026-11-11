@@ -76,6 +76,12 @@ namespace AnyUnreal::RHI
         if (arguments.bNeedsDefaultRHIFlush) commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
     }
 
+    FRHICalcTextureSizeResult DynamicRHI::RHICalcTexturePlatformSize(const FRHITextureDesc& description, uint32 firstMipIndex)
+    {
+        if (firstMipIndex != 0) throw std::out_of_range("Texture mip does not exist");
+        return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(Kernel::DirectAllocation::PageSize)};
+    }
+
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)
     {
         const auto size = ResolveTextureResource(texture).GetAllocationSize();

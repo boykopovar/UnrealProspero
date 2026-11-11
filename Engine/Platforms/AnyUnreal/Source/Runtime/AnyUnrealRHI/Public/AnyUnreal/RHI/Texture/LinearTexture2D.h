@@ -21,6 +21,8 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API LinearTexture2D final
     {
     public:
+        static std::size_t CalculateRowPitch(std::uint32_t width, TextureFormat format);
+        static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format);
         LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         void Upload(std::span<const std::byte> source, std::size_t sourcePitch);
         const std::array<std::uint32_t, 8>& GetDescriptor() const;

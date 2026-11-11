@@ -7,13 +7,6 @@ namespace AnyUnreal::RHI
 {
     namespace
     {
-        std::size_t roundedSize(std::size_t size)
-        {
-            constexpr auto pageSize = Kernel::DirectAllocation::PageSize;
-            if (size == 0 || size > std::numeric_limits<std::uint32_t>::max() - pageSize + 1) throw std::invalid_argument("GPU buffer exceeds the shader address aperture");
-            return (size + pageSize - 1) & ~(pageSize - 1);
-        }
-
         void* addressHint(std::uint32_t high)
         {
             if (high > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
@@ -22,7 +15,14 @@ namespace AnyUnreal::RHI
         }
     }
 
-    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh) : allocation(roundedSize(size), Kernel::DirectAllocation::PageSize, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh)), size(size)
+    std::size_t BufferAllocation::CalculateAllocationSize(std::size_t size)
+    {
+        constexpr auto pageSize = Kernel::DirectAllocation::PageSize;
+        if (size == 0 || size > std::numeric_limits<std::uint32_t>::max() - pageSize + 1) throw std::invalid_argument("GPU buffer exceeds the shader address aperture");
+        return (size + pageSize - 1) & ~(pageSize - 1);
+    }
+
+    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh) : allocation(CalculateAllocationSize(size), Kernel::DirectAllocation::PageSize, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh)), size(size)
     {
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());
         if ((address >> 32) != addressHigh || ((address + allocation.Size() - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
