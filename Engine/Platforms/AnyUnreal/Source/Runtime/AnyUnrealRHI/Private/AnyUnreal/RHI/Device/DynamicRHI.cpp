@@ -211,11 +211,11 @@ namespace AnyUnreal::RHI
 
     void DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData)
     {
-        if (mipIndex != 0) throw std::out_of_range("Texture mip does not exist");
         auto destination = ResolveTextureResource(texture).Capture();
+        const auto& mip = destination->GetMipLayout(mipIndex);
         if (!sourceData || region.SrcX < 0 || region.SrcY < 0 || region.Width == 0 || region.Height == 0) throw std::invalid_argument("Invalid texture update source");
-        if (region.DestX >= destination->GetWidth() || region.DestY >= destination->GetHeight() || region.Width > destination->GetWidth() - region.DestX || region.Height > destination->GetHeight() - region.DestY) throw std::out_of_range("Texture update exceeds its destination");
-        const auto pixelBytes = destination->GetRowBytes() / destination->GetWidth();
+        if (region.DestX >= mip.Width || region.DestY >= mip.Height || region.Width > mip.Width - region.DestX || region.Height > mip.Height - region.DestY) throw std::out_of_range("Texture update exceeds its destination");
+        const auto pixelBytes = mip.RowBytes / mip.Width;
         const auto rowBytes = region.Width * pixelBytes;
         const auto columnOffset = static_cast<std::size_t>(region.SrcX) * pixelBytes;
         if (columnOffset > sourcePitch || rowBytes > sourcePitch - columnOffset) throw std::invalid_argument("Texture update source pitch is too small");
@@ -223,15 +223,15 @@ namespace AnyUnreal::RHI
         const auto sourceBytes = (region.Height - 1) * static_cast<std::size_t>(sourcePitch) + rowBytes;
         if (sourceOffset > static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max()) - sourceBytes) throw std::overflow_error("Texture update source exceeds pointer range");
         auto upload = std::make_shared<TextureUpload>(region.Width, region.Height, destination->GetFormat(), std::span{reinterpret_cast<const std::byte*>(sourceData) + sourceOffset, sourceBytes}, sourcePitch, addressHigh);
-        commandList.EnqueueLambda([destination = std::move(destination), upload = std::move(upload), x = region.DestX, y = region.DestY](FRHICommandListBase& executingList)
+        commandList.EnqueueLambda([destination = std::move(destination), upload = std::move(upload), x = region.DestX, y = region.DestY, mipIndex](FRHICommandListBase& executingList)
         {
-            static_cast<GraphicsContext&>(executingList.GetContext()).UploadTexture(destination, upload, x, y);
+            static_cast<GraphicsContext&>(executingList.GetContext()).UploadTexture(destination, upload, x, y, mipIndex);
         });
     }
 
     FRHILockTextureResult DynamicRHI::RHILockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments)
     {
-        if (arguments.FaceIndex != 0 || arguments.ArrayIndex != 0 || arguments.MipIndex != 0) throw std::out_of_range("Texture lock subresource does not exist");
+        if (arguments.FaceIndex != 0 || arguments.ArrayIndex != 0) throw std::out_of_range("Texture lock subresource does not exist");
         if (arguments.LockMode != RLM_ReadOnly && arguments.LockMode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         auto& texture = ResolveTextureResource(arguments.Texture);
         if (commandList.IsExecuting()) throw std::runtime_error("Texture lock requires a non-executing immediate command list");
@@ -239,20 +239,21 @@ namespace AnyUnreal::RHI
         else if (arguments.bNeedsDefaultRHIFlush) commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
         std::size_t size = 0;
         std::size_t pitch = 0;
-        auto* data = texture.Lock(arguments.LockMode, size, pitch);
+        auto* data = texture.Lock(arguments.LockMode, arguments.MipIndex, size, pitch);
         return {data, size, static_cast<uint32>(pitch)};
     }
 
     void DynamicRHI::RHIUnlockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments)
     {
-        if (arguments.FaceIndex != 0 || arguments.ArrayIndex != 0 || arguments.MipIndex != 0) throw std::out_of_range("Texture unlock subresource does not exist");
+        if (arguments.FaceIndex != 0 || arguments.ArrayIndex != 0) throw std::out_of_range("Texture unlock subresource does not exist");
         if (commandList.IsExecuting()) throw std::runtime_error("Texture unlock requires a non-executing immediate command list");
         auto& texture = ResolveTextureResource(arguments.Texture);
-        auto locked = texture.Unlock();
+        auto locked = texture.Unlock(arguments.LockMode, arguments.MipIndex);
         if (locked.Mode == RLM_ReadOnly) return;
         const auto storage = texture.Capture();
-        const FUpdateTextureRegion2D region{0, 0, 0, 0, storage->GetWidth(), storage->GetHeight()};
-        RHIUpdateTexture2D(commandList, &texture, 0, region, static_cast<uint32>(locked.Pitch), reinterpret_cast<const uint8*>(locked.Data.data()));
+        const auto& mip = storage->GetMipLayout(locked.MipLevel);
+        const FUpdateTextureRegion2D region{0, 0, 0, 0, mip.Width, mip.Height};
+        RHIUpdateTexture2D(commandList, &texture, locked.MipLevel, region, static_cast<uint32>(locked.Pitch), reinterpret_cast<const uint8*>(locked.Data.data()));
         if (arguments.bNeedsDefaultRHIFlush) commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
     }
 

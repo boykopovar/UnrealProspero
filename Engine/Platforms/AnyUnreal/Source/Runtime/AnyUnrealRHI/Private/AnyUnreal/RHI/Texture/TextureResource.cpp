@@ -108,28 +108,29 @@ namespace AnyUnreal::RHI
         if (reinterpret_cast<std::uintptr_t>(storage->GetStorage().Data()) % CalculateAlignment(description) != 0) throw std::invalid_argument("External texture storage does not meet its alignment");
     }
 
-    void* TextureResource::Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch)
+    void* TextureResource::Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch)
     {
         FScopeLock lock(&lockMutex);
-        if (lockedData || mappedData) throw std::runtime_error("Texture is already locked or mapped");
+        if (lockedMips.contains(mipLevel) || mappedData) throw std::runtime_error("Texture is already locked or mapped");
         if (mode != RLM_ReadOnly && mode != RLM_WriteOnly) throw std::invalid_argument("Invalid texture lock mode");
         const auto texture = Capture();
-        LockedData next{mode, texture->GetRowPitch(), std::vector<std::byte>(texture->GetMipLayout(0).Size)};
+        const auto& mip = texture->GetMipLayout(mipLevel);
+        LockedData next{mode, mipLevel, mip.RowPitch, std::vector<std::byte>(mip.Size)};
         if (mode == RLM_ReadOnly)
         {
-            const auto source = texture->GetMipRange(0);
+            const auto source = texture->GetMipRange(mipLevel);
             std::copy(source.begin(), source.end(), next.Data.begin());
         }
-        lockedData = std::move(next);
-        size = lockedData->Data.size();
-        pitch = lockedData->Pitch;
-        return lockedData->Data.data();
+        auto& entry = lockedMips.emplace(mipLevel, std::move(next)).first->second;
+        size = entry.Data.size();
+        pitch = entry.Pitch;
+        return entry.Data.data();
     }
 
     void* TextureResource::MapReadback()
     {
         FScopeLock lock(&lockMutex);
-        if (lockedData || mappedData) throw std::runtime_error("Texture is already locked or mapped");
+        if (!lockedMips.empty() || mappedData) throw std::runtime_error("Texture is already locked or mapped");
         if (!EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::CPUReadback)) throw std::invalid_argument("Texture was not created for CPU readback");
         const auto texture = Capture();
         std::vector<std::byte> data(texture->GetRowBytes() * texture->GetHeight());
@@ -145,12 +146,14 @@ namespace AnyUnreal::RHI
         mappedData.reset();
     }
 
-    TextureResource::LockedData TextureResource::Unlock()
+    TextureResource::LockedData TextureResource::Unlock(EResourceLockMode mode, std::uint32_t mipLevel)
     {
         FScopeLock lock(&lockMutex);
-        if (!lockedData) throw std::runtime_error("Texture is not locked");
-        auto result = std::move(*lockedData);
-        lockedData.reset();
+        const auto found = lockedMips.find(mipLevel);
+        if (found == lockedMips.end()) throw std::runtime_error("Texture mip is not locked");
+        if (found->second.Mode != mode) throw std::invalid_argument("Texture unlock does not match its lock mode");
+        auto result = std::move(found->second);
+        lockedMips.erase(found);
         return result;
     }
 

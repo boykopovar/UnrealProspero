@@ -7,6 +7,7 @@
 #include "RHITextureInitializer.h"
 #include "HAL/CriticalSection.h"
 #include <memory>
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -18,6 +19,7 @@ namespace AnyUnreal::RHI
         struct LockedData
         {
             EResourceLockMode Mode;
+            std::uint32_t MipLevel;
             std::size_t Pitch;
             std::vector<std::byte> Data;
         };
@@ -27,8 +29,8 @@ namespace AnyUnreal::RHI
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, const void* initialData);
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);
-        void* Lock(EResourceLockMode mode, std::size_t& size, std::size_t& pitch);
-        LockedData Unlock();
+        void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch);
+        LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel);
         void* MapReadback();
         void UnmapReadback();
         std::shared_ptr<const LinearTexture2D> Capture() const;
@@ -52,7 +54,7 @@ namespace AnyUnreal::RHI
         std::shared_ptr<LinearTexture3D> volumeStorage;
         bool initialized;
         FCriticalSection lockMutex;
-        std::optional<LockedData> lockedData;
+        std::map<std::uint32_t, LockedData> lockedMips;
         std::optional<std::vector<std::byte>> mappedData;
     };
 
