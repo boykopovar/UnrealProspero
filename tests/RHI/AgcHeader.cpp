@@ -13,6 +13,7 @@
 #if ANYUNREAL_TEST_CREATE_SHADER
 #include "AnyUnreal/RHI/Shader/AgcShader.h"
 #include "AnyUnreal/RHI/Shader/ShaderCommands.h"
+#include "AnyUnreal/RHI/Shader/GraphicsShaderLink.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -86,7 +87,7 @@ namespace
 
 int RunChecks(int argc, const char* const* argv)
 {
-    if (argc != 5) throw std::invalid_argument("Expected header, code, stage and binding metadata");
+    if (argc != 5 && argc != 8) throw std::invalid_argument("Expected header, code, stage and binding metadata, optionally followed by pixel header, code and metadata");
     const auto header = read(argv[1]);
     const auto code = read(argv[2]);
     const std::string_view name(argv[3]);
@@ -168,6 +169,35 @@ int RunChecks(int argc, const char* const* argv)
     AnyUnreal::RHI::AgcShader shader(binary, stage, target);
     if (!shader.Get().code || shader.Get().shader_size != code.size()) throw std::runtime_error("AGC shader creation failed");
     checkCommands(shader, layout, inputs);
+    if (argc == 8)
+    {
+        if (stage != ShaderStage::Vertex) throw std::invalid_argument("Graphics link check requires a vertex shader");
+        const auto pixelHeader = read(argv[5]);
+        const auto pixelCode = read(argv[6]);
+        const auto pixelMetadata = read(argv[7]);
+        const AnyUnreal::Shader::ShaderBinaryView pixelBinary{ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}};
+        const AnyUnreal::RHI::AgcShader pixel(pixelBinary, ShaderStage::Pixel, target);
+        reject([&] { AnyUnreal::RHI::GraphicsShaderLink invalid(pixel, &shader, 4); });
+        const AnyUnreal::RHI::GraphicsShaderLink link(shader, &pixel, 4);
+        std::array<std::uint32_t, 256> words{};
+        CommandBuffer commands{words.data(), words.data() + words.size(), words.data(), words.data() + words.size(), exhausted, nullptr, 0};
+        link.Record(commands);
+        const auto size = static_cast<std::size_t>(commands.cursor_up - words.data());
+        std::size_t contextCount = 0;
+        std::size_t primitiveCount = 0;
+        for (std::size_t offset = 0; offset < size;)
+        {
+            const auto packet = words[offset];
+            const auto count = static_cast<std::size_t>((packet >> 16) & 0x3fff) + 2;
+            const auto opcode = (packet >> 8) & 255;
+            if ((packet >> 30) != 3 || count < 3 || count > size - offset) throw std::runtime_error("Invalid graphics link register packet");
+            if (opcode == 0x69) contextCount += count - 2;
+            else if (opcode == 0x79) primitiveCount += count - 2;
+            else throw std::runtime_error("Graphics link emitted an indirect or unexpected packet");
+            offset += count;
+        }
+        if (contextCount != 34 || primitiveCount != 3) throw std::runtime_error("Graphics link register count is incomplete");
+    }
 #endif
     std::cout << "AGC header and shader checks passed\n";
     return 0;
