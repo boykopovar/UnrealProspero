@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include "AnyUnreal/RHI/Descriptor/Tables.h"
+#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 #include "AnyUnreal/RHI/Descriptor/MergedTables.h"
 #include "AnyUnreal/RHI/Descriptor/SamplerDescriptor.h"
 #include "AnyUnreal/Shader/ConstantData.h"
@@ -110,6 +111,9 @@ namespace
             overlapping.SetBuffer(Kind::UniformBuffer, 7, buffer, 64);
             reject([&] { RHI::MergedDescriptorTables collision(std::array<const RHI::DescriptorTables*, 2>{&tables, &overlapping}, addressHigh); });
         }
+        reject([&] { RHI::CreateTypedBufferDescriptor(buffer, 3, RHI::BufferFormat::Uint1); });
+        reject([&] { RHI::CreateTypedBufferDescriptor(static_cast<const std::byte*>(buffer) + 1, 64, RHI::BufferFormat::Uint1); });
+        reject([&] { RHI::CreateTypedBufferDescriptor(buffer, 64, RHI::BufferFormat::Untyped); });
         for (unsigned index = 0; index < 8; ++index)
         {
             if (array[index] != 0) throw std::runtime_error("Descriptor write overwrote layout padding");
@@ -124,14 +128,15 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
     const bool volumeRead = operation == "volume-texture" || operation == "volume-write";
     const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
     const bool textureWrite = operation == "texture-write" || operation == "volume-write";
     const bool textureView = operation == "texture-view";
     const bool withTexture = operation == "texture" || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
-    const bool readWrite = operation == "read-write";
+    const bool typedBuffer = operation == "typed-buffer";
+    const bool readWrite = operation == "read-write" || typedBuffer;
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
     const auto code = read(arguments[2]);
@@ -217,9 +222,9 @@ int main()
         depthTexture = std::make_unique<RHI::DepthTexture2D>(259, 137, layout.GetAddressHigh());
         bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
     }
-    if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
+    if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, typedBuffer ? "uniform-texel-buffer" : "storage-buffer"});
     if (withSampler) bindings.push_back({Shaders::ResourceKind::Sampler, 0, 0, 1, 1, 32, 16, 0, "sampler"});
-    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, 0, withSampler ? 2u : readWrite || withTexture || depthRead || volumeRead ? 1u : 0u, 1, withSampler ? 48u : withTexture || depthRead || volumeRead ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, 0, withSampler ? 2u : readWrite || withTexture || depthRead || volumeRead ? 1u : 0u, 1, withSampler ? 48u : withTexture || depthRead || volumeRead ? 32u : readWrite ? 16u : 0u, 16, 0, typedBuffer ? "storage-texel-buffer" : "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
@@ -228,8 +233,17 @@ int main()
     try { descriptors.Apply(inputs); }
     catch (const std::runtime_error&) { rejected = true; }
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
-    descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, output, 64 * sizeof(std::uint32_t));
-    if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+    const auto bindBuffer = [&](RHI::DescriptorTables& tables, Shaders::ResourceKind kind, std::uint32_t index, const void* data)
+    {
+        if (typedBuffer)
+        {
+            const auto descriptor = RHI::CreateTypedBufferDescriptor(data, 64 * sizeof(std::uint32_t), RHI::BufferFormat::Uint1);
+            tables.SetDescriptor(kind, index, std::as_bytes(std::span(descriptor)));
+        }
+        else tables.SetBuffer(kind, index, data, 64 * sizeof(std::uint32_t));
+    };
+    bindBuffer(descriptors, Shaders::ResourceKind::UnorderedAccess, textureWrite ? 1u : 0u, output);
+    if (readWrite) bindBuffer(descriptors, Shaders::ResourceKind::ShaderResource, 0, input);
     if (volume)
     {
         const auto descriptor = volume->GetDescriptor();
@@ -264,8 +278,8 @@ int main()
     {
         RHI::DescriptorTables inputDescriptors(std::span(bindings).first(1), layout.GetAddressHigh());
         RHI::DescriptorTables outputDescriptors(std::span(bindings).last(1), layout.GetAddressHigh());
-        inputDescriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
-        outputDescriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
+        bindBuffer(inputDescriptors, Shaders::ResourceKind::ShaderResource, 0, input);
+        bindBuffer(outputDescriptors, Shaders::ResourceKind::UnorderedAccess, 0, output);
         mergedDescriptors = std::make_unique<RHI::MergedDescriptorTables>(std::array<const RHI::DescriptorTables*, 2>{&inputDescriptors, &outputDescriptors}, layout.GetAddressHigh());
         mergedDescriptors->Apply(inputs);
     }

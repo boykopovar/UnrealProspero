@@ -69,7 +69,7 @@ def main():
                         run_check(graphics, (header, code, metadata, *pixel, "geometry"), environment, f"{target}/{name}/draw", log, options.log)
                         count += 1
             if compute:
-                for name, operation in (("VolumeWrite.comp.hlsl", "volume-write"), ("VolumeLoad.comp.hlsl", "volume-texture"), ("Write.comp.hlsl", "write"), ("ReadWrite.comp.hlsl", "read-write"), ("Constants.comp.hlsl", "constants"), ("TextureWrite.comp.hlsl", "texture-write"), ("TextureLoad.comp.hlsl", "texture"), ("TextureLoad.comp.hlsl", "half-texture"), ("TextureView.comp.hlsl", "texture-view"), *(("TextureSample.comp.hlsl", operation) for operation in ("sample-wrap", "sample-clamp", "sample-mirror", "sample-border", "sample-linear"))):
+                for name, operation in (("TypedBuffer.comp.hlsl", "typed-buffer"), ("VolumeWrite.comp.hlsl", "volume-write"), ("VolumeLoad.comp.hlsl", "volume-texture"), ("Write.comp.hlsl", "write"), ("ReadWrite.comp.hlsl", "read-write"), ("Constants.comp.hlsl", "constants"), ("TextureWrite.comp.hlsl", "texture-write"), ("TextureLoad.comp.hlsl", "texture"), ("TextureLoad.comp.hlsl", "half-texture"), ("TextureView.comp.hlsl", "texture-view"), *(("TextureSample.comp.hlsl", operation) for operation in ("sample-wrap", "sample-clamp", "sample-mirror", "sample-border", "sample-linear"))):
                     directory = shaders / target / name
                     arguments = [(directory / file).resolve(strict=True) for file in ("header.bin", "code.bin", "bindings.adk")]
                     run_check(compute, (*arguments, operation), environment, f"{target}/dispatch/{name}/{operation}", log, options.log)

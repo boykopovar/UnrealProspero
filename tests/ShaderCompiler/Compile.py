@@ -21,6 +21,7 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     shaders = Path(__file__).resolve().parent / "shaders"
     stages = (
+        ("compute", "cs_6_2", "TypedBuffer.comp.hlsl", ["0,0,uniform-texel-buffer,1,0,16", "0,1,storage-texel-buffer,1,16,16"]),
         ("compute", "cs_6_2", "VolumeWrite.comp.hlsl", ["0,0,storage-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("compute", "cs_6_2", "VolumeLoad.comp.hlsl", ["0,0,sampled-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("compute", "cs_6_2", "TextureWrite.comp.hlsl", ["0,0,storage-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
@@ -39,6 +40,7 @@ def main():
         ("fragment", "ps_6_2", "LargeUniform.frag.hlsl", ["0,0,uniform-buffer,1,0,16"]),
     )
     details = {
+        "TypedBuffer.comp.hlsl": ['"inputValues" 2 0', '"outputValues" 3 0'],
         "VolumeWrite.comp.hlsl": ['"outputTexture" 3 0', '"outputValues" 3 0'],
         "VolumeLoad.comp.hlsl": ['"inputTexture" 2 0', '"outputValues" 3 0'],
         "TextureWrite.comp.hlsl": ['"outputTexture" 3 0', '"outputValues" 3 0'],
