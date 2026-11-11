@@ -19,6 +19,11 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
     static_assert(TTarget == EUnrealProsperoTarget::Windows || TTarget == EUnrealProsperoTarget::Linux || TTarget == EUnrealProsperoTarget::Ps5);
     static_assert(!(TServer && TClient));
 
+    static constexpr EUnrealProsperoTarget GetTarget()
+    {
+        return TTarget;
+    }
+
     static constexpr const char* IniPlatformName()
     {
         if constexpr (TTarget == EUnrealProsperoTarget::Windows) return "AnyWin64";
