@@ -5,6 +5,7 @@
 #include <string_view>
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
+#include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -12,6 +13,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <limits>
 #include <stdexcept>
 
 namespace
@@ -145,9 +147,25 @@ int main()
         secondMemory.Upload(inputOffset, std::as_bytes(std::span(values)));
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
-        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);
-        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, secondMemory.Data(), secondMemory.Size(), 40);
-        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, shader.Get().code, shader.Get().shader_size, 40);
+        std::vector<RHI::GpuMemoryRange> ranges{
+            {memory.Data(), memory.Size()},
+            {secondMemory.Data(), secondMemory.Size()},
+            {shader.Get().code, shader.Get().shader_size}
+        };
+        const auto originalPosition = commands.cursor_up;
+        const RHI::GpuMemoryRange invalidRanges[]{
+            {nullptr, 4},
+            {memory.Data(), 0},
+            {reinterpret_cast<const void*>(std::numeric_limits<std::uintptr_t>::max()), 2}
+        };
+        for (const auto& invalidRange : invalidRanges)
+        {
+            const RHI::GpuMemoryRange batch[]{ranges.front(), invalidRange};
+            bool rejected = false;
+            try { RHI::WriteMemoryAcquire(commands, batch); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid acquire range changed the command buffer");
+        }
         for (std::size_t set = 0; set < inputs.DescriptorSets.size(); ++set)
         {
             if (inputs.DescriptorSets[set] == 0) continue;
@@ -156,8 +174,9 @@ int main()
             {
                 if (binding.Set == set) size = std::max(size, static_cast<std::size_t>(binding.Offset) + binding.Count * binding.Stride);
             }
-            sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, reinterpret_cast<const void*>(inputs.DescriptorSets[set]), size, 40);
+            ranges.push_back({reinterpret_cast<const void*>(inputs.DescriptorSets[set]), size});
         }
+        RHI::WriteMemoryAcquire(commands, ranges);
         RHI::WriteComputeDispatch(commands, shader, layout, inputs, iteration == 3 ? 0 : 1, 1, 1);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         for (unsigned index = 0; index < 64; ++index)
