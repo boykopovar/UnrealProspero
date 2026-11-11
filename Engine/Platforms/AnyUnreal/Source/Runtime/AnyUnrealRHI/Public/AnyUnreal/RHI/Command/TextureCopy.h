@@ -15,6 +15,8 @@ namespace AnyUnreal::RHI
         std::uint32_t DestinationY;
         std::uint32_t Width;
         std::uint32_t Height;
+        std::uint32_t SourceMip = 0;
+        std::uint32_t DestinationMip = 0;
     };
 
     struct VolumeCopyRegion
@@ -25,6 +27,7 @@ namespace AnyUnreal::RHI
     };
 
     ANYUNREALRHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture3D& destination, const LinearTexture3D& source, const VolumeCopyRegion& region);
+    ANYUNREALRHI_API void ValidateTextureCopy(const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
     ANYUNREALRHI_API void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region);
 }
 

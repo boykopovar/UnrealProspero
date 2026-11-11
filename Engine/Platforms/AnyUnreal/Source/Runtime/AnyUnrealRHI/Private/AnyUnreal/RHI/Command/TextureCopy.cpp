@@ -47,23 +47,34 @@ namespace AnyUnreal::RHI
         }
     }
 
-    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
+    void ValidateTextureCopy(const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
     {
+        const auto& sourceMip = source.GetMipLayout(region.SourceMip);
+        const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
         if (storageFormat(destination.GetFormat()) != storageFormat(source.GetFormat())) throw std::invalid_argument("Texture copy formats are incompatible");
         if (region.Width == 0 || region.Height == 0) throw std::invalid_argument("Texture copy requires a nonempty region");
-        if (region.SourceX >= source.GetWidth() || region.SourceY >= source.GetHeight() || region.Width > source.GetWidth() - region.SourceX || region.Height > source.GetHeight() - region.SourceY) throw std::out_of_range("Texture copy source region exceeds its texture");
-        if (region.DestinationX >= destination.GetWidth() || region.DestinationY >= destination.GetHeight() || region.Width > destination.GetWidth() - region.DestinationX || region.Height > destination.GetHeight() - region.DestinationY) throw std::out_of_range("Texture copy destination region exceeds its texture");
+        if (region.SourceX >= sourceMip.Width || region.SourceY >= sourceMip.Height || region.Width > sourceMip.Width - region.SourceX || region.Height > sourceMip.Height - region.SourceY) throw std::out_of_range("Texture copy source region exceeds its texture");
+        if (region.DestinationX >= destinationMip.Width || region.DestinationY >= destinationMip.Height || region.Width > destinationMip.Width - region.DestinationX || region.Height > destinationMip.Height - region.DestinationY) throw std::out_of_range("Texture copy destination region exceeds its texture");
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
-        if (sourceStorage.Data() == destinationStorage.Data() && region.SourceX < region.DestinationX + region.Width && region.DestinationX < region.SourceX + region.Width && region.SourceY < region.DestinationY + region.Height && region.DestinationY < region.SourceY + region.Height) throw std::invalid_argument("Texture copy regions overlap");
+        if (sourceStorage.Data() == destinationStorage.Data() && region.SourceMip == region.DestinationMip && region.SourceX < region.DestinationX + region.Width && region.DestinationX < region.SourceX + region.Width && region.SourceY < region.DestinationY + region.Height && region.DestinationY < region.SourceY + region.Height) throw std::invalid_argument("Texture copy regions overlap");
+    }
+
+    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
+    {
+        ValidateTextureCopy(destination, source, region);
+        const auto& sourceMip = source.GetMipLayout(region.SourceMip);
+        const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
+        const auto& sourceStorage = source.GetStorage();
+        const auto& destinationStorage = destination.GetStorage();
         const auto pixelBytes = source.GetRowBytes() / source.GetWidth();
         const auto rowBytes = region.Width * pixelBytes;
         const GpuMemoryRange ranges[]{{sourceStorage.Data(), sourceStorage.Size()}, {destinationStorage.Data(), destinationStorage.Size()}};
         WriteMemoryAcquire(commands, ranges);
         for (std::uint32_t row = 0; row < region.Height; ++row)
         {
-            const auto sourceOffset = source.GetMipLayout(0).Offset + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * pixelBytes;
-            const auto destinationOffset = destination.GetMipLayout(0).Offset + (region.DestinationY + row) * destination.GetRowPitch() + region.DestinationX * pixelBytes;
+            const auto sourceOffset = sourceMip.Offset + (region.SourceY + row) * sourceMip.RowPitch + region.SourceX * pixelBytes;
+            const auto destinationOffset = destinationMip.Offset + (region.DestinationY + row) * destinationMip.RowPitch + region.DestinationX * pixelBytes;
             WriteBufferCopy(commands, destinationStorage.GetRange(destinationOffset, rowBytes).data(), sourceStorage.GetRange(sourceOffset, rowBytes).data(), rowBytes);
         }
     }

@@ -116,6 +116,54 @@ void CheckVolumeUploads()
     std::cout << "Volume uploads verified for eleven formats and pending GPU writes\n";
 }
 
+void CheckMipCopies()
+{
+    using namespace AnyUnreal::RHI;
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    for (const auto mode : {0u, 1u, 2u})
+    {
+        LinearTexture2D source(67, 19, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6);
+        LinearTexture2D other(91, 37, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 7);
+        const auto& destination = mode == 1 ? source : other;
+        const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
+        const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
+        std::fill(destinationBytes.begin(), destinationBytes.end(), std::byte{0xa7});
+        for (std::size_t index = 0; index < sourceBytes.size(); ++index) sourceBytes[index] = static_cast<std::byte>((index * 13 + index / 256) % 251);
+        const std::vector original(sourceBytes.begin(), sourceBytes.end());
+        std::vector expected(destinationBytes.begin(), destinationBytes.end());
+        std::vector<TextureCopyRegion> regions;
+        if (mode == 0) regions.push_back({1, 1, 2, 0, 6, 3, 2, 3});
+        else if (mode == 1) regions.push_back({0, 0, 1, 1, 4, 2, 3, 2});
+        else
+        {
+            for (std::uint32_t mip = 2; mip < 6; ++mip)
+            {
+                const auto& level = source.GetMipLayout(mip);
+                regions.push_back({0, 0, 0, 0, level.Width, level.Height, mip, mip - 1});
+            }
+        }
+        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        for (const auto& region : regions)
+        {
+            const auto& from = source.GetMipLayout(region.SourceMip);
+            const auto& to = destination.GetMipLayout(region.DestinationMip);
+            for (std::size_t row = 0; row < region.Height; ++row)
+            {
+                std::copy_n(original.begin() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, expected.begin() + to.Offset + (region.DestinationY + row) * to.RowPitch + region.DestinationX * pixelBytes);
+            }
+        }
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        CommandStorage storage(16384, 2);
+        auto& commands = storage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        for (const auto& region : regions) WriteTextureCopy(commands, destination, source, region);
+        SubmitAndWait(commands, fence, 1, 10000000);
+        if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Mip copy changed adjacent levels, padding or incorrect texels");
+        if (mode != 1 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Mip copy changed its source");
+    }
+}
+
 int main()
 {
     {
@@ -145,6 +193,7 @@ int main()
 
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    CheckMipCopies();
     CheckVolumeCopies();
     CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
@@ -231,6 +280,8 @@ int main()
     reject(texture, {0, 0, 17, 0, 1, 1});
     reject(texture, {0, 0, 0, 6, 1, 2});
     reject(incompatible, {0, 0, 0, 0, 1, 1});
+    reject(texture, {0, 0, 0, 0, 1, 1, 1, 0});
+    reject(texture, {0, 0, 0, 0, 1, 1, 0, 1});
     const std::array<std::byte, 24> uploadBytes{};
     const auto rejectSource = [&](std::span<const std::byte> bytes, std::size_t pitch)
     {
