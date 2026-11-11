@@ -21,12 +21,30 @@
 #include "AnyUnreal/RHI/Texture/TextureView.h"
 #include "AnyUnreal/RHI/Texture/SurfaceData.h"
 #include "RHICommandList.h"
+#include "RHIResourceReplace.h"
 #include <stdexcept>
 #include <set>
 #include <limits>
 
 namespace AnyUnreal::RHI
 {
+    void DynamicRHI::RHIReplaceResources(FRHICommandListBase& commandList, TArray<FRHIResourceReplaceInfo>&& replacements)
+    {
+        std::vector<std::pair<TRefCountPtr<Buffer>, TRefCountPtr<Buffer>>> buffers;
+        buffers.reserve(replacements.Num());
+        for (const auto& replacement : replacements)
+        {
+            if (replacement.GetType() != FRHIResourceReplaceInfo::EType::Buffer) throw std::runtime_error("Ray tracing resource replacement is not implemented");
+            const auto& pair = replacement.GetBuffer();
+            if (!pair.Dst || pair.Dst == pair.Src) throw std::invalid_argument("Buffer replacement requires distinct source and destination resources");
+            buffers.emplace_back(static_cast<Buffer*>(pair.Dst), static_cast<Buffer*>(pair.Src));
+        }
+        commandList.EnqueueLambdaMultiPipe(ERHIPipeline::Graphics, FRHICommandListBase::EThreadFence::Enabled, TEXT("AnyUnrealReplaceResources"), [buffers = std::move(buffers)](const FRHIContextArray&)
+        {
+            for (const auto& pair : buffers) pair.first->ReplaceStorage(pair.second.GetReference());
+        });
+    }
+
     FRenderQueryRHIRef DynamicRHI::RHICreateRenderQuery(ERenderQueryType type)
     {
         return new RenderQuery(type);

@@ -2,6 +2,7 @@
 #include "Containers/ResourceArray.h"
 #include "Misc/ScopeLock.h"
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -53,6 +54,29 @@ namespace AnyUnreal::RHI
             const auto* source = static_cast<const std::byte*>(description.InitialData->GetResourceData());
             storage->Upload(0, {source, description.Size});
             description.InitialData->Discard();
+        }
+    }
+
+    void Buffer::ReplaceStorage(Buffer* source)
+    {
+        if (source == this) throw std::invalid_argument("A buffer cannot replace itself");
+        auto* first = source && std::less<Buffer*>{}(source, this) ? source : this;
+        auto* second = source ? (first == this ? source : this) : nullptr;
+        FScopeLock firstLock(&first->lockMutex);
+        std::optional<FScopeLock> secondLock;
+        if (second) secondLock.emplace(&second->lockMutex);
+        if (lockedRange || (source && source->lockedRange)) throw std::runtime_error("Locked buffers cannot be replaced");
+        if (initializationState != InitializationState::Ready || (source && source->initializationState != InitializationState::Ready)) throw std::runtime_error("Buffer replacement requires completed initialization");
+        if (source)
+        {
+            TakeOwnership(*source);
+            storage = std::move(source->storage);
+            source->ReleaseOwnership();
+        }
+        else
+        {
+            ReleaseOwnership();
+            storage.reset();
         }
     }
 

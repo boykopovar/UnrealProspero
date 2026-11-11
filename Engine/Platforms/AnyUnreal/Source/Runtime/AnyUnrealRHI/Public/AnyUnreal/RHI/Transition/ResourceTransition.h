@@ -20,6 +20,8 @@ namespace AnyUnreal::RHI
         std::vector<std::shared_ptr<BufferAllocation>> allocations;
         std::vector<GpuMemoryRange> ranges;
         std::unique_ptr<MemoryBarrier> barrier;
+        bool begun = false;
+        bool ended = false;
     };
 
     struct TransitionData

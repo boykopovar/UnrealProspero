@@ -14,39 +14,25 @@ namespace AnyUnreal::RHI
         {
             if (!entry.Resource) throw std::invalid_argument("Resource transition requires a resource");
             if (entry.Flags != EResourceTransitionFlags::None || entry.CommitInfo.IsSet()) throw std::runtime_error("Resource transition flags or reserved memory commits are not implemented");
-            const BufferAllocation* allocation = nullptr;
             auto* retainedResource = entry.Resource;
             if (entry.Type == FRHITransitionInfo::EType::Buffer)
             {
                 if (!entry.IsAllMips() || !entry.IsAllArraySlices() || !entry.IsAllPlaneSlices()) throw std::invalid_argument("Buffer transitions cannot specify texture subresources");
                 if (entry.Resource->GetType() != RRT_Buffer) throw std::invalid_argument("Buffer transition has the wrong resource type");
-                auto storage = static_cast<Buffer*>(entry.Buffer)->Capture();
-                allocation = storage.get();
-                allocations.push_back(std::move(storage));
             }
             else if (entry.Type == FRHITransitionInfo::EType::Texture)
             {
                 auto& texture = ResolveTextureResource(entry.Resource);
                 if ((!entry.IsAllMips() && entry.MipIndex != 0) || (!entry.IsAllArraySlices() && entry.ArraySlice != 0) || (!entry.IsAllPlaneSlices() && entry.PlaneSlice != 0)) throw std::out_of_range("Texture transition selects a nonexistent subresource");
-                allocation = &texture.GetStorage();
                 retainedResource = &texture;
             }
             else if (entry.Type == FRHITransitionInfo::EType::UAV)
             {
                 if (!entry.IsAllMips() || !entry.IsAllArraySlices() || !entry.IsAllPlaneSlices()) throw std::invalid_argument("UAV transitions select the complete view");
                 if (entry.Resource->GetType() != RRT_UnorderedAccessView) throw std::invalid_argument("UAV transition has the wrong resource type");
-                if (entry.UAV->IsBuffer())
-                {
-                    auto storage = static_cast<BufferUnorderedAccessView*>(entry.UAV)->Capture().CaptureStorage();
-                    allocation = storage.get();
-                    allocations.push_back(std::move(storage));
-                }
-                else allocation = static_cast<TextureUnorderedAccessView*>(entry.UAV)->GetStorage();
-                if (!allocation) throw std::invalid_argument("Resource transition requires a nonempty buffer view");
             }
             else throw std::runtime_error("Resource transition type is not implemented");
             resources.emplace_back(retainedResource);
-            ranges.push_back({allocation->Data(), allocation->Size()});
         }
         barrier = std::make_unique<MemoryBarrier>(addressHigh);
     }
@@ -54,12 +40,40 @@ namespace AnyUnreal::RHI
     void ResourceTransition::Begin(CommandBuffer& commands, ERHIPipeline pipeline)
     {
         if (pipeline != ERHIPipeline::Graphics) throw std::invalid_argument("Resource transition must begin on the graphics pipeline");
+        if (begun) throw std::runtime_error("Resource transition has already begun");
+        for (const auto& resource : resources)
+        {
+            const BufferAllocation* allocation = nullptr;
+            if (resource->GetType() == RRT_Buffer)
+            {
+                auto storage = static_cast<Buffer*>(resource.GetReference())->Capture();
+                allocation = storage.get();
+                allocations.push_back(std::move(storage));
+            }
+            else if (resource->GetType() == RRT_Texture) allocation = &static_cast<TextureResource*>(resource.GetReference())->GetStorage();
+            else
+            {
+                auto* view = static_cast<FRHIUnorderedAccessView*>(resource.GetReference());
+                if (view->IsBuffer())
+                {
+                    auto storage = static_cast<BufferUnorderedAccessView*>(view)->Capture().CaptureStorage();
+                    allocation = storage.get();
+                    allocations.push_back(std::move(storage));
+                }
+                else allocation = static_cast<TextureUnorderedAccessView*>(view)->GetStorage();
+            }
+            if (!allocation) throw std::invalid_argument("Resource transition requires a nonempty allocation");
+            ranges.push_back({allocation->Data(), allocation->Size()});
+        }
+        begun = true;
         barrier->Release(commands);
     }
 
     void ResourceTransition::End(CommandBuffer& commands, ERHIPipeline pipeline)
     {
         if (pipeline != ERHIPipeline::Graphics) throw std::invalid_argument("Resource transition must end on the graphics pipeline");
+        if (!begun || ended) throw std::runtime_error("Resource transition must end once after it begins");
+        ended = true;
         barrier->Acquire(commands, ranges);
     }
 

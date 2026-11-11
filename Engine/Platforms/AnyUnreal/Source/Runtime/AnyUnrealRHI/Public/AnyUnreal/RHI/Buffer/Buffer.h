@@ -24,6 +24,7 @@ namespace AnyUnreal::RHI
         std::shared_ptr<BufferAllocation> Capture() const;
         void* Lock(std::size_t offset, std::size_t size, EResourceLockMode mode);
         LockedRange Unlock();
+        void ReplaceStorage(Buffer* source);
 
     private:
         friend class BufferInitializer;
