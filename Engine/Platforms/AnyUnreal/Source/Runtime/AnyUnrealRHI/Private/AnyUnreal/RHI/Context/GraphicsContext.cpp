@@ -10,6 +10,11 @@ namespace AnyUnreal::RHI
         RecordCommands([](CommandBuffer& commands) { WriteScissor(commands, {0, 0, 32767, 32767}); });
     }
 
+    void GraphicsContext::RHISetStreamSource(uint32 streamIndex, FRHIBuffer* vertexBuffer, uint32 offset)
+    {
+        RecordCommands([&](CommandBuffer&) { vertexStreams.Set(streamIndex, vertexBuffer, offset); });
+    }
+
     void GraphicsContext::RHISetViewport(float minX, float minY, float minZ, float maxX, float maxY, float maxZ)
     {
         RecordCommands([&](CommandBuffer& commands)
