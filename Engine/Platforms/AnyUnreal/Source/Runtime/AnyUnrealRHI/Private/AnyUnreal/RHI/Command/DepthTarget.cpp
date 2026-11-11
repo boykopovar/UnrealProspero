@@ -29,6 +29,7 @@ namespace AnyUnreal::RHI
     {
         if (!std::isfinite(depth) || depth < 0 || depth > 1) throw std::invalid_argument("Depth clear requires a finite normalized value");
         const auto& storage = texture.GetStorage();
+        sceAgcDcbSetCxRegisterDirect(&commands, {0xb, std::bit_cast<std::uint32_t>(depth)});
         sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.Data(), storage.Size(), 40);
         WriteBufferFill(commands, storage.Data(), storage.Size(), std::bit_cast<std::uint32_t>(depth));
         sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.Data(), storage.Size(), 40);

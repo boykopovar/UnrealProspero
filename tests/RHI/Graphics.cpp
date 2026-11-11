@@ -284,7 +284,7 @@ int main()
                     for (std::size_t component = 0; component < pixelBytes / sizeof(float); ++component)
                     {
                         const auto expected = inside ? values[component] : 0;
-                        if (!std::isfinite(floats[component]) || std::abs(floats[component] - expected) > 0.000001f) throw std::runtime_error("Floating color target pixel mismatch");
+                        if (!std::isfinite(floats[component]) || std::abs(floats[component] - expected) > 0.000001f) throw std::runtime_error("Floating color target pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " at " + std::to_string(x) + "," + std::to_string(y) + " component " + std::to_string(component) + ": " + std::to_string(floats[component]) + " expected " + std::to_string(expected) + " " + caseName);
                     }
                     continue;
                 }
