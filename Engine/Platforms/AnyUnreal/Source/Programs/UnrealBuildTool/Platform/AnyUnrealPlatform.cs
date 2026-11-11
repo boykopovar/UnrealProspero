@@ -30,10 +30,27 @@ internal sealed class AnyUnrealPlatform : UEBuildPlatform
 
     public override void ModifyModuleRulesForOtherPlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
     {
+        if (targetRules.Platform == Platform) return;
+        if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (!settings.IsConfigured || moduleName != "TargetPlatform") return;
         if (targetRules.Platform != UnrealTargetPlatform.Win64 && targetRules.Platform != UnrealTargetPlatform.Linux) return;
         if (!targetRules.bForceBuildShaderFormats && !targetRules.bNeedsExtraShaderFormats) return;
         if (!rules.DynamicallyLoadedModuleNames.Contains("AnyUnrealShaderFormat")) rules.DynamicallyLoadedModuleNames.Add("AnyUnrealShaderFormat");
+    }
+
+    public override void ModifyModuleRulesForActivePlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
+    {
+        AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
+        if (moduleName == "RHI")
+        {
+            rules.FilesToGenerate.Add("AnyUnrealRHIShaderPlatform.h", new[]
+            {
+                "#ifndef ANYUNREAL_GENERATED_RHI_SHADER_PLATFORM_H",
+                "#define ANYUNREAL_GENERATED_RHI_SHADER_PLATFORM_H",
+                "#include \"" + Platform + "RHIShaderPlatform.h\"",
+                "#endif"
+            });
+        }
     }
 
     public override void ResetTarget(TargetRules rules)
