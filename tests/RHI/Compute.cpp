@@ -10,6 +10,7 @@
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"
+#include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -152,6 +153,8 @@ int main()
         memory.Upload(2048, std::as_bytes(std::span(dispatchGroups)));
         auto* fillOutput = reinterpret_cast<std::uint32_t*>(memory.GetRange(3072, 64).data());
         std::fill_n(fillOutput, 16, 0x12345678u);
+        auto copyOutput = memory.GetRange(4096, 272);
+        std::fill(copyOutput.begin(), copyOutput.end(), std::byte{0x5a});
         RHI::CommandStorage commandStorage(64, layout.GetAddressHigh());
         auto& commands = commandStorage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
@@ -161,6 +164,10 @@ int main()
             {shader.Get().code, shader.Get().shader_size}
         };
         const auto originalPosition = commands.cursor_up;
+        bool overlappingCopyRejected = false;
+        try { RHI::WriteBufferCopy(commands, copyOutput.data() + 1, copyOutput.data(), 8); }
+        catch (const std::invalid_argument&) { overlappingCopyRejected = true; }
+        if (!overlappingCopyRejected || commands.cursor_up != originalPosition) throw std::runtime_error("Overlapping GPU copy changed the command buffer");
         for (const auto offset : {2u, static_cast<unsigned>(memory.Size() - 8)})
         {
             bool rejectedArguments = false;
@@ -184,6 +191,7 @@ int main()
         const auto tableRanges = descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
+        RHI::WriteBufferCopy(commands, copyOutput.data() + 7, input, sizeof(values));
         RHI::WriteBufferFill(commands, fillOutput + 4, 32, static_cast<std::uint32_t>(iteration));
         if (readWrite) RHI::WriteBufferFill(commands, input, 64 * sizeof(std::uint32_t), static_cast<std::uint32_t>(iteration));
         barrier.Release(commands);
@@ -194,6 +202,11 @@ int main()
         if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         completion.Wait(10000000);
+        for (std::size_t index = 0; index < copyOutput.size(); ++index)
+        {
+            const auto expectedByte = index >= 7 && index < 7 + sizeof(values) ? std::as_bytes(std::span(values))[index - 7] : std::byte{0x5a};
+            if (copyOutput[index] != expectedByte) throw std::runtime_error("GPU copy changed bytes outside its destination or copied incorrect data");
+        }
         if (!completion.IsComplete()) throw std::runtime_error("Submitted commands did not report completion");
         for (unsigned index = 0; index < 16; ++index)
         {
