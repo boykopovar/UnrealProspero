@@ -262,11 +262,13 @@ void CheckMipCopies()
 {
     using namespace AnyUnreal::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
-    for (const auto mode : {0u, 1u, 2u, 3u})
+    for (const bool array : {false, true})
+    for (const auto mode : {0u, 1u, 2u, 3u, 4u})
     {
-        LinearTexture2D source(67, 19, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6);
-        LinearTexture2D other(91, 37, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 7);
-        const auto& destination = mode == 1 ? source : other;
+        if (mode == 4 && !array) continue;
+        LinearTexture2D source(67, 19, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::Texture, array ? 3u : 1u);
+        LinearTexture2D other(91, 37, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, 7, AllocationUsage::Texture, array ? 4u : 1u);
+        const auto& destination = mode == 1 || mode == 4 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
         std::fill(destinationBytes.begin(), destinationBytes.end(), std::byte{0xa7});
@@ -275,6 +277,7 @@ void CheckMipCopies()
         std::vector expected(destinationBytes.begin(), destinationBytes.end());
         std::vector<TextureCopyRegion> regions;
         if (mode == 0 || mode == 3) regions.push_back({1, 1, 2, 0, 6, 3, 2, 3});
+        else if (mode == 4) regions.push_back({0, 0, 0, 0, 4, 2, 2, 2});
         else if (mode == 1) regions.push_back({0, 0, 1, 1, 4, 2, 3, 2});
         else
         {
@@ -284,6 +287,14 @@ void CheckMipCopies()
                 regions.push_back({0, 0, 0, 0, level.Width, level.Height, mip, mip - 1});
             }
         }
+        if (array)
+        {
+            for (auto& region : regions)
+            {
+                region.SourceLayer = 1;
+                region.DestinationLayer = 2;
+            }
+        }
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
         for (const auto& region : regions)
         {
@@ -291,7 +302,7 @@ void CheckMipCopies()
             const auto& to = destination.GetMipLayout(region.DestinationMip);
             for (std::size_t row = 0; row < region.Height; ++row)
             {
-                std::copy_n(original.begin() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, expected.begin() + to.Offset + (region.DestinationY + row) * to.RowPitch + region.DestinationX * pixelBytes);
+                std::copy_n(original.begin() + region.SourceLayer * source.GetLayerPitch() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, expected.begin() + region.DestinationLayer * destination.GetLayerPitch() + to.Offset + (region.DestinationY + row) * to.RowPitch + region.DestinationX * pixelBytes);
             }
         }
         BufferAllocation fenceStorage(8, 2);
@@ -299,6 +310,17 @@ void CheckMipCopies()
         CommandStorage storage(16384, 2);
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
+        for (const bool sourceLayer : {false, true})
+        {
+            auto invalid = regions.front();
+            if (sourceLayer) invalid.SourceLayer = source.GetArrayLayers();
+            else invalid.DestinationLayer = destination.GetArrayLayers();
+            const auto cursor = commands.cursor_up;
+            bool rejected = false;
+            try { WriteTextureCopy(commands, destination, source, invalid); }
+            catch (const std::out_of_range&) { rejected = true; }
+            if (!rejected || cursor != commands.cursor_up) throw std::runtime_error("Invalid array copy changed commands");
+        }
         std::unique_ptr<TextureUpload> upload;
         if (mode == 3)
         {
@@ -306,15 +328,15 @@ void CheckMipCopies()
             const auto& from = source.GetMipLayout(region.SourceMip);
             const auto pitch = region.Width * pixelBytes + 7;
             std::vector<std::byte> pixels(pitch * region.Height, std::byte{0xbb});
-            for (std::size_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, pixels.begin() + row * pitch);
+            for (std::size_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + region.SourceLayer * source.GetLayerPitch() + from.Offset + (region.SourceY + row) * from.RowPitch + region.SourceX * pixelBytes, region.Width * pixelBytes, pixels.begin() + row * pitch);
             upload = std::make_unique<TextureUpload>(region.Width, region.Height, format, pixels, pitch, 2);
             std::fill(pixels.begin(), pixels.end(), std::byte{0xff});
-            upload->Record(commands, destination, region.DestinationX, region.DestinationY, region.DestinationMip);
+            upload->Record(commands, destination, region.DestinationX, region.DestinationY, region.DestinationMip, region.DestinationLayer);
         }
         else for (const auto& region : regions) WriteTextureCopy(commands, destination, source, region);
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Mip copy changed adjacent levels, padding or incorrect texels");
-        if (mode != 1 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Mip copy changed its source");
+        if (mode != 1 && mode != 4 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Mip copy changed its source");
     }
 }
 

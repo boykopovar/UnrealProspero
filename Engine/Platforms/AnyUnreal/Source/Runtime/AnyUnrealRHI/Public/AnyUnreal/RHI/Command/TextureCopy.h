@@ -17,6 +17,8 @@ namespace AnyUnreal::RHI
         std::uint32_t Height;
         std::uint32_t SourceMip = 0;
         std::uint32_t DestinationMip = 0;
+        std::uint32_t SourceLayer = 0;
+        std::uint32_t DestinationLayer = 0;
     };
 
     struct VolumeCopyRegion
