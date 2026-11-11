@@ -18,6 +18,7 @@
 #include "AnyUnreal/RHI/Memory/Readback.h"
 #include "AnyUnreal/RHI/Memory/Upload.h"
 #include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
+#include "AnyUnreal/RHI/Memory/HalfFloat.h"
 #include "AnyUnreal/RHI/Command/DepthTarget.h"
 #include "prx/libSceAgc/DcbState/include/Marker.hpp"
 #include "AnyUnreal/Kernel/Result.h"
@@ -93,11 +94,12 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture") throw std::invalid_argument("Unknown compute operation");
+    const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
     const bool textureWrite = operation == "texture-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = operation == "texture" || textureView || withSampler || textureWrite;
+    const bool withTexture = operation == "texture" || textureView || withSampler || textureWrite || halfRead;
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -133,7 +135,7 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
+        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (textureView)
@@ -141,6 +143,18 @@ int main()
             std::array<std::uint32_t, 64> colors;
             for (unsigned index = 0; index < colors.size(); ++index) colors[index] = 0xff000000u | (index * 3 + 1);
             texture->Upload(std::as_bytes(std::span(colors)), 8 * sizeof(std::uint32_t));
+        }
+        else if (halfRead)
+        {
+            std::array<std::uint16_t, 256> colors;
+            for (std::size_t index = 0; index < texels.size(); ++index)
+            {
+                colors[index * 4] = RHI::EncodeHalfFloat(texels[index]);
+                colors[index * 4 + 1] = 0xbc00;
+                colors[index * 4 + 2] = 0x3800;
+                colors[index * 4 + 3] = 0x3c00;
+            }
+            texture->Upload(std::as_bytes(std::span(colors)), 8 * 4 * sizeof(std::uint16_t));
         }
         else texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
         bool invalidPitchRejected = false;
