@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include "AnyUnreal/RHI/Descriptor/Tables.h"
+#include "AnyUnreal/Shader/ConstantData.h"
 #include <algorithm>
 #include <string_view>
 #include "AnyUnreal/RHI/Command/Submission.h"
@@ -114,6 +115,7 @@ int main()
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
     bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite ? 1u : 0u, 1, readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
+    Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
     Shaders::UserDataInputs inputs;
     bool rejected = false;
@@ -127,7 +129,13 @@ int main()
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
     {
         const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
-        memory.Upload(1024, std::as_bytes(std::span(constants)));
+        if (withConstants)
+        {
+            const auto source = std::as_bytes(std::span(constants));
+            constantValues.Write(0, 0, source, 0, 4);
+            constantValues.Write(0, 4, source, 4, 4);
+            memory.Upload(1024, constantValues.GetBlocks().at(0).Data);
+        }
         std::array<std::uint32_t, 64> values{};
         for (unsigned index = 0; index < values.size(); ++index)
         {

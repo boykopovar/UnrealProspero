@@ -5,11 +5,14 @@
 #include "AnyUnreal/RHI/Shader/ComputeShader.h"
 #include "AnyUnreal/RHI/Shader/VertexShader.h"
 #include "AnyUnreal/RHI/Shader/PixelShader.h"
+#include "AnyUnreal/Shader/ConstantData.h"
 #include <map>
 #include <set>
 
 namespace AnyUnreal::RHI
 {
+    ANYUNREALRHI_API void ValidateShaderResourceParameter(FRHIShaderParameterResource::EType type, FRHIResource* resource);
+
     class ANYUNREALRHI_API ShaderBindings final
     {
     public:
@@ -18,6 +21,7 @@ namespace AnyUnreal::RHI
         explicit ShaderBindings(PixelShader& shader);
         const FRHIShader& GetShader() const;
         void Bind(TConstArrayView<FRHIShaderParameterResource> parameters);
+        void BindConstantData(const Shader::ConstantData& data);
         void BindConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters);
         Shader::UserDataInputs Finalize(Shader::UserDataInputs inputs = {});
 
@@ -27,6 +31,7 @@ namespace AnyUnreal::RHI
         TRefCountPtr<FRHIShader> shader;
         const ShaderCode& code;
         DescriptorTables descriptors;
+        Shader::ConstantData constants;
         std::vector<TRefCountPtr<FRHIResource>> resources;
         std::vector<UniformBufferBinding> uniforms;
         std::map<std::uint32_t, std::unique_ptr<BufferAllocation>> constantBuffers;

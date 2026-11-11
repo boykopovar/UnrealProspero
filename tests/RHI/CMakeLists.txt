@@ -7,19 +7,20 @@ option(ANYUNREAL_TEST_CREATE_SHADER "Create AGC shaders through the release runt
 if(ANYUNREAL_TEST_CREATE_SHADER)
     find_package(AnyDevKit CONFIG REQUIRED)
     adk_add_executable(AgcHeaderCheck AgcHeader.cpp
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
-    "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(ComputeCheck Compute.cpp
+        "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/ConstantData.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ComputeDispatch.cpp"
         "${runtime_root}/AnyUnrealShaderCommon/Private/AnyUnreal/Shader/ShaderBinary.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Tables.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Buffer.cpp"
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
-    "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
-    "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     list(APPEND test_targets ComputeCheck)
     adk_link_libraries(ComputeCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(AgcHeaderCheck libc libkernel libSceAgc)
