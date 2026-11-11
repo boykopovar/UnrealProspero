@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Shader/ShaderBindings.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/State/SamplerState.h"
+#include "AnyUnreal/RHI/Texture/TextureResource.h"
 #include <stdexcept>
 #include <utility>
 
@@ -12,6 +13,10 @@ namespace AnyUnreal::RHI
         using Type = FRHIShaderParameterResource::EType;
         switch (type)
         {
+        case Type::Texture:
+            if (resource->GetType() != RRT_Texture) throw std::invalid_argument("Texture parameter requires a texture resource");
+            if (!EnumHasAnyFlags(static_cast<FRHITexture*>(resource)->GetDesc().Flags, ETextureCreateFlags::ShaderResource)) throw std::invalid_argument("Texture was not created for shader access");
+            break;
         case Type::Sampler:
             if (resource->GetType() != RRT_SamplerState) throw std::invalid_argument("Sampler parameter has the wrong resource type");
             break;
@@ -53,6 +58,9 @@ namespace AnyUnreal::RHI
             const BufferAllocation* allocation = nullptr;
             switch (resource->GetType())
             {
+            case RRT_Texture:
+                allocation = &static_cast<TextureResource*>(resource.GetReference())->Capture()->GetStorage();
+                break;
             case RRT_ShaderResourceView:
                 allocation = static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage();
                 break;
@@ -77,6 +85,12 @@ namespace AnyUnreal::RHI
         using Type = FRHIShaderParameterResource::EType;
         switch (type)
         {
+        case Type::Texture:
+        {
+            const auto texture = static_cast<TextureResource*>(resource)->Capture();
+            descriptors.SetDescriptor(Shader::ResourceKind::ShaderResource, index, std::as_bytes(std::span(texture->GetDescriptor())));
+            break;
+        }
         case Type::Sampler:
         {
             const auto& descriptor = static_cast<SamplerState*>(resource)->GetDescriptor();
