@@ -1,4 +1,7 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
+#include "AnyUnreal/RHI/Descriptor/Buffer.h"
+#include <algorithm>
+#include <string_view>
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Shader/ShaderCommands.h"
 #include "AnyUnreal/Kernel/Result.h"
@@ -29,8 +32,11 @@ namespace
 
 int main()
 {
-    if (getargc_nid_postfix() != 4) throw std::invalid_argument("Expected compute header, code and metadata");
+    if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
+    const std::string_view operation(arguments[4]);
+    if (operation != "write" && operation != "read-write") throw std::invalid_argument("Unknown compute operation");
+    const bool readWrite = operation == "read-write";
     const auto header = read(arguments[1]);
     const auto code = read(arguments[2]);
     const auto metadata = read(arguments[3]);
@@ -50,27 +56,35 @@ int main()
     auto* descriptor = reinterpret_cast<std::uint32_t*>(base);
     auto* fence = std::construct_at(reinterpret_cast<std::uint64_t*>(base + 64), 0);
     auto* output = reinterpret_cast<std::uint32_t*>(base + 256);
+    auto* input = static_cast<std::uint32_t*>(secondMemory.Data());
     auto* words = reinterpret_cast<std::uint32_t*>(base + 4096);
-    const auto outputAddress = reinterpret_cast<std::uintptr_t>(output);
-    descriptor[0] = static_cast<std::uint32_t>(outputAddress);
-    descriptor[1] = static_cast<std::uint32_t>(outputAddress >> 32);
-    descriptor[2] = 64 * sizeof(std::uint32_t);
-    descriptor[3] = 0x31016fac;
+    const auto outputDescriptor = RHI::CreateByteAddressBufferDescriptor(output, 64 * sizeof(std::uint32_t));
+    std::copy(outputDescriptor.begin(), outputDescriptor.end(), descriptor + (readWrite ? 4 : 0));
+    if (readWrite)
+    {
+        const auto inputDescriptor = RHI::CreateByteAddressBufferDescriptor(input, 64 * sizeof(std::uint32_t));
+        std::copy(inputDescriptor.begin(), inputDescriptor.end(), descriptor);
+    }
     Shaders::UserDataInputs inputs;
     inputs.DescriptorSets[0] = reinterpret_cast<std::uintptr_t>(descriptor);
     for (std::uint64_t iteration = 1; iteration <= 2; ++iteration)
     {
-        for (unsigned index = 0; index < 64; ++index) output[index] = 0xffffffff;
+        for (unsigned index = 0; index < 64; ++index)
+        {
+            output[index] = 0xffffffff;
+            input[index] = index + static_cast<std::uint32_t>(iteration * 7);
+        }
         CommandBuffer commands{words, words + 1024, words, words + 1024, exhausted, nullptr, 0};
         sceAgcDcbContextStateOp(&commands, 0);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, memory.Data(), memory.Size(), 40);
+        sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, secondMemory.Data(), secondMemory.Size(), 40);
         sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, shader.Get().code, shader.Get().shader_size, 40);
         RHI::WriteShaderRegisters(commands, shader, layout, inputs);
         sceAgcCbDispatch(&commands, 1, 1, 1, shader.Get().specials->dispatch_modifier);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         for (unsigned index = 0; index < 64; ++index)
         {
-            if (output[index] != index * 3 + 1) throw std::runtime_error("GPU compute output does not match the shader");
+            if (output[index] != (readWrite ? input[index] : index) * 3 + 1) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
     std::cout << "GPU compute output verified for two dispatches\n";
