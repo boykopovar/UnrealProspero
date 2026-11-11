@@ -150,6 +150,16 @@ namespace AnyUnreal::RHI
         return result;
     }
 
+    std::array<std::uint32_t, 8> LinearTexture2D::CreateCubeViewDescriptor(bool disableSrgb, std::uint32_t firstCube, std::uint32_t cubeCount, std::uint32_t firstMip, std::uint32_t mipCount) const
+    {
+        if (width != height || arrayLayers % 6 != 0) throw std::invalid_argument("Cube view requires square faces in groups of six");
+        const auto cubes = arrayLayers / 6;
+        if (firstCube >= cubes || cubeCount == 0 || cubeCount > cubes - firstCube) throw std::out_of_range("Cube view exceeds its face allocation");
+        auto result = CreateArrayViewDescriptor(disableSrgb, firstCube * 6, cubeCount * 6, firstMip, mipCount);
+        result[3] = (result[3] & 0x0fffffffu) | (11u << 28);
+        return result;
+    }
+
     std::uint32_t LinearTexture2D::GetArrayLayers() const { return arrayLayers; }
     std::size_t LinearTexture2D::GetLayerPitch() const { return layerPitch; }
 

@@ -39,6 +39,7 @@ namespace AnyUnreal::RHI
         const std::array<std::uint32_t, 8>& GetDescriptor() const;
         std::array<std::uint32_t, 8> CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0) const;
         std::array<std::uint32_t, 8> CreateArrayViewDescriptor(bool disableSrgb, std::uint32_t firstLayer, std::uint32_t layerCount, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0) const;
+        std::array<std::uint32_t, 8> CreateCubeViewDescriptor(bool disableSrgb, std::uint32_t firstCube, std::uint32_t cubeCount, std::uint32_t firstMip = 0, std::uint32_t mipCount = 0) const;
         std::uint32_t GetArrayLayers() const;
         std::size_t GetLayerPitch() const;
         const MipLayout& GetMipLayout(std::uint32_t mipLevel) const;
