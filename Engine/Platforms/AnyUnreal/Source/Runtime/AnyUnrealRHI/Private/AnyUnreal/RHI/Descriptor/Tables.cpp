@@ -51,6 +51,16 @@ namespace AnyUnreal::RHI
         SetDescriptor(kind, parameterIndex, std::as_bytes(std::span(descriptor)));
     }
 
+    std::vector<GpuMemoryRange> DescriptorTables::GetMemoryRanges() const
+    {
+        std::vector<GpuMemoryRange> result;
+        for (const auto& table : tables)
+        {
+            if (table) result.push_back({table->Data(), table->Size()});
+        }
+        return result;
+    }
+
     void DescriptorTables::Apply(Shader::UserDataInputs& inputs) const
     {
         for (const auto& entry : entries)

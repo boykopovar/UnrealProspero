@@ -17,6 +17,10 @@ namespace AnyUnreal::RHI
         if (&bindings.GetShader() != GetComputeShader()) throw std::invalid_argument("Shader bindings do not belong to this compute pipeline");
         const auto inputs = bindings.Finalize();
         const auto& shader = GetShader();
+        auto ranges = bindings.GetMemoryRanges();
+        const auto& native = shader.GetNativeShader().Get();
+        ranges.push_back({native.code, native.shader_size});
+        WriteMemoryAcquire(commands, ranges);
         WriteComputeDispatch(commands, shader.GetNativeShader(), shader.GetCode().GetUserData(), inputs, groupX, groupY, groupZ);
         MarkUsed();
     }

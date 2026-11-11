@@ -19,6 +19,7 @@ namespace AnyUnreal::RHI
     public:
         UniformBufferBinding(const ShaderCode& shader, std::uint32_t parameterIndex, const UniformBuffer& buffer);
         void ApplyConstants(DescriptorTables& descriptors) const;
+        const BufferAllocation* GetConstants() const;
         const std::vector<BoundUniformResource>& GetResources() const;
 
     private:

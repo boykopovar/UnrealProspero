@@ -20,6 +20,7 @@ namespace AnyUnreal::RHI
         explicit ShaderBindings(VertexShader& shader);
         explicit ShaderBindings(PixelShader& shader);
         const FRHIShader& GetShader() const;
+        std::vector<GpuMemoryRange> GetMemoryRanges() const;
         void Bind(TConstArrayView<FRHIShaderParameterResource> parameters);
         void BindConstantData(const Shader::ConstantData& data);
         void BindConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters);

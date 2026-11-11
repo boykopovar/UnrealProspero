@@ -27,6 +27,11 @@ namespace AnyUnreal::RHI
         if (!hasConstants && resources.empty()) throw std::invalid_argument("Uniform buffer is unused by this shader");
     }
 
+    const BufferAllocation* UniformBufferBinding::GetConstants() const
+    {
+        return hasConstants ? storage->GetConstants() : nullptr;
+    }
+
     void UniformBufferBinding::ApplyConstants(DescriptorTables& descriptors) const
     {
         if (!hasConstants) return;

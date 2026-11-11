@@ -59,6 +59,8 @@ namespace
         }
         tables.SetBuffer(Kind::ShaderResource, 6, buffer, 128);
         tables.Apply(inputs);
+        const auto ranges = tables.GetMemoryRanges();
+        if (ranges.size() != 2 || reinterpret_cast<std::uintptr_t>(ranges[0].Address) != inputs.DescriptorSets[2] || ranges[0].Size != 64 || reinterpret_cast<std::uintptr_t>(ranges[1].Address) != inputs.DescriptorSets[3] || ranges[1].Size != 16) throw std::runtime_error("Descriptor memory ranges do not cover their tables");
         if (inputs.DescriptorSets[0] != 0 || inputs.DescriptorSets[1] != 0 || inputs.DescriptorSets[2] == 0 || inputs.DescriptorSets[3] == 0) throw std::runtime_error("Descriptor sets were assigned incorrectly");
         const auto* array = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[2]);
         const auto* uniform = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[3]);
@@ -166,16 +168,8 @@ int main()
             catch (const std::invalid_argument&) { rejected = true; }
             if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid acquire range changed the command buffer");
         }
-        for (std::size_t set = 0; set < inputs.DescriptorSets.size(); ++set)
-        {
-            if (inputs.DescriptorSets[set] == 0) continue;
-            std::size_t size = 0;
-            for (const auto& binding : bindings)
-            {
-                if (binding.Set == set) size = std::max(size, static_cast<std::size_t>(binding.Offset) + binding.Count * binding.Stride);
-            }
-            ranges.push_back({reinterpret_cast<const void*>(inputs.DescriptorSets[set]), size});
-        }
+        const auto tableRanges = descriptors.GetMemoryRanges();
+        ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
         RHI::WriteComputeDispatch(commands, shader, layout, inputs, iteration == 3 ? 0 : 1, 1, 1);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);

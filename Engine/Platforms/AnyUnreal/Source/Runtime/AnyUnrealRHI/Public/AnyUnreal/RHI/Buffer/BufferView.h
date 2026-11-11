@@ -14,6 +14,7 @@ namespace AnyUnreal::RHI
     public:
         BufferViewData(Buffer& buffer, const FRHIViewDesc& description);
         const std::array<std::uint32_t, 4>& GetDescriptor() const;
+        const BufferAllocation* GetStorage() const { return storage.get(); }
 
     private:
         std::shared_ptr<BufferAllocation> storage;
@@ -28,6 +29,7 @@ namespace AnyUnreal::RHI
     public:
         BufferView(Buffer& buffer, const FRHIViewDesc& description) : TBase(&buffer, CheckBufferViewDescription(buffer, description, TType)), data(buffer, description) {}
         const std::array<std::uint32_t, 4>& GetDescriptor() const { return data.GetDescriptor(); }
+        const BufferAllocation* GetStorage() const { return data.GetStorage(); }
 
     private:
         BufferViewData data;

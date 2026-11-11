@@ -34,6 +34,38 @@ namespace AnyUnreal::RHI
 
     const FRHIShader& ShaderBindings::GetShader() const { return *shader; }
 
+    std::vector<GpuMemoryRange> ShaderBindings::GetMemoryRanges() const
+    {
+        if (!finalized || failed) throw std::runtime_error("Shader bindings are not finalized");
+        auto result = descriptors.GetMemoryRanges();
+        std::set<const BufferAllocation*> allocations;
+        for (const auto& entry : constantBuffers) allocations.insert(entry.second.get());
+        for (const auto& uniform : uniforms)
+        {
+            if (const auto* allocation = uniform.GetConstants()) allocations.insert(allocation);
+        }
+        for (const auto& resource : resources)
+        {
+            const BufferAllocation* allocation = nullptr;
+            switch (resource->GetType())
+            {
+            case RRT_ShaderResourceView:
+                allocation = static_cast<BufferShaderResourceView*>(resource.GetReference())->GetStorage();
+                break;
+            case RRT_UnorderedAccessView:
+                allocation = static_cast<BufferUnorderedAccessView*>(resource.GetReference())->GetStorage();
+                break;
+            case RRT_UniformBuffer:
+                break;
+            default:
+                throw std::runtime_error("Shader binding contains an unsupported resource");
+            }
+            if (allocation) allocations.insert(allocation);
+        }
+        for (const auto* allocation : allocations) result.push_back({allocation->Data(), allocation->Size()});
+        return result;
+    }
+
     void ShaderBindings::bindResource(FRHIShaderParameterResource::EType type, std::uint32_t index, FRHIResource* resource)
     {
         ValidateShaderResourceParameter(type, resource);
