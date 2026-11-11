@@ -16,6 +16,7 @@
 #include "AnyUnreal/RHI/State/VertexDeclaration.h"
 #include "AnyUnreal/RHI/Texture/TextureInitializer.h"
 #include "AnyUnreal/RHI/Texture/TextureView.h"
+#include "AnyUnreal/RHI/Texture/SurfaceData.h"
 #include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
@@ -80,6 +81,24 @@ namespace AnyUnreal::RHI
     {
         if (firstMipIndex != 0) throw std::out_of_range("Texture mip does not exist");
         return {TextureResource::CalculateAllocationSize(description), static_cast<uint32>(Kernel::DirectAllocation::PageSize)};
+    }
+
+    void DynamicRHI::RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FColor>& output, FReadSurfaceDataFlags flags)
+    {
+        auto storage = ResolveTextureResource(texture).Capture();
+        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
+        if (commandList.IsExecuting()) throw std::runtime_error("Surface read cannot execute inside a command list");
+        commandList.SubmitAndBlockUntilGPUIdle();
+        ReadSurfaceColors(*storage, rectangle, flags, output);
+    }
+
+    void DynamicRHI::RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FLinearColor>& output, FReadSurfaceDataFlags flags)
+    {
+        auto storage = ResolveTextureResource(texture).Capture();
+        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
+        if (commandList.IsExecuting()) throw std::runtime_error("Surface read cannot execute inside a command list");
+        commandList.SubmitAndBlockUntilGPUIdle();
+        ReadSurfaceColors(*storage, rectangle, flags, output);
     }
 
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)

@@ -15,6 +15,8 @@ namespace AnyUnreal::RHI
         FRHILockTextureResult RHILockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;
         void RHIUnlockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;
         FRHICalcTextureSizeResult RHICalcTexturePlatformSize(const FRHITextureDesc& description, uint32 firstMipIndex) override;
+        void RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FColor>& output, FReadSurfaceDataFlags flags) override;
+        void RHIReadSurfaceData(FRHITexture* texture, FIntRect rectangle, TArray<FLinearColor>& output, FReadSurfaceDataFlags flags) override;
         uint32 RHIComputeMemorySize(FRHITexture* texture) override;
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;

@@ -1,0 +1,103 @@
+#include "AnyUnreal/RHI/Texture/SurfaceData.h"
+#include "RHISurfaceDataConversion.h"
+#include <cstring>
+#include <stdexcept>
+#include <vector>
+
+namespace AnyUnreal::RHI
+{
+    namespace
+    {
+        void validate(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
+        {
+            if (flags.GetGPUIndex() != 0 || flags.GetMip() != 0 || flags.GetArrayIndex() != 0 || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
+            if (flags.GetCompressionMode() < RCM_UNorm || flags.GetCompressionMode() > RCM_MinMax) throw std::invalid_argument("Invalid surface range compression mode");
+            if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > texture.GetWidth() || static_cast<uint32>(rectangle.Max.Y) > texture.GetHeight()) throw std::out_of_range("Surface read rectangle exceeds its texture");
+        }
+
+        uint8* source(const LinearTexture2D& texture, FIntRect rectangle)
+        {
+            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * (texture.GetRowBytes() / texture.GetWidth());
+            return static_cast<uint8*>(texture.GetStorage().Data()) + offset;
+        }
+
+        std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle)
+        {
+            const auto width = static_cast<std::size_t>(rectangle.Width());
+            const auto height = static_cast<std::size_t>(rectangle.Height());
+            const auto channels = texture.GetFormat() == TextureFormat::R32Float ? 1u : 4u;
+            std::vector<float> values(width * height * channels);
+            const auto* input = source(texture, rectangle);
+            for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * texture.GetRowPitch(), width * channels * sizeof(float));
+            return values;
+        }
+
+        void readBytes(const LinearTexture2D& texture, FIntRect rectangle, FColor* output)
+        {
+            auto* input = source(texture, rectangle);
+            const auto width = static_cast<uint32>(rectangle.Width());
+            const auto height = static_cast<uint32>(rectangle.Height());
+            const auto pitch = static_cast<uint32>(texture.GetRowPitch());
+            switch (texture.GetFormat())
+            {
+            case TextureFormat::R8Unorm: ConvertRawR8DataToFColor(width, height, input, pitch, output); break;
+            case TextureFormat::Rg8Unorm: ConvertRawR8G8DataToFColor(width, height, input, pitch, output); break;
+            case TextureFormat::Rgba8Unorm:
+            case TextureFormat::Rgba8Srgb: ConvertRawR8G8B8A8DataToFColor(width, height, input, pitch, output); break;
+            case TextureFormat::Bgra8Unorm:
+            case TextureFormat::Bgra8Srgb: ConvertRawB8G8R8A8DataToFColor(width, height, input, pitch, output); break;
+            default: throw std::invalid_argument("Surface format is not byte normalized");
+            }
+        }
+    }
+
+    void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FColor>& output)
+    {
+        validate(texture, rectangle, flags);
+        TArray<FColor> result;
+        result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
+        if (result.Num() != 0)
+        {
+            if (texture.GetFormat() == TextureFormat::Rgba32Float)
+            {
+                auto values = readFloats(texture, rectangle);
+                ConvertRawR32G32B32A32DataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags.GetLinearToGamma());
+            }
+            else if (texture.GetFormat() == TextureFormat::R32Float)
+            {
+                const auto values = readFloats(texture, rectangle);
+                for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(values[index], 0, 0, 1).ToFColor(flags.GetLinearToGamma());
+            }
+            else readBytes(texture, rectangle, result.GetData());
+        }
+        output = MoveTemp(result);
+    }
+
+    void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FLinearColor>& output)
+    {
+        validate(texture, rectangle, flags);
+        TArray<FLinearColor> result;
+        result.SetNumUninitialized(rectangle.Width() * rectangle.Height());
+        if (result.Num() != 0)
+        {
+            if (texture.GetFormat() == TextureFormat::Rgba32Float)
+            {
+                auto values = readFloats(texture, rectangle);
+                ConvertRawR32G32B32A32DataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 4 * sizeof(float), result.GetData(), flags);
+            }
+            else if (texture.GetFormat() == TextureFormat::R32Float)
+            {
+                const auto values = readFloats(texture, rectangle);
+                for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(values[index], 0, 0, 1);
+            }
+            else
+            {
+                TArray<FColor> colors;
+                colors.SetNumUninitialized(result.Num());
+                readBytes(texture, rectangle, colors.GetData());
+                for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(colors[index]);
+            }
+        }
+        output = MoveTemp(result);
+    }
+}
