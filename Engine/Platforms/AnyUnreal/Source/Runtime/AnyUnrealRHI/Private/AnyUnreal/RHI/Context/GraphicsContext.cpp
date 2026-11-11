@@ -1,6 +1,9 @@
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/IndirectDraw.h"
+#include "AnyUnreal/RHI/Command/TextureCopy.h"
+#include "AnyUnreal/RHI/Texture/TextureResource.h"
+#include "RHICommandList.h"
 #include "RHI.h"
 #include <stdexcept>
 #include <limits>
@@ -16,6 +19,26 @@ namespace AnyUnreal::RHI
     GraphicsContext::GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : ComputeContext(initialCommandBytes, addressHigh)
     {
         RecordCommands([](CommandBuffer& commands) { WriteScissor(commands, {0, 0, 32767, 32767}); });
+    }
+
+    void GraphicsContext::RHICopyTexture(FRHITexture* source, FRHITexture* destination, const FRHICopyTextureInfo& info)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (activeRenderPass) throw std::runtime_error("Texture copy cannot execute inside a render pass");
+            if (!source || !destination) throw std::invalid_argument("Texture copy requires source and destination textures");
+            if (info.SourceMipIndex != 0 || info.DestMipIndex != 0 || info.NumMips != 1 || info.SourceSliceIndex != 0 || info.DestSliceIndex != 0 || info.NumSlices != 1) throw std::invalid_argument("Texture copy requires the available mip and slice");
+            if (info.SourcePosition.X < 0 || info.SourcePosition.Y < 0 || info.SourcePosition.Z != 0 || info.DestPosition.X < 0 || info.DestPosition.Y < 0 || info.DestPosition.Z != 0) throw std::invalid_argument("Invalid two-dimensional texture copy position");
+            auto sourceStorage = static_cast<TextureResource*>(source)->Capture();
+            auto destinationStorage = static_cast<TextureResource*>(destination)->Capture();
+            const bool whole = info.Size == FIntVector::ZeroValue;
+            if (!whole && (info.Size.X <= 0 || info.Size.Y <= 0 || info.Size.Z < 0 || info.Size.Z > 1)) throw std::invalid_argument("Invalid two-dimensional texture copy size");
+            const TextureCopyRegion region{static_cast<uint32>(info.SourcePosition.X), static_cast<uint32>(info.SourcePosition.Y), static_cast<uint32>(info.DestPosition.X), static_cast<uint32>(info.DestPosition.Y), whole ? sourceStorage->GetWidth() : static_cast<uint32>(info.Size.X), whole ? sourceStorage->GetHeight() : static_cast<uint32>(info.Size.Y)};
+            copiedTextures.reserve(copiedTextures.size() + 2);
+            copiedTextures.push_back(sourceStorage);
+            copiedTextures.push_back(destinationStorage);
+            WriteTextureCopy(commands, *destinationStorage, *sourceStorage, region);
+        });
     }
 
     void GraphicsContext::RHISetBlendFactor(const FLinearColor& factor)
