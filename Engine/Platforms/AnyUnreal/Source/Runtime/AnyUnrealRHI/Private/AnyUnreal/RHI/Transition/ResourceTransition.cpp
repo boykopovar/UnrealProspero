@@ -1,6 +1,7 @@
 #include "AnyUnreal/RHI/Transition/ResourceTransition.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
+#include "AnyUnreal/RHI/Texture/TextureView.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
@@ -32,10 +33,9 @@ namespace AnyUnreal::RHI
             }
             else if (entry.Type == FRHITransitionInfo::EType::UAV)
             {
-                if (!entry.IsAllMips() || !entry.IsAllArraySlices() || !entry.IsAllPlaneSlices()) throw std::invalid_argument("Buffer UAV transitions cannot specify texture subresources");
+                if (!entry.IsAllMips() || !entry.IsAllArraySlices() || !entry.IsAllPlaneSlices()) throw std::invalid_argument("UAV transitions select the complete view");
                 if (entry.Resource->GetType() != RRT_UnorderedAccessView) throw std::invalid_argument("UAV transition has the wrong resource type");
-                if (!entry.UAV->IsBuffer()) throw std::runtime_error("Texture transitions are not implemented");
-                allocation = static_cast<BufferUnorderedAccessView*>(entry.UAV)->GetStorage();
+                allocation = entry.UAV->IsBuffer() ? static_cast<BufferUnorderedAccessView*>(entry.UAV)->GetStorage() : static_cast<TextureUnorderedAccessView*>(entry.UAV)->GetStorage();
                 if (!allocation) throw std::invalid_argument("Resource transition requires a nonempty buffer view");
             }
             else throw std::runtime_error("Resource transition type is not implemented");

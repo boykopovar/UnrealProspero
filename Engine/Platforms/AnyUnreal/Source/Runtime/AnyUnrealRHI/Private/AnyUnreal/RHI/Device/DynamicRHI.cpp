@@ -126,8 +126,10 @@ namespace AnyUnreal::RHI
 
     FUnorderedAccessViewRHIRef DynamicRHI::RHICreateUnorderedAccessView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
     {
-        if (!resource || resource->GetType() != RRT_Buffer) throw std::runtime_error("Unordered access views require a buffer; texture views are not implemented");
-        return new BufferUnorderedAccessView(*static_cast<Buffer*>(resource), description);
+        if (!resource) throw std::invalid_argument("Unordered access view resource is null");
+        if (resource->GetType() == RRT_Buffer) return new BufferUnorderedAccessView(*static_cast<Buffer*>(resource), description);
+        if (resource->GetType() == RRT_Texture) return new TextureUnorderedAccessView(*static_cast<TextureResource*>(resource), description);
+        throw std::invalid_argument("Unordered access view requires a buffer or texture");
     }
 
     void DynamicRHI::ConfigureTransitionStorage()
