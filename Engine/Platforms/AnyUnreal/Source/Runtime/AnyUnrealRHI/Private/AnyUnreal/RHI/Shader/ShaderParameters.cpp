@@ -1,13 +1,21 @@
-#include "AnyUnreal/RHI/Pipeline/ComputeParameters.h"
+#include "AnyUnreal/RHI/Shader/ShaderParameters.h"
 #include <stdexcept>
 
 namespace AnyUnreal::RHI
 {
-    ComputeParameters::ComputeParameters(ComputeShader& shader) : shader(&shader), constants(shader.GetCode().GetBinary().Bindings) {}
+    ShaderParameters::ShaderParameters(ShaderReference shader, const ShaderCode& code) : shader(std::move(shader)), constants(code.GetBinary().Bindings) {}
+    ShaderParameters::ShaderParameters(ComputeShader& shader) : ShaderParameters(TRefCountPtr<ComputeShader>(&shader), shader.GetCode()) {}
+    ShaderParameters::ShaderParameters(VertexShader& shader) : ShaderParameters(TRefCountPtr<VertexShader>(&shader), shader.GetCode()) {}
+    ShaderParameters::ShaderParameters(PixelShader& shader) : ShaderParameters(TRefCountPtr<PixelShader>(&shader), shader.GetCode()) {}
 
-    void ComputeParameters::SetConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters)
+    const FRHIShader& ShaderParameters::GetShader() const
     {
-        if (failed) throw std::runtime_error("Compute parameters contain a failed update");
+        return std::visit([](const auto& value) -> const FRHIShader& { return *value; }, shader);
+    }
+
+    void ShaderParameters::SetConstants(TConstArrayView<uint8> data, TConstArrayView<FRHIShaderParameter> parameters)
+    {
+        if (failed) throw std::runtime_error("Shader parameters contain a failed update");
         try
         {
             if (data.Num() < 0 || (data.Num() != 0 && !data.GetData())) throw std::invalid_argument("Invalid shader parameter data");
@@ -25,9 +33,9 @@ namespace AnyUnreal::RHI
         }
     }
 
-    void ComputeParameters::SetResources(TConstArrayView<FRHIShaderParameterResource> parameters)
+    void ShaderParameters::SetResources(TConstArrayView<FRHIShaderParameterResource> parameters)
     {
-        if (failed) throw std::runtime_error("Compute parameters contain a failed update");
+        if (failed) throw std::runtime_error("Shader parameters contain a failed update");
         try
         {
             for (const auto& parameter : parameters)
@@ -44,10 +52,10 @@ namespace AnyUnreal::RHI
         }
     }
 
-    std::unique_ptr<ShaderBindings> ComputeParameters::CreateBindings() const
+    std::unique_ptr<ShaderBindings> ShaderParameters::CreateBindings() const
     {
-        if (failed) throw std::runtime_error("Compute parameters contain a failed update");
-        auto result = std::make_unique<ShaderBindings>(*shader);
+        if (failed) throw std::runtime_error("Shader parameters contain a failed update");
+        auto result = std::visit([](const auto& value) { return std::make_unique<ShaderBindings>(*value); }, shader);
         for (const auto& [key, resource] : resources)
         {
             const FRHIShaderParameterResource parameter(key.first, resource.GetReference(), key.second);

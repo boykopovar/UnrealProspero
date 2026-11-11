@@ -180,7 +180,7 @@ namespace AnyUnreal::RHI
         if (!pipelineState || !pipelineState->IsValid()) throw std::invalid_argument("Compute pipeline must be valid");
         if (pipeline.GetReference() == pipelineState) return;
         auto* nextPipeline = static_cast<ComputePipeline*>(pipelineState);
-        auto nextParameters = std::make_unique<ComputeParameters>(nextPipeline->GetShader());
+        auto nextParameters = std::make_unique<ShaderParameters>(nextPipeline->GetShader());
         pipeline = nextPipeline;
         parameters = std::move(nextParameters);
     }

@@ -1,7 +1,7 @@
 #ifndef ANYUNREAL_RHI_COMPUTE_CONTEXT_H
 #define ANYUNREAL_RHI_COMPUTE_CONTEXT_H
 
-#include "AnyUnreal/RHI/Pipeline/ComputeParameters.h"
+#include "AnyUnreal/RHI/Shader/ShaderParameters.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
 #include "RHIContext.h"
 #include "AnyUnreal/RHI/Buffer/StaticUniformBuffers.h"
@@ -70,7 +70,7 @@ namespace AnyUnreal::RHI
         Completion completion;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
-        std::unique_ptr<ComputeParameters> parameters;
+        std::unique_ptr<ShaderParameters> parameters;
         std::vector<Dispatch> dispatches;
         StaticUniformBuffers staticUniforms;
         std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
