@@ -14,6 +14,7 @@
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/PatternFill.h"
+#include "AnyUnreal/RHI/Buffer/ClearValue.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Completion.h"
@@ -125,6 +126,33 @@ namespace
 
 int main()
 {
+    {
+        using namespace AnyUnreal::RHI;
+        const std::array<std::uint32_t, 4> values{0x12345678u, 0x9abcdef0u, 0x13579bdfu, 0x2468ace0u};
+        const auto check = [](BufferFormat format, const auto& input, std::array<std::uint32_t, 4> expected)
+        {
+            if (EncodeBufferClear(format, input) != expected) throw std::runtime_error("Buffer clear component encoding mismatch");
+        };
+        check(BufferFormat::Byte4Uint, values, {0xe0dff078u, 0, 0, 0});
+        check(BufferFormat::Bgra8Unorm, values, {0xe078f0dfu, 0, 0, 0});
+        check(BufferFormat::Short2Uint, values, {0xdef05678u, 0, 0, 0});
+        check(BufferFormat::Short4Sint, values, {0xdef05678u, 0xace09bdfu, 0, 0});
+        check(BufferFormat::Float3, values, {values[0], values[1], values[2], 0});
+        check(BufferFormat::Float4, values, values);
+        check(BufferFormat::Untyped, values, {values[0], 0, 0, 0});
+        const std::array<float, 4> floats{1.0f, -1.0f, 0.5f, 0.0f};
+        check(BufferFormat::Half4, floats, {0xbc003c00u, 0x00003800u, 0, 0});
+        check(BufferFormat::Byte4Unorm, floats, {0x008000ffu, 0, 0, 0});
+        check(BufferFormat::Byte4Snorm, floats, {0x0040817fu, 0, 0, 0});
+        check(BufferFormat::Short4Snorm, floats, {0x80017fffu, 0x00004000u, 0, 0});
+        check(BufferFormat::Float2, floats, {0x3f800000u, 0xbf800000u, 0, 0});
+        check(BufferFormat::Untyped, floats, {0x3f800000u, 0, 0, 0});
+        bool rejected = false;
+        try { EncodeBufferClear(BufferFormat::Uint1, floats); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        if (!rejected) throw std::runtime_error("Float clear accepted an integer buffer format");
+    }
+
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);

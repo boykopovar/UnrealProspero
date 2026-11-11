@@ -35,6 +35,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/Storage.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/MergedTables.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Buffer/ClearValue.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
@@ -58,6 +59,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Buffer/ClearValue.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
