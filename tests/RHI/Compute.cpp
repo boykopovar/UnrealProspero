@@ -12,6 +12,7 @@
 #include "AnyUnreal/RHI/Command/Completion.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Memory/Readback.h"
+#include "AnyUnreal/RHI/Memory/Upload.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -158,6 +159,13 @@ int main()
         std::fill_n(fillOutput, 16, 0x12345678u);
         auto copyOutput = memory.GetRange(4096, 272);
         std::fill(copyOutput.begin(), copyOutput.end(), std::byte{0x5a});
+        std::array<std::byte, 31> uploadSource;
+        for (std::size_t index = 0; index < uploadSource.size(); ++index) uploadSource[index] = static_cast<std::byte>(index + iteration);
+        const auto uploadExpected = uploadSource;
+        RHI::Upload upload(uploadSource, layout.GetAddressHigh());
+        uploadSource.fill(std::byte{0});
+        auto uploadOutput = memory.GetRange(4608, 40);
+        std::fill(uploadOutput.begin(), uploadOutput.end(), std::byte{0x7b});
         RHI::CommandStorage commandStorage(64, layout.GetAddressHigh());
         auto& commands = commandStorage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
@@ -194,6 +202,7 @@ int main()
         const auto tableRanges = descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
+        upload.Record(commands, uploadOutput.subspan(3, uploadExpected.size()));
         RHI::WriteBufferCopy(commands, copyOutput.data() + 7, input, sizeof(values));
         RHI::WriteBufferFill(commands, fillOutput + 4, 32, static_cast<std::uint32_t>(iteration));
         if (readWrite) RHI::WriteBufferFill(commands, input, 64 * sizeof(std::uint32_t), static_cast<std::uint32_t>(iteration));
@@ -213,6 +222,11 @@ int main()
         if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         completion.Wait(10000000);
+        for (std::size_t index = 0; index < uploadOutput.size(); ++index)
+        {
+            const auto expectedByte = index >= 3 && index < 3 + uploadExpected.size() ? uploadExpected[index - 3] : std::byte{0x7b};
+            if (uploadOutput[index] != expectedByte) throw std::runtime_error("GPU upload lost its source snapshot or changed bytes outside its destination");
+        }
         const auto result = readback.GetRange(0, 249);
         if (!std::equal(result.begin(), result.end(), readbackSource.begin())) throw std::runtime_error("Readback differs from compute shader output");
         for (std::size_t index = 0; index < copyOutput.size(); ++index)
