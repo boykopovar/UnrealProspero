@@ -6,7 +6,8 @@ public class AnyUnrealShaderCompiler : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
-        PrivateDependencyModuleNames.AddRange(new[] { "Core", "RenderCore", "RHI", "ShaderCompilerCommon" });
+        PublicDependencyModuleNames.AddRange(new[] { "Core", "RHI" });
+        PrivateDependencyModuleNames.AddRange(new[] { "RenderCore", "ShaderCompilerCommon" });
         AddEngineThirdPartyPrivateStaticDependencies(target, "SPIRVReflect");
     }
 }
