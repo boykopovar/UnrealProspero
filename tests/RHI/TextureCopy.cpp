@@ -64,6 +64,14 @@ void CheckVolumeCopies()
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(targetBytes.begin(), targetBytes.end(), expected.begin())) throw std::runtime_error("Volume copy changed incorrect pixels or padding");
         if (mode != 2 && !std::equal(sourceBytes.begin(), sourceBytes.end(), original.begin())) throw std::runtime_error("Volume copy modified its source");
+        const std::vector beforeUpload(sourceBytes.begin(), sourceBytes.end());
+        for (const auto offset : {std::size_t{0}, std::size_t{1}})
+        {
+            bool rejected = false;
+            try { source.Upload(sourceBytes.subspan(offset), source.GetRowPitch(), source.GetSlicePitch()); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            if (!rejected || !std::equal(sourceBytes.begin(), sourceBytes.end(), beforeUpload.begin())) throw std::runtime_error("Overlapping volume upload was accepted or modified its allocation");
+        }
     }
     std::cout << "Volume copies verified for eleven formats, whole and partial regions, disjoint self copies and linear views\n";
 }

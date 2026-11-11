@@ -27,7 +27,10 @@ namespace AnyUnreal::RHI
     void LinearTexture3D::Upload(std::span<const std::byte> source, std::size_t sourceRowPitch, std::size_t sourceSlicePitch)
     {
         if (!source.data()) throw std::invalid_argument("Volume upload source is null");
-        validateLayout(source.size(), sourceRowPitch, sourceSlicePitch);
+        const auto bytes = validateLayout(source.size(), sourceRowPitch, sourceSlicePitch);
+        const auto address = reinterpret_cast<std::uintptr_t>(storage.Data());
+        const auto input = reinterpret_cast<std::uintptr_t>(source.data());
+        if ((input >= address && input - address < storage.Size()) || (address >= input && address - input < bytes)) throw std::invalid_argument("Volume upload overlaps its storage");
         for (std::size_t z = 0; z < depth; ++z)
         {
             for (std::size_t y = 0; y < height; ++y) storage.Upload(z * slicePitch + y * rowPitch, source.subspan(z * sourceSlicePitch + y * sourceRowPitch, rowBytes));
