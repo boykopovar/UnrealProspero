@@ -4,7 +4,7 @@
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
-#include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
+#include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -52,23 +52,54 @@ int main()
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
     BufferAllocation output(64 * 64 * 4, aperture);
-    BufferAllocation positions(36, aperture);
-    BufferAllocation colors(48, aperture);
-    BufferAllocation descriptors(32, aperture);
+    auto positions = std::make_shared<BufferAllocation>(52, aperture);
+    auto colors = std::make_shared<BufferAllocation>(80, aperture);
     BufferAllocation fenceStorage(8, aperture);
     std::fill_n(static_cast<std::uint32_t*>(output.Data()), 64 * 64, 0);
     const std::array<float, 9> positionValues{-1, -1, 0, 3, -1, 0, -1, 3, 0};
     const std::array<float, 12> colorValues{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
-    positions.Upload(0, std::as_bytes(std::span(positionValues)));
-    colors.Upload(0, std::as_bytes(std::span(colorValues)));
-    const std::array tables{CreateVertexBufferDescriptor(positions.Data(), positions.Size(), 12), CreateVertexBufferDescriptor(colors.Data(), colors.Size(), 16)};
-    descriptors.Upload(0, std::as_bytes(std::span(tables)));
+    positions->Upload(16, std::as_bytes(std::span(positionValues)));
+    colors->Upload(32, std::as_bytes(std::span(colorValues)));
+    const auto rejectTable = [&](std::uint32_t mask, std::span<const VertexBufferBinding> bindings)
+    {
+        try
+        {
+            const VertexBufferTable invalid(mask, bindings, aperture);
+        }
+        catch (const std::invalid_argument&)
+        {
+            return;
+        }
+        catch (const std::out_of_range&)
+        {
+            return;
+        }
+        throw std::runtime_error("Invalid vertex table was accepted");
+    };
+    rejectTable(0x88, std::array{VertexBufferBinding{3, positions, 16, 12}});
+    rejectTable(0x88, std::array{VertexBufferBinding{3, positions, 16, 12}, VertexBufferBinding{3, colors, 32, 16}});
+    rejectTable(8, std::array{VertexBufferBinding{32, positions, 16, 12}});
+    rejectTable(8, std::array{VertexBufferBinding{3, {}, 0, 12}});
+    rejectTable(8, std::array{VertexBufferBinding{3, positions, positions->Size(), 12}});
+    rejectTable(8, std::array{VertexBufferBinding{3, positions, 16, 0x4000}});
+    const VertexBufferTable emptyTable(0, {}, aperture);
+    Shaders::UserDataInputs emptyInputs;
+    emptyInputs.VertexBuffers = 1;
+    emptyTable.Apply(emptyInputs);
+    if (emptyInputs.VertexBuffers != 0 || !emptyTable.GetMemoryRanges().empty()) throw std::runtime_error("Empty vertex table retained GPU state");
+    const std::weak_ptr<BufferAllocation> positionLifetime = positions;
+    const std::weak_ptr<BufferAllocation> colorLifetime = colors;
+    const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{7, colors, 32, 16}, VertexBufferBinding{3, positions, 16, 12}}, aperture);
+    positions.reset();
+    colors.reset();
+    if (positionLifetime.expired() || colorLifetime.expired()) throw std::runtime_error("Vertex table did not retain source buffers");
     auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
     CommandStorage storage(16384, aperture);
     auto& commands = storage.Get();
     sceAgcDcbContextStateOp(&commands, 0);
-    const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{positions.Data(), positions.Size()}, GpuMemoryRange{colors.Data(), colors.Size()}, GpuMemoryRange{descriptors.Data(), descriptors.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
+    const std::array ranges{GpuMemoryRange{output.Data(), output.Size()}, GpuMemoryRange{vertex.Get().code, vertex.Get().shader_size}, GpuMemoryRange{pixel.Get().code, pixel.Get().shader_size}};
     WriteMemoryAcquire(commands, ranges);
+    WriteMemoryAcquire(commands, descriptors.GetMemoryRanges());
     link.Record(commands);
     for (const auto* shader : {&vertex.Get(), &pixel.Get()})
     {
@@ -91,7 +122,7 @@ int main()
     WriteViewportScissor(commands, 0, {0, 0, 64, 64});
     WriteScissor(commands, {8, 8, 56, 56});
     Shaders::UserDataInputs vertexInputs;
-    vertexInputs.VertexBuffers = reinterpret_cast<std::uintptr_t>(descriptors.Data());
+    descriptors.Apply(vertexInputs);
     WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
     WriteShaderRegisters(commands, pixel, pixelLayout, {});
     sceAgcDcbSetNumInstances(&commands, 1);
