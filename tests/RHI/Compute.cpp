@@ -156,8 +156,9 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    const bool cubeView = operation == "cube-view";
-    const bool cubeRead = operation == "cube-texture" || cubeView;
+    const bool cubeArray = operation == "cube-array" || operation == "cube-array-view";
+    const bool cubeView = operation == "cube-view" || operation == "cube-array-view";
+    const bool cubeRead = operation == "cube-texture" || cubeView || cubeArray;
     const bool withSampler = cubeRead || operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
     if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
     const bool volumeMipView = operation == "volume-mip-view";
@@ -208,7 +209,7 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeRead ? 12u : arrayRead ? 5u : 1u);
+        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : arrayRead ? 5u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (textureView)
@@ -326,7 +327,7 @@ int main()
     if (texture)
     {
         const auto original = texture->GetDescriptor();
-        const auto view = cubeRead ? texture->CreateCubeViewDescriptor(false, cubeView ? 1u : 0u, 1, mipView ? 1u : 0u) : arrayRead ? texture->CreateArrayViewDescriptor(false, arrayView ? 2u : 0u, 3, mipView ? 1u : 0u) : texture->CreateViewDescriptor(textureView, mipView ? 1u : 0u);
+        const auto view = cubeRead ? texture->CreateCubeViewDescriptor(false, cubeView ? 1u : 0u, cubeArray ? 2u : 1u, mipView ? 1u : 0u) : arrayRead ? texture->CreateArrayViewDescriptor(false, arrayView ? 2u : 0u, 3, mipView ? 1u : 0u) : texture->CreateViewDescriptor(textureView, mipView ? 1u : 0u);
         if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
         descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
     }
@@ -543,7 +544,7 @@ int main()
                 if (operation == "sample-border") expected = 0;
                 if (operation == "sample-linear") expected = (index * 3 + 1) * 3 + ((index / 8) * 8 + (index + 1) % 8) * 3 + 1;
             }
-            if (cubeRead) expected = ((index % 6) + (cubeView ? 6u : 0u)) * 1000 + ((index / 6) % 4 + (cubeView ? 1u : 0u)) * 100 + 1;
+            if (cubeRead) expected = ((index % 6) + (cubeView ? 6u : 0u) + (cubeArray ? ((index / 24) % 2) * 6 : 0u)) * 1000 + ((index / 6) % 4 + (cubeView ? 1u : 0u)) * 100 + 1;
             if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output mismatch at " + std::to_string(index) + ": actual=" + std::to_string(output[index]) + ", expected=" + std::to_string(iteration == 3 ? 0xffffffff : expected) + ", iteration=" + std::to_string(iteration));
         }
     }
