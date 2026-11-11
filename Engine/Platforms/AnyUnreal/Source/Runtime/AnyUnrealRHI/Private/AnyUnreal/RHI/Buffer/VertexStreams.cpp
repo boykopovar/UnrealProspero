@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Buffer/VertexStreams.h"
+#include "AnyUnreal/RHI/State/VertexDeclaration.h"
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -26,5 +27,27 @@ namespace AnyUnreal::RHI
         auto storage = binding.Resource->Capture();
         storage->GetRange(binding.Offset, 1);
         return {std::move(storage), binding.Offset};
+    }
+
+    std::unique_ptr<VertexBufferTable> VertexStreams::CaptureTable(const VertexDeclaration& declaration, const Shader::UserDataLayout& layout) const
+    {
+        const auto mask = layout.GetVertexBufferUsageMask();
+        std::vector<VertexBufferBinding> captured;
+        for (uint32 index = 0; index < 32; ++index)
+        {
+            if ((mask & (uint32{1} << index)) == 0) continue;
+            const FVertexElement* selected = nullptr;
+            for (const auto& element : declaration.GetElements())
+            {
+                const auto descriptorIndex = layout.UsesVertexBuffersPerAttribute() ? element.AttributeIndex : element.StreamIndex;
+                if (descriptorIndex != index) continue;
+                selected = &element;
+                break;
+            }
+            if (!selected) throw std::invalid_argument("Vertex declaration does not provide a shader descriptor");
+            auto snapshot = Capture(selected->StreamIndex);
+            captured.push_back({index, std::move(snapshot.Storage), snapshot.Offset, selected->Stride});
+        }
+        return std::make_unique<VertexBufferTable>(mask, captured, layout.GetAddressHigh());
     }
 }

@@ -2,10 +2,13 @@
 #define ANYUNREAL_RHI_VERTEX_STREAMS_H
 
 #include "AnyUnreal/RHI/Buffer/Buffer.h"
+#include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include <map>
 
 namespace AnyUnreal::RHI
 {
+    class VertexDeclaration;
+
     class ANYUNREALRHI_API VertexStreams final
     {
     public:
@@ -17,6 +20,7 @@ namespace AnyUnreal::RHI
 
         void Set(uint32 index, FRHIBuffer* buffer, uint32 offset);
         Snapshot Capture(uint32 index) const;
+        std::unique_ptr<VertexBufferTable> CaptureTable(const VertexDeclaration& declaration, const Shader::UserDataLayout& layout) const;
 
     private:
         struct Binding
