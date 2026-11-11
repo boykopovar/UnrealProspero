@@ -7,6 +7,7 @@
 #include <string>
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
+#include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
@@ -220,6 +221,17 @@ int main()
         };
         const auto originalPosition = commands.cursor_up;
         if (texture) ranges.push_back({texture->GetStorage().Data(), texture->GetStorage().Size()});
+        for (const RHI::Viewport viewport : {RHI::Viewport{0, 0, 0, -1, 1, 1}, RHI::Viewport{0, 0, -1, 1, 1, 1}, RHI::Viewport{0, 0, 0, std::numeric_limits<float>::infinity(), 1, 1}})
+        {
+            bool rejected = false;
+            try { RHI::WriteViewport(commands, 0, viewport); }
+            catch (const std::logic_error&) { rejected = true; }
+            if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid viewport changed the command buffer");
+        }
+        bool scissorRejected = false;
+        try { RHI::WriteScissor(commands, {0, 0, 32768, 1}); }
+        catch (const std::out_of_range&) { scissorRejected = true; }
+        if (!scissorRejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid scissor changed the command buffer");
         bool overlappingCopyRejected = false;
         try { RHI::WriteBufferCopy(commands, copyOutput.data() + 1, copyOutput.data(), 8); }
         catch (const std::invalid_argument&) { overlappingCopyRejected = true; }
@@ -244,6 +256,11 @@ int main()
             catch (const std::invalid_argument&) { rejected = true; }
             if (!rejected || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid acquire range changed the command buffer");
         }
+        RHI::WriteViewport(commands, 0, {0, 0, 0, 1920, 1080, 1});
+        RHI::WriteViewport(commands, 15, {16, 24, 1, 256, 128, 0});
+        RHI::WriteViewportScissor(commands, 0, {0, 0, 1920, 1080});
+        RHI::WriteViewportScissor(commands, 15, {16, 24, 256, 128});
+        RHI::WriteScissor(commands, {0, 0, 32767, 32767});
         const auto tableRanges = descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
