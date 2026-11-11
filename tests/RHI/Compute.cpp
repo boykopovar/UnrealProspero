@@ -8,6 +8,7 @@
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/ComputeDispatch.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
+#include "AnyUnreal/RHI/Command/DepthBounds.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/MemoryBarrier.h"
@@ -220,6 +221,13 @@ int main()
             {shader.Get().code, shader.Get().shader_size}
         };
         const auto originalPosition = commands.cursor_up;
+        for (const auto bounds : {std::array{-0.1f, 1.0f}, std::array{0.0f, 1.1f}, std::array{std::numeric_limits<float>::quiet_NaN(), 1.0f}, std::array{0.0f, std::numeric_limits<float>::infinity()}})
+        {
+            bool rejectedBounds = false;
+            try { RHI::WriteDepthBounds(commands, bounds[0], bounds[1]); }
+            catch (const std::invalid_argument&) { rejectedBounds = true; }
+            if (!rejectedBounds || commands.cursor_up != originalPosition) throw std::runtime_error("Invalid depth bounds changed the command buffer");
+        }
         if (texture) ranges.push_back({texture->GetStorage().Data(), texture->GetStorage().Size()});
         for (const RHI::Viewport viewport : {RHI::Viewport{0, 0, 0, -1, 1, 1}, RHI::Viewport{0, 0, -1, 1, 1, 1}, RHI::Viewport{0, 0, 0, std::numeric_limits<float>::infinity(), 1, 1}})
         {
@@ -282,6 +290,9 @@ int main()
         if (!prematureReadRejected) throw std::runtime_error("Readback accepted a read before GPU submission");
         completion.Write(commands);
         if (completion.IsComplete()) throw std::runtime_error("Unsubmitted commands reported completion");
+        RHI::WriteDepthBounds(commands, 0.25f, 0.75f);
+        const auto* depthBounds = commands.cursor_up - 6;
+        if (depthBounds[0] != 0xc0016900u || depthBounds[1] != 8 || depthBounds[2] != 0x3e800000u || depthBounds[3] != 0xc0016900u || depthBounds[4] != 9 || depthBounds[5] != 0x3f400000u) throw std::runtime_error("Depth bounds packet does not match RDNA2 registers");
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         completion.Wait(10000000);
         for (std::size_t index = 0; index < uploadOutput.size(); ++index)

@@ -16,6 +16,7 @@ namespace AnyUnreal::RHI
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
         void RHISetStencilRef(uint32 reference) override;
+        void RHISetDepthBounds(float minDepth, float maxDepth) override;
         void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
         void RHIEndRenderPass() override;
         void RHICopyTexture(FRHITexture* source, FRHITexture* destination, const FRHICopyTextureInfo& info) override;

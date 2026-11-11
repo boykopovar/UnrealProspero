@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
+#include "AnyUnreal/RHI/Command/DepthBounds.h"
 #include "AnyUnreal/RHI/Command/IndirectDraw.h"
 #include "AnyUnreal/RHI/Command/TextureCopy.h"
 #include "AnyUnreal/RHI/Texture/TextureResource.h"
@@ -16,6 +17,11 @@
 
 namespace AnyUnreal::RHI
 {
+    void GraphicsContext::RHISetDepthBounds(float minDepth, float maxDepth)
+    {
+        RecordCommands([&](CommandBuffer& commands) { WriteDepthBounds(commands, minDepth, maxDepth); });
+    }
+
     GraphicsContext::GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : ComputeContext(initialCommandBytes, addressHigh)
     {
         RecordCommands([](CommandBuffer& commands) { WriteScissor(commands, {0, 0, 32767, 32767}); });
