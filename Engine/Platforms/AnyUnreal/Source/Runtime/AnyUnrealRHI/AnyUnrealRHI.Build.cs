@@ -9,5 +9,6 @@ public class AnyUnrealRHI : ModuleRules
         PublicDependencyModuleNames.AddRange(new[] { "Core", "RHI", "AnyUnrealShaderCommon" });
         PrivateDependencyModuleNames.Add("RenderCore");
         PublicSystemLibraries.Add("libSceAgc");
+        PublicSystemLibraries.Add("libSceAgcDriver");
     }
 }
