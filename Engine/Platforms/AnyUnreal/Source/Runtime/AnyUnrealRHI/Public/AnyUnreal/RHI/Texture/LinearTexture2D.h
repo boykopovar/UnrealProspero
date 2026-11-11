@@ -17,6 +17,8 @@ namespace AnyUnreal::RHI
         Bgra8Unorm,
         Bgra8Srgb,
         R32Float,
+        R32Uint,
+        R32Sint,
         Rgba32Float,
         Rgba16Float,
         R16Float,

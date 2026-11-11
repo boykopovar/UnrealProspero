@@ -124,12 +124,12 @@ int main()
             if (bytes[index] != expected) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }
     }
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::R32Uint, TextureFormat::R32Sint, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     {
         LinearTexture3D texture(7, 3, 5, format, 2);
         const std::array<std::uint32_t, 4> values{0x76543210u, 0xfedcba98u, 0x13579bdfu, 0x2468ace0u};
         const auto pixelSize = LinearTexture2D::CalculateRowBytes(1, format);
-        const auto channelSize = format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float ? 4u : IsHalfTextureFormat(format) ? 2u : 1u;
+        const auto channelSize = format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint ? 4u : IsHalfTextureFormat(format) ? 2u : 1u;
         std::array<std::byte, 16> pixel{};
         for (std::size_t byte = 0; byte < pixelSize; ++byte)
         {
@@ -152,6 +152,6 @@ int main()
             if (bytes[byte] != pixel[byte % pixelSize]) throw std::runtime_error("Integer volume clear changed component bits");
         }
     }
-    std::cout << "Color clears verified for eleven formats, single-level and mip-chain float cases and nine integer volumes\n";
+    std::cout << "Color clears verified for eleven formats, single-level and mip-chain float cases and eleven integer volumes\n";
     return 0;
 }

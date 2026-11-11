@@ -28,6 +28,8 @@ namespace AnyUnreal::RHI
             case TextureFormat::Bgra8Srgb: return {130, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
             case TextureFormat::R16Float: return {13, 2, 4 | (1 << 9)};
             case TextureFormat::Rg16Float: return {29, 4, 4 | (5 << 3) | (1 << 9)};
+            case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9)};
+            case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9)};
             case TextureFormat::R32Float: return {22, 4, 4 | (1 << 9)};
             case TextureFormat::Rgba16Float: return {71, 8, 0xfac};
             case TextureFormat::Rgba32Float: return {77, 16, 0xfac};

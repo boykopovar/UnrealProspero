@@ -21,6 +21,7 @@ namespace AnyUnreal::RHI
 
     std::array<std::uint32_t, 4> EncodeTextureClear(TextureFormat format, const std::array<float, 4>& color)
     {
+        if (format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) throw std::invalid_argument("Integer texture clear requires integer values");
         std::array<std::uint32_t, 4> result{};
         if (format == TextureFormat::Rgba32Float)
         {
@@ -72,7 +73,7 @@ namespace AnyUnreal::RHI
         std::array<std::uint32_t, 4> result{};
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
         if (format == TextureFormat::Rgba32Float) return values;
-        if (format == TextureFormat::R32Float) result.fill(values[0]);
+        if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
         else if (format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
         {
             const auto channels = pixelBytes / 2;
