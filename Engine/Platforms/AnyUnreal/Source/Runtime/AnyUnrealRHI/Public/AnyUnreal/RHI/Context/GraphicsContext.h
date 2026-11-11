@@ -5,6 +5,7 @@
 #include "AnyUnreal/RHI/Buffer/VertexStreams.h"
 #include "AnyUnreal/RHI/Pipeline/GraphicsPipeline.h"
 #include "AnyUnreal/RHI/Pass/RenderPass.h"
+#include "AnyUnreal/RHI/Memory/TextureUpload.h"
 
 namespace AnyUnreal::RHI
 {
@@ -18,6 +19,7 @@ namespace AnyUnreal::RHI
         void RHIBeginRenderPass(const FRHIRenderPassInfo& info, const TCHAR* name) override;
         void RHIEndRenderPass() override;
         void RHICopyTexture(FRHITexture* source, FRHITexture* destination, const FRHICopyTextureInfo& info) override;
+        void UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y);
         void RHISetBlendFactor(const FLinearColor& factor) override;
         void RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount) override;
         void RHIDrawPrimitiveIndirect(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
@@ -47,6 +49,7 @@ namespace AnyUnreal::RHI
         void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
         std::vector<Draw> draws;
         std::vector<std::shared_ptr<const LinearTexture2D>> copiedTextures;
+        std::vector<std::shared_ptr<TextureUpload>> textureUploads;
         FLinearColor blendFactor{1, 1, 1, 1};
         TRefCountPtr<GraphicsPipeline> pipeline;
         std::unique_ptr<ShaderParameters> vertexParameters;

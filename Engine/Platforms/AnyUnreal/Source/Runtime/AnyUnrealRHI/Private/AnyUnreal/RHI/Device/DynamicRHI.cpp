@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
@@ -26,6 +27,26 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    void DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData)
+    {
+        if (mipIndex != 0) throw std::out_of_range("Texture mip does not exist");
+        auto destination = ResolveTextureResource(texture).Capture();
+        if (!sourceData || region.SrcX < 0 || region.SrcY < 0 || region.Width == 0 || region.Height == 0) throw std::invalid_argument("Invalid texture update source");
+        if (region.DestX >= destination->GetWidth() || region.DestY >= destination->GetHeight() || region.Width > destination->GetWidth() - region.DestX || region.Height > destination->GetHeight() - region.DestY) throw std::out_of_range("Texture update exceeds its destination");
+        const auto pixelBytes = destination->GetRowBytes() / destination->GetWidth();
+        const auto rowBytes = region.Width * pixelBytes;
+        const auto columnOffset = static_cast<std::size_t>(region.SrcX) * pixelBytes;
+        if (columnOffset > sourcePitch || rowBytes > sourcePitch - columnOffset) throw std::invalid_argument("Texture update source pitch is too small");
+        const auto sourceOffset = static_cast<std::size_t>(region.SrcY) * sourcePitch + columnOffset;
+        const auto sourceBytes = (region.Height - 1) * static_cast<std::size_t>(sourcePitch) + rowBytes;
+        if (sourceOffset > static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max()) - sourceBytes) throw std::overflow_error("Texture update source exceeds pointer range");
+        auto upload = std::make_shared<TextureUpload>(region.Width, region.Height, destination->GetFormat(), std::span{reinterpret_cast<const std::byte*>(sourceData) + sourceOffset, sourceBytes}, sourcePitch, addressHigh);
+        commandList.EnqueueLambda([destination = std::move(destination), upload = std::move(upload), x = region.DestX, y = region.DestY](FRHICommandListBase& executingList)
+        {
+            static_cast<GraphicsContext&>(executingList.GetContext()).UploadTexture(destination, upload, x, y);
+        });
     }
 
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)

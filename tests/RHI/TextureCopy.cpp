@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Command/TextureCopy.h"
+#include "AnyUnreal/RHI/Memory/TextureUpload.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Submission.h"
@@ -9,13 +10,14 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <limits>
 
 int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
-    for (const unsigned mode : {0u, 1u, 2u, 3u, 4u})
+    for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
         LinearTexture2D source(67, 9, format, 2);
         auto destinationFormat = format;
@@ -33,6 +35,10 @@ int main()
             for (std::size_t index = 0; index < original.size(); ++index) original[index] = static_cast<std::byte>((0x76543210u >> ((index % 4) * 8)) & 255);
         }
         std::vector expected(destinationBytes.begin(), destinationBytes.end());
+        if (mode == 6)
+        {
+            for (std::size_t index = 0; index < expected.size(); ++index) expected[index] = static_cast<std::byte>((0x12345678u >> ((index % 4) * 8)) & 255);
+        }
         const auto region = mode == 0 ? TextureCopyRegion{0, 0, 0, 0, 67, 9} : TextureCopyRegion{1, 1, 40, 6, 5, 3};
         const auto bytesPerPixel = source.GetRowBytes() / source.GetWidth();
         for (std::uint32_t row = 0; row < region.Height; ++row)
@@ -47,7 +53,18 @@ int main()
         auto& commands = storage.Get();
         sceAgcDcbContextStateOp(&commands, 0);
         if (mode == 3) WriteBufferFill(commands, source.GetStorage().Data(), source.GetStorage().Size(), 0x76543210u);
-        WriteTextureCopy(commands, destination, source, region);
+        if (mode == 6) WriteBufferFill(commands, destination.GetStorage().Data(), destination.GetStorage().Size(), 0x12345678u);
+        std::unique_ptr<TextureUpload> upload;
+        if (mode >= 5)
+        {
+            const auto pitch = region.Width * bytesPerPixel + 7;
+            std::vector<std::byte> data(pitch * (region.Height - 1) + region.Width * bytesPerPixel);
+            for (std::uint32_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * bytesPerPixel, region.Width * bytesPerPixel, data.begin() + row * pitch);
+            upload = std::make_unique<TextureUpload>(region.Width, region.Height, format, data, pitch, 2);
+            std::fill(data.begin(), data.end(), std::byte{0xff});
+            upload->Record(commands, destination, region.DestinationX, region.DestinationY);
+        }
+        else WriteTextureCopy(commands, destination, source, region);
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(expected.begin(), expected.end(), destinationBytes.begin())) throw std::runtime_error("Texture copy changed incorrect bytes or row padding");
         if (mode != 2 && !std::equal(original.begin(), original.end(), sourceBytes.begin())) throw std::runtime_error("Texture copy modified its source");
@@ -71,6 +88,37 @@ int main()
     reject(texture, {0, 0, 17, 0, 1, 1});
     reject(texture, {0, 0, 0, 6, 1, 2});
     reject(incompatible, {0, 0, 0, 0, 1, 1});
-    std::cout << "Texture copies and invalid regions verified\n";
+    const std::array<std::byte, 24> uploadBytes{};
+    const auto rejectSource = [&](std::span<const std::byte> bytes, std::size_t pitch)
+    {
+        bool rejected = false;
+        try { TextureUpload upload(3, 2, TextureFormat::Rgba8Unorm, bytes, pitch, 2); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        if (!rejected) throw std::runtime_error("Invalid texture upload source was accepted");
+    };
+    rejectSource({}, 12);
+    rejectSource(uploadBytes, 11);
+    rejectSource(std::span{uploadBytes}.first(23), 12);
+    TextureUpload upload(3, 2, TextureFormat::Rgba8Unorm, uploadBytes, 12, 2);
+    const auto rejectUpload = [&](const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y)
+    {
+        const auto before = commands.cursor_up;
+        bool rejected = false;
+        try { upload.Record(commands, destination, x, y); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        catch (const std::out_of_range&) { rejected = true; }
+        if (!rejected || commands.cursor_up != before) throw std::runtime_error("Invalid texture upload was recorded");
+    };
+    rejectUpload(incompatible, 0, 0);
+    rejectUpload(texture, 15, 0);
+    rejectUpload(texture, 0, 6);
+    rejectUpload(texture, std::numeric_limits<std::uint32_t>::max(), 0);
+    upload.Record(commands, texture, 1, 1);
+    bool repeated = false;
+    const auto before = commands.cursor_up;
+    try { upload.Record(commands, texture, 1, 1); }
+    catch (const std::runtime_error&) { repeated = true; }
+    if (!repeated || commands.cursor_up != before) throw std::runtime_error("Texture upload was recorded twice");
+    std::cout << "Texture copies, uploads and invalid regions verified\n";
     return 0;
 }

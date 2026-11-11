@@ -41,6 +41,18 @@ namespace AnyUnreal::RHI
         });
     }
 
+    void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (activeRenderPass) throw std::runtime_error("Texture upload cannot execute inside a render pass");
+            if (!destination || !upload) throw std::invalid_argument("Texture upload requires storage and data");
+            copiedTextures.push_back(destination);
+            textureUploads.push_back(upload);
+            upload->Record(commands, *destination, x, y);
+        });
+    }
+
     void GraphicsContext::RHISetBlendFactor(const FLinearColor& factor)
     {
         RecordCommands([&](CommandBuffer&)

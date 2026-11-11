@@ -63,6 +63,7 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    target_sources(TextureCopyCheck PRIVATE "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/TextureUpload.cpp" "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryBarrier.cpp")
     adk_link_libraries(TextureCopyCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(ColorClearCheck ColorClear.cpp
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"

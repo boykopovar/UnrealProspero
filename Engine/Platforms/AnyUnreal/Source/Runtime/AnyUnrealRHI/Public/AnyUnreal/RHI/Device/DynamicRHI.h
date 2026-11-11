@@ -11,6 +11,7 @@ namespace AnyUnreal::RHI
     class ANYUNREALRHI_API DynamicRHI : public FDynamicRHI
     {
     public:
+        void RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData) override;
         uint32 RHIComputeMemorySize(FRHITexture* texture) override;
         FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& elements) override;
         FVertexShaderRHIRef RHICreateVertexShader(const FRHICreateShaderDesc& description) override;
