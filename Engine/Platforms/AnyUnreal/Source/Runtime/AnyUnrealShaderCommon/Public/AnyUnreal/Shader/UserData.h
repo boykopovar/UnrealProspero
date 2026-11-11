@@ -33,6 +33,7 @@ namespace AnyUnreal::Shader
         ShaderStage GetStage() const;
         std::uint32_t GetVertexBufferUsageMask() const;
         bool UsesVertexBuffersPerAttribute() const;
+        bool UsesDynamicVertexInput() const;
         std::optional<std::uint32_t> GetBaseVertexSlot() const;
         std::optional<std::uint32_t> GetStartInstanceSlot() const;
 
@@ -46,6 +47,7 @@ namespace AnyUnreal::Shader
         std::uint32_t pushConstantSize = 0;
         std::uint32_t vertexBufferUsageMask = 0;
         bool vertexBuffersPerAttribute = false;
+        bool dynamicVertexInput = false;
         ShaderStage stage = ShaderStage::Vertex;
     };
 }

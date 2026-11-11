@@ -41,7 +41,7 @@ namespace AnyUnreal::Shader
                     if (parsed.ec != std::errc{} || parsed.ptr != number.data() + number.size()) throw std::invalid_argument("Invalid AGC metadata number");
                     if (!values.emplace(std::string(name), value).second) throw std::invalid_argument("Duplicate AGC metadata field");
                 }
-                if (Get("version") != 21 || Get("target") != 2) throw std::invalid_argument("Unsupported AGC binding metadata version or target");
+                if (Get("version") != 22 || Get("target") != 2) throw std::invalid_argument("Unsupported AGC binding metadata version or target");
             }
 
             std::uint32_t Get(const std::string& name) const
@@ -75,8 +75,12 @@ namespace AnyUnreal::Shader
         result.pushConstantSize = fields.Get("push_constant_size");
         result.vertexBufferUsageMask = fields.Get("vertex_buffer_usage_mask");
         result.vertexBuffersPerAttribute = fields.Flag("vertex_buffer_per_attribute");
+        result.dynamicVertexInput = fields.Flag("dynamic_vertex_input");
         const auto hasVertexBuffers = fields.Flag("vertex_buffer_table_valid");
         if (hasVertexBuffers != (result.vertexBufferUsageMask != 0) || (!hasVertexBuffers && result.vertexBuffersPerAttribute) || (hasVertexBuffers && stage != ShaderStage::Vertex)) throw std::invalid_argument("Invalid AGC vertex buffer table metadata");
+        if (result.dynamicVertexInput && (!result.vertexBuffersPerAttribute || stage != ShaderStage::Vertex)) throw std::invalid_argument("Invalid dynamic vertex input metadata");
+        const auto descriptorStride = hasVertexBuffers ? (result.dynamicVertexInput ? 32u : 16u) : 0u;
+        if (fields.Get("vertex_buffer_descriptor_stride") != descriptorStride) throw std::invalid_argument("Invalid vertex buffer descriptor stride");
         if (result.count > 16) throw std::invalid_argument("AGC user data exceeds register capacity");
         if (fields.Flag("scratch_valid") || fields.Flag("streamout_valid")) throw std::invalid_argument("AGC scratch and streamout bindings are not supported");
         for (const auto* name : {"scratch_bytes_per_wave", "scratch_size_per_thread", "scratch_buffer_table_user_data_dword", "streamout_buffer_table_user_data_dword", "streamout_enabled_stream_buffers_mask", "streamout_config_sgpr", "streamout_write_index_sgpr"})
@@ -160,6 +164,7 @@ namespace AnyUnreal::Shader
     ShaderStage UserDataLayout::GetStage() const { return stage; }
     std::uint32_t UserDataLayout::GetVertexBufferUsageMask() const { return vertexBufferUsageMask; }
     bool UserDataLayout::UsesVertexBuffersPerAttribute() const { return vertexBuffersPerAttribute; }
+    bool UserDataLayout::UsesDynamicVertexInput() const { return dynamicVertexInput; }
 
     std::optional<std::uint32_t> UserDataLayout::GetBaseVertexSlot() const
     {

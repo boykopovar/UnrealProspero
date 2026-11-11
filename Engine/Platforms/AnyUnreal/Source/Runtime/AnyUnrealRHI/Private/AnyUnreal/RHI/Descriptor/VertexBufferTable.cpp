@@ -6,7 +6,7 @@
 
 namespace AnyUnreal::RHI
 {
-    VertexBufferTable::VertexBufferTable(std::uint32_t usageMask, std::span<const VertexBufferBinding> bindings, std::uint32_t addressHigh) : usageMask(usageMask)
+    VertexBufferTable::VertexBufferTable(std::uint32_t usageMask, std::span<const VertexBufferBinding> bindings, std::uint32_t addressHigh, bool dynamic) : usageMask(usageMask)
     {
         if (bindings.size() != static_cast<std::size_t>(std::popcount(usageMask))) throw std::invalid_argument("Vertex bindings do not match the shader usage mask");
         std::array<const VertexBufferBinding*, 32> indexed{};
@@ -17,14 +17,17 @@ namespace AnyUnreal::RHI
             if (!binding.Storage || binding.Offset >= binding.Storage->Size()) throw std::invalid_argument("Vertex descriptor requires a valid buffer range");
             indexed[binding.Index] = &binding;
         }
-        std::vector<std::array<std::uint32_t, 4>> descriptors;
-        descriptors.reserve(bindings.size());
+        std::vector<std::uint32_t> descriptors;
+        descriptors.reserve(bindings.size() * (dynamic ? 8 : 4));
         sources.reserve(bindings.size());
         for (const auto* binding : indexed)
         {
             if (!binding) continue;
             const auto range = binding->Storage->GetRange(binding->Offset, binding->Storage->Size() - binding->Offset);
-            descriptors.push_back(CreateVertexBufferDescriptor(range.data(), range.size(), binding->Stride));
+            if (!dynamic && (binding->Format != VertexFormat::Untyped || binding->InstanceRate || binding->InstanceDivisor != 1)) throw std::invalid_argument("Dynamic attributes supplied to a static vertex table");
+            const auto descriptor = dynamic ? CreateTypedVertexBufferDescriptor(range.data(), range.size(), binding->Stride, binding->Format) : CreateVertexBufferDescriptor(range.data(), range.size(), binding->Stride);
+            descriptors.insert(descriptors.end(), descriptor.begin(), descriptor.end());
+            if (dynamic) descriptors.insert(descriptors.end(), {binding->InstanceDivisor, binding->InstanceRate ? 1u : 0u, 0u, 0u});
             sources.push_back(binding->Storage);
         }
         if (!descriptors.empty())

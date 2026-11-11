@@ -47,7 +47,8 @@ int main()
     const auto pixelMetadata = read(argv[6]);
     const auto vertexLayout = Shaders::UserDataLayout::Read(vertexMetadata, Shaders::ShaderStage::Vertex);
     const auto pixelLayout = Shaders::UserDataLayout::Read(pixelMetadata, Shaders::ShaderStage::Pixel);
-    if (vertexLayout.GetVertexBufferUsageMask() != 0x88 || vertexLayout.UsesVertexBuffersPerAttribute()) throw std::invalid_argument("Graphics fixture requires vertex bindings three and seven");
+    const bool dynamic = vertexLayout.UsesDynamicVertexInput();
+    if (vertexLayout.GetVertexBufferUsageMask() != (dynamic ? 3u : 0x88u) || vertexLayout.UsesVertexBuffersPerAttribute() != dynamic) throw std::invalid_argument("Graphics fixture has an unexpected vertex layout");
     const auto aperture = vertexLayout.GetAddressHigh();
     if (pixelLayout.GetAddressHigh() != aperture) throw std::invalid_argument("Shader apertures disagree");
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
@@ -55,6 +56,7 @@ int main()
     const AgcShader vertex({Shaders::ShaderStage::Vertex, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, Shaders::ShaderStage::Vertex, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
+    for (unsigned vertexFormat = 0; vertexFormat < (dynamic ? 2u : 1u); ++vertexFormat)
     for (const auto indirect : {false, true})
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
@@ -97,7 +99,13 @@ int main()
         const std::array<float, 9> positionValues{-1, -1, 0, 3, -1, 0, -1, 3, 0};
         const std::array<float, 12> colorValues{0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1, 0.5f, 0.25f, 0.75f, 1};
         positions->Upload(16 + baseVertex * 12, std::as_bytes(std::span(positionValues)));
-        colors->Upload(32 + baseVertex * 16, std::as_bytes(std::span(colorValues)));
+        const auto colorStride = vertexFormat == 0 ? 16u : 8u;
+        if (vertexFormat == 0) colors->Upload(32 + baseVertex * colorStride, std::as_bytes(std::span(colorValues)));
+        else
+        {
+            const std::array<std::uint16_t, 12> halfColors{0x3800, 0x3400, 0x3a00, 0x3c00, 0x3800, 0x3400, 0x3a00, 0x3c00, 0x3800, 0x3400, 0x3a00, 0x3c00};
+            colors->Upload(32 + baseVertex * colorStride, std::as_bytes(std::span(halfColors)));
+        }
         const auto rejectTable = [&](std::uint32_t mask, std::span<const VertexBufferBinding> bindings)
         {
             try
@@ -127,7 +135,8 @@ int main()
         if (emptyInputs.VertexBuffers != 0 || !emptyTable.GetMemoryRanges().empty()) throw std::runtime_error("Empty vertex table retained GPU state");
         const std::weak_ptr<BufferAllocation> positionLifetime = positions;
         const std::weak_ptr<BufferAllocation> colorLifetime = colors;
-        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{7, colors, 32, 16}, VertexBufferBinding{3, positions, 16, 12}}, aperture);
+        const auto colorFormat = !dynamic ? VertexFormat::Untyped : vertexFormat == 0 ? VertexFormat::Float4 : VertexFormat::Half4;
+        const VertexBufferTable descriptors(vertexLayout.GetVertexBufferUsageMask(), std::array{VertexBufferBinding{dynamic ? 1u : 7u, colors, 32, colorStride, colorFormat}, VertexBufferBinding{dynamic ? 0u : 3u, positions, 16, 12, dynamic ? VertexFormat::Float3 : VertexFormat::Untyped}}, aperture, dynamic);
         positions.reset();
         colors.reset();
         if (positionLifetime.expired() || colorLifetime.expired()) throw std::runtime_error("Vertex table did not retain source buffers");
