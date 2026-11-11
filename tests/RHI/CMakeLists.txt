@@ -75,7 +75,22 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
-    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck)
+    adk_add_executable(SwapChainCheck SwapChain.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Presentation/SwapChain.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/ColorClear.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferFill.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/BufferCopy.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Texture/LinearTexture2D.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/ApplicationCore/Private/AnyUnreal/Video/Output.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/Clock.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    target_include_directories(SwapChainCheck PRIVATE "${runtime_root}/ApplicationCore/Public")
+    adk_link_libraries(SwapChainCheck libc libkernel libSceAgc libSceAgcDriver libSceVideoOut)
+    list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck SwapChainCheck)
     adk_add_executable(OcclusionCheck ${graphics_sources})
     target_compile_definitions(GraphicsCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=0)
     target_compile_definitions(OcclusionCheck PRIVATE ANYUNREAL_TEST_OCCLUSION=1)
