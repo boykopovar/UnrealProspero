@@ -13,7 +13,7 @@ using UnrealBuildTool;
 
 internal static class ToolchainChecks
 {
-    public static async Task RunAsync(SdkInstallation sdk, Target target, UnrealTargetPlatform platform, string cmake, string outputDirectory)
+    public static async Task RunAsync(SdkInstallation sdk, Target target, UnrealTargetPlatform platform, string cmake, string outputDirectory, bool rhiOnly)
     {
         DirectoryReference intermediate = new(outputDirectory);
         Directory.CreateDirectory(outputDirectory);
@@ -91,8 +91,9 @@ internal static class ToolchainChecks
         videoLink.SystemLibraries.AddRange(new[] { "libSceVideoOut", "libSceSystemService", "libSceAgc" });
         videoLink.OutputFilePaths.Add(videoExecutable);
         toolchain.LinkFiles(videoLink, false, graph);
+        int rhiActions = RhiCompileChecks.Add(toolchain, platformCompile, intermediate, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 81) throw new InvalidOperationException("Unexpected UBT action count");
+        if (makefile.Actions.Count != 81 + rhiActions) throw new InvalidOperationException("Unexpected UBT action count");
         string? startupInput = target switch
         {
             Target.Windows => Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"),
@@ -109,6 +110,7 @@ internal static class ToolchainChecks
         }
         foreach (IExternalAction action in makefile.Actions)
         {
+            if (rhiOnly && !action.ProducedItems.Any(item => item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "rhi")))) continue;
             foreach (FileItem input in action.PrerequisiteItems)
             {
                 if (!File.Exists(input.AbsolutePath)) throw new FileNotFoundException("Missing action prerequisite", input.AbsolutePath);
@@ -117,6 +119,11 @@ internal static class ToolchainChecks
             foreach (FileItem product in action.ProducedItems) Directory.CreateDirectory(Path.GetDirectoryName(product.AbsolutePath)!);
             await new ToolCommand(action.CommandPath.FullName, action.WorkingDirectory.FullName, CommandLineArguments.Split(action.CommandArguments)).ExecuteAsync(CancellationToken.None);
             if (action.ProducedItems.Any(item => !File.Exists(item.AbsolutePath))) throw new InvalidDataException("Action did not produce its declared outputs");
+        }
+        if (rhiOnly)
+        {
+            Console.WriteLine("Compiled " + rhiActions + " RHI source files through UBT for " + platform);
+            return;
         }
         await VideoOutputChecks.PrepareAsync(sdk, outputDirectory, videoExecutable.Directory.FullName);
         if (target == Target.Windows && OperatingSystem.IsWindows())

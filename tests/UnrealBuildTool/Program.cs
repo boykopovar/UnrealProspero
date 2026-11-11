@@ -11,7 +11,7 @@ internal static class Program
 {
     private static async Task Main(string[] args)
     {
-        if (args.Length != 5) throw new ArgumentException("Expected SDK, dependencies, CMake, output directory and -rootdirectory=<unreal checkout>");
+        if (args.Length < 5 || args.Length > 6 || (args.Length == 6 && args[5] != "--rhi-only")) throw new ArgumentException("Expected SDK, dependencies, CMake, output directory, -rootdirectory=<unreal checkout> and optional --rhi-only");
         if (Directory.Exists(args[3]) || File.Exists(args[3])) throw new IOException("Test output already exists");
         SdkInstallation installation = new(args[0], args[1]);
         List<ReceiptProperty> receipt = new();
@@ -54,7 +54,7 @@ internal static class Program
                 if (sdk.TryConvertVersionToInt(invalid, out _, null)) throw new InvalidOperationException("Invalid SDK version accepted: " + invalid);
             }
             Console.WriteLine("Validated Unreal SDK for " + platforms[index]);
-            await ToolchainChecks.RunAsync(installation, targets[index], platforms[index], args[2], Path.Combine(Path.GetFullPath(args[3]), platforms[index].ToString()));
+            await ToolchainChecks.RunAsync(installation, targets[index], platforms[index], args[2], Path.Combine(Path.GetFullPath(args[3]), platforms[index].ToString()), args.Length == 6);
         }
     }
 }
