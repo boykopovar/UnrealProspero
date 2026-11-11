@@ -10,6 +10,38 @@ namespace AnyUnreal::RHI
 {
     ComputeContext::ComputeContext(CommandBuffer& commands) : commands(commands) {}
 
+    void ComputeContext::recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin)
+    {
+        requireWritable();
+        try
+        {
+            for (const auto* transition : transitions)
+            {
+                if (!transition) throw std::invalid_argument("Resource transition is null");
+                auto state = transition->GetPrivateData<TransitionData>()->State;
+                if (!state) throw std::invalid_argument("Resource transition has no initialized state");
+                retainedTransitions.push_back(state);
+                if (begin) state->Begin(commands, GetPipeline());
+                else state->End(commands, GetPipeline());
+            }
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
+    void ComputeContext::RHIBeginTransitions(TArrayView<const FRHITransition*> transitions)
+    {
+        recordTransitions(transitions, true);
+    }
+
+    void ComputeContext::RHIEndTransitions(TArrayView<const FRHITransition*> transitions)
+    {
+        recordTransitions(transitions, false);
+    }
+
     void ComputeContext::clearBufferView(FRHIUnorderedAccessView* view, std::uint32_t value)
     {
         requireWritable();
