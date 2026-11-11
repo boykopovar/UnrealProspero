@@ -7,13 +7,6 @@
 
 namespace AnyUnreal::Shader
 {
-    enum class AgcTarget
-    {
-        Windows,
-        Linux,
-        Ps5
-    };
-
     struct AgcCompilation
     {
         std::vector<std::uint8_t> Header;

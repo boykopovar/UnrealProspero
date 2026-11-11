@@ -1,22 +1,13 @@
 #ifndef ANYUNREAL_SHADER_DESCRIPTOR_LAYOUT_H
 #define ANYUNREAL_SHADER_DESCRIPTOR_LAYOUT_H
 
-#include <cstdint>
+#include "AnyUnreal/Shader/ShaderBinary.h"
 #include <span>
 #include <string>
 #include <vector>
 
 namespace AnyUnreal::Shader
 {
-    enum class ResourceKind
-    {
-        UniformBuffer,
-        Sampler,
-        ShaderResource,
-        UnorderedAccess,
-        CombinedImageSampler
-    };
-
     struct ConstantMember
     {
         std::string Name;
