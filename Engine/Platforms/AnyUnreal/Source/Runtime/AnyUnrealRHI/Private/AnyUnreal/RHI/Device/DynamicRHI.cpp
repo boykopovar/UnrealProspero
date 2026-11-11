@@ -7,6 +7,7 @@
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Buffer/TypedFormat.h"
 #include "AnyUnreal/RHI/Buffer/StagingBuffer.h"
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
 #include "AnyUnreal/RHI/Pipeline/ComputePipeline.h"
@@ -92,6 +93,11 @@ namespace AnyUnreal::RHI
     void* DynamicRHI::RHIGetNativeDevice()
     {
         throw std::runtime_error("AGC does not expose a native device handle");
+    }
+
+    uint64 DynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat format)
+    {
+        return GetBufferElementSize(ResolveTypedBufferFormat(format));
     }
 
     void DynamicRHI::Init()

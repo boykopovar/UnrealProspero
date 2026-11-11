@@ -14,6 +14,7 @@ namespace AnyUnreal::RHI
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);
         bool RHIGetTextureMemoryVisualizeData(FColor* textureData, int32 width, int32 height, int32 pitch, int32 pixelSize) override;
         void* RHIGetNativeDevice() override;
+        uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat format) override;
         FTextureRHIRef RHIAsyncCreateTexture2D(uint32 width, uint32 height, uint8 format, uint32 mipCount, ETextureCreateFlags flags, ERHIAccess initialState, void** initialMipData, uint32 initialMipCount, const TCHAR* debugName, FGraphEventRef& completionEvent) override;
         bool RHIGetAvailableResolutions(FScreenResolutionArray& resolutions, bool ignoreRefreshRate) override;
         void RHIGetSupportedResolution(uint32& width, uint32& height) override;

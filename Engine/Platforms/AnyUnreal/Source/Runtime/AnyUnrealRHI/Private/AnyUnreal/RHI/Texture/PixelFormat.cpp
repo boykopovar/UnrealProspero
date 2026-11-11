@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Texture/PixelFormat.h"
+#include "AnyUnreal/RHI/Buffer/TypedFormat.h"
 #include <array>
 #include <optional>
 #include <stdexcept>
@@ -68,5 +69,6 @@ namespace AnyUnreal::RHI
             auto& format = GPixelFormats[pixel];
             format.Capabilities = Caps::Buffer | Caps::IndexBuffer;
         }
+        ConfigureTypedBufferFormats();
     }
 }

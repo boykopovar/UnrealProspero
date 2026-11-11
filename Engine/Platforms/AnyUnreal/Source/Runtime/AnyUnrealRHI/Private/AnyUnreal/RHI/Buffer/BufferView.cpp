@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Buffer/BufferView.h"
+#include "AnyUnreal/RHI/Buffer/TypedFormat.h"
 #include "AnyUnreal/RHI/Descriptor/BufferDescriptor.h"
 #include <stdexcept>
 
@@ -13,14 +14,21 @@ namespace AnyUnreal::RHI
         using BufferType = FRHIViewDesc::EBufferType;
         if ((expectedType != ViewType::BufferSRV && expectedType != ViewType::BufferUAV) || description.Common.ViewType != expectedType) throw std::invalid_argument("Buffer view type does not match the requested resource");
         const FRHIViewDesc::FBuffer& view = expectedType == ViewType::BufferSRV ? static_cast<const FRHIViewDesc::FBuffer&>(description.Buffer.SRV) : description.Buffer.UAV;
-        if (view.BufferType != BufferType::Raw && view.BufferType != BufferType::Structured) throw std::runtime_error("Typed and acceleration structure buffer views are not implemented");
-        if (view.Format != PF_Unknown) throw std::invalid_argument("Raw and structured buffer views cannot specify a typed format");
+        if (view.BufferType != BufferType::Raw && view.BufferType != BufferType::Structured && view.BufferType != BufferType::Typed) throw std::runtime_error("Acceleration structure buffer views are not implemented");
+        if (view.BufferType != BufferType::Typed && view.Format != PF_Unknown) throw std::invalid_argument("Raw and structured buffer views cannot specify a typed format");
         if (view.bAtomicCounter || view.bAppendBuffer) throw std::runtime_error("Counter and append buffer views are not implemented");
+        const auto typedStride = view.BufferType == BufferType::Typed ? GetBufferElementSize(ResolveTypedBufferFormat(view.Format)) : 0;
+        if (view.BufferType == BufferType::Typed && (view.Stride != 0 || view.OffsetInBytes % typedStride != 0)) throw std::invalid_argument("Invalid typed buffer view layout");
         if (buffer.GetUsage() == EBufferUsageFlags::NullResource) return description;
         if (expectedType == ViewType::BufferUAV && !EnumHasAnyFlags(buffer.GetUsage(), EBufferUsageFlags::UnorderedAccess)) throw std::invalid_argument("Buffer does not allow unordered access");
         if (expectedType == ViewType::BufferSRV && !EnumHasAnyFlags(buffer.GetUsage(), EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer | EBufferUsageFlags::ByteAddressBuffer)) throw std::invalid_argument("Buffer does not allow shader resource access");
         std::uint32_t stride = 4;
-        if (view.BufferType == BufferType::Raw)
+        if (view.BufferType == BufferType::Typed)
+        {
+            if (EnumHasAnyFlags(buffer.GetUsage(), EBufferUsageFlags::StructuredBuffer | EBufferUsageFlags::AccelerationStructure)) throw std::invalid_argument("Typed views cannot address structured buffers or acceleration structures");
+            stride = typedStride;
+        }
+        else if (view.BufferType == BufferType::Raw)
         {
             if (!EnumHasAnyFlags(buffer.GetUsage(), EBufferUsageFlags::ByteAddressBuffer) || view.Stride != 0 || view.OffsetInBytes % 16 != 0) throw std::invalid_argument("Invalid raw buffer view layout");
         }
@@ -45,7 +53,8 @@ namespace AnyUnreal::RHI
         if (info.bNullView) return;
         storage = buffer.Capture();
         range = storage->GetRange(info.OffsetInBytes, info.SizeInBytes);
-        descriptor = CreateByteAddressBufferDescriptor(range.data(), range.size());
+        const auto& view = description.Common.ViewType == FRHIViewDesc::EViewType::BufferSRV ? static_cast<const FRHIViewDesc::FBuffer&>(description.Buffer.SRV) : description.Buffer.UAV;
+        descriptor = view.BufferType == FRHIViewDesc::EBufferType::Typed ? CreateTypedBufferDescriptor(range.data(), range.size(), ResolveTypedBufferFormat(view.Format)) : CreateByteAddressBufferDescriptor(range.data(), range.size());
     }
 
     const std::array<std::uint32_t, 4>& BufferViewData::GetDescriptor() const { return descriptor; }
