@@ -157,15 +157,16 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    const bool sintRead = operation == "sint-texture";
-    const bool integerRead = operation == "uint-texture" || sintRead;
+    const bool integerWrite = operation == "uint-texture-write" || operation == "sint-texture-write";
+    const bool sintTexture = operation == "sint-texture" || operation == "sint-texture-write";
+    const bool integerTexture = operation == "uint-texture" || sintTexture || integerWrite;
     const bool layerView = operation == "layer-view";
     const bool layerRead = operation == "layer-texture" || layerView;
     const bool cubeArray = operation == "cube-array" || operation == "cube-array-view";
     const bool cubeView = operation == "cube-view" || operation == "cube-array-view";
     const bool cubeRead = operation == "cube-texture" || cubeView || cubeArray;
     const bool withSampler = cubeRead || operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!integerRead && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
+    if (!integerTexture && !layerRead && !withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write" && operation != "volume-mip-texture" && operation != "volume-mip-view" && operation != "array-texture" && operation != "array-view") throw std::invalid_argument("Unknown compute operation");
     const bool volumeMipView = operation == "volume-mip-view";
     const bool volumeMipRead = operation == "volume-mip-texture" || volumeMipView;
     const bool volumeRead = operation == "volume-texture" || operation == "volume-write" || volumeMipRead;
@@ -175,9 +176,9 @@ int main()
     const bool mipRead = operation == "mip-texture" || mipView || arrayRead || cubeRead || layerRead;
     const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
-    const bool textureWrite = operation == "texture-write" || operation == "volume-write";
+    const bool textureWrite = integerWrite || operation == "texture-write" || operation == "volume-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = integerRead || operation == "texture" || mipRead || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
+    const bool withTexture = integerTexture || operation == "texture" || mipRead || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
     const bool typedBuffer = operation == "typed-buffer";
     const bool readWrite = operation == "read-write" || typedBuffer;
     const bool withConstants = operation == "constants";
@@ -214,13 +215,13 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, integerRead ? (sintRead ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
+        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, integerTexture ? (sintTexture ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
-        if (integerRead)
+        if (integerTexture)
         {
             std::array<std::uint32_t, 64> values;
-            for (std::uint32_t index = 0; index < values.size(); ++index) values[index] = sintRead ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(index * 9 + 300)) : 0x80000001u + index * 65537;
+            for (std::uint32_t index = 0; index < values.size(); ++index) values[index] = integerWrite ? 0x55555555u : sintTexture ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(index * 9 + 300)) : 0x80000001u + index * 65537;
             texture->Upload(std::as_bytes(std::span(values)), 8 * sizeof(std::uint32_t));
         }
         else if (textureView)
@@ -543,11 +544,12 @@ int main()
                 const auto width = 8u >> level;
                 expected = (level + (mipView ? 1u : 0u)) * 100 + ((index / 4) % (width * width)) * 3 + 1;
             }
-            if (integerRead) expected = sintRead ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(index * 3 + 100)) : 0x80000001u + index * 65537;
+            if (integerTexture) expected = sintTexture ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(index * 3 + 100)) : 0x80000001u + index * 65537;
             if (layerRead) expected += 3000;
             if (arrayRead) expected += ((index / 4) % 3 + (arrayView ? 2u : 0u)) * 1000;
             if (depthRead) expected = iteration == 1 ? 1 : 0;
             if (textureWrite) expected = ((index + 1) % 64) * 3 + 1;
+            if (integerWrite) expected = sintTexture ? std::bit_cast<std::uint32_t>(-static_cast<std::int32_t>(((index + 1) % 64) * 3 + 100)) : 0x80000001u + ((index + 1) % 64) * 65537;
             if (withSampler)
             {
                 auto sourceIndex = index;
