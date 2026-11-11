@@ -36,6 +36,7 @@ namespace AnyUnreal::RHI
 
     protected:
         ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
+        void ApplyStaticUniformBuffers(ShaderParameters& shaderParameters) const;
 
         template<typename TFunction>
         void RecordCommands(TFunction&& function)

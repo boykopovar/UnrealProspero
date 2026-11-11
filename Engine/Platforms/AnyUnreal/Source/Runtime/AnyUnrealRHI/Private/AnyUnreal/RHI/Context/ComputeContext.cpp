@@ -202,11 +202,16 @@ namespace AnyUnreal::RHI
         }
     }
 
+    void ComputeContext::ApplyStaticUniformBuffers(ShaderParameters& shaderParameters) const
+    {
+        const auto staticBindings = staticUniforms.Resolve(shaderParameters.GetShader());
+        shaderParameters.SetResources({staticBindings.data(), static_cast<int32>(staticBindings.size())});
+    }
+
     std::unique_ptr<ShaderBindings> ComputeContext::createDispatchBindings() const
     {
         auto dispatchParameters = *parameters;
-        const auto staticBindings = staticUniforms.Resolve(pipeline->GetShader());
-        dispatchParameters.SetResources({staticBindings.data(), static_cast<int32>(staticBindings.size())});
+        ApplyStaticUniformBuffers(dispatchParameters);
         auto bindings = dispatchParameters.CreateBindings();
         bindings->Finalize();
         return bindings;
