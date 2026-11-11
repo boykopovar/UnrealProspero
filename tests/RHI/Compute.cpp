@@ -13,6 +13,7 @@
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Memory/Readback.h"
 #include "AnyUnreal/RHI/Memory/Upload.h"
+#include "AnyUnreal/RHI/Texture/LinearTexture2D.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -85,7 +86,8 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    if (operation != "write" && operation != "read-write" && operation != "constants") throw std::invalid_argument("Unknown compute operation");
+    if (operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture") throw std::invalid_argument("Unknown compute operation");
+    const bool withTexture = operation == "texture";
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -118,8 +120,21 @@ int main()
     constexpr std::size_t inputOffset = 256;
     auto* input = reinterpret_cast<std::uint32_t*>(secondMemory.GetRange(inputOffset, 64 * sizeof(std::uint32_t)).data());
     std::vector<Shaders::RuntimeBinding> bindings;
+    std::unique_ptr<RHI::LinearTexture2D> texture;
+    if (withTexture)
+    {
+        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, RHI::TextureFormat::R32Float, layout.GetAddressHigh());
+        std::array<float, 64> texels;
+        for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(index * 3 + 1);
+        texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
+        bool invalidPitchRejected = false;
+        try { texture->Upload(std::as_bytes(std::span(texels)), 16 * sizeof(float)); }
+        catch (const std::invalid_argument&) { invalidPitchRejected = true; }
+        if (!invalidPitchRejected || texture->GetRowPitch() != 256) throw std::runtime_error("Texture upload accepted incomplete rows or used an invalid row pitch");
+        bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 32, 0, "sampled-image"});
+    }
     if (readWrite) bindings.push_back({Shaders::ResourceKind::ShaderResource, 0, 0, 0, 1, 0, 16, 0, "storage-buffer"});
-    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite ? 1u : 0u, 1, readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
+    bindings.push_back({Shaders::ResourceKind::UnorderedAccess, 0, 0, readWrite || withTexture ? 1u : 0u, 1, withTexture ? 32u : readWrite ? 16u : 0u, 16, 0, "storage-buffer"});
     if (withConstants) bindings.push_back({Shaders::ResourceKind::UniformBuffer, 0, 1, 0, 1, 0, 16, 16, "uniform-buffer"});
     Shaders::ConstantData constantValues(bindings);
     RHI::DescriptorTables descriptors(bindings, layout.GetAddressHigh());
@@ -130,6 +145,7 @@ int main()
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
     descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+    if (texture) descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(texture->GetDescriptor())));
     if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
@@ -175,6 +191,7 @@ int main()
             {shader.Get().code, shader.Get().shader_size}
         };
         const auto originalPosition = commands.cursor_up;
+        if (texture) ranges.push_back({texture->GetStorage().Data(), texture->GetStorage().Size()});
         bool overlappingCopyRejected = false;
         try { RHI::WriteBufferCopy(commands, copyOutput.data() + 1, copyOutput.data(), 8); }
         catch (const std::invalid_argument&) { overlappingCopyRejected = true; }

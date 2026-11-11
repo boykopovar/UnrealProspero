@@ -21,6 +21,7 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     shaders = Path(__file__).resolve().parent / "shaders"
     stages = (
+        ("compute", "cs_6_2", "TextureLoad.comp.hlsl", ["0,0,sampled-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("vertex", "vs_6_2", "Fullscreen.vert.hlsl", []),
         ("fragment", "ps_6_2", "Color.frag.hlsl", []),
         ("compute", "cs_6_2", "Constants.comp.hlsl", ["0,0,storage-buffer,1,0,16", "1,0,uniform-buffer,1,0,16"]),
@@ -31,6 +32,7 @@ def main():
         ("fragment", "ps_6_2", "LargeUniform.frag.hlsl", ["0,0,uniform-buffer,1,0,16"]),
     )
     details = {
+        "TextureLoad.comp.hlsl": ['"inputTexture" 2 0', '"outputValues" 3 0'],
         "Fullscreen.vert.hlsl": [],
         "Color.frag.hlsl": [],
         "Constants.comp.hlsl": ['"outputValues" 3 0', '"Constants" 0 16', '"multiplier" 0 4', '"addend" 4 4'],
