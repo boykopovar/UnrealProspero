@@ -160,4 +160,16 @@ namespace AnyUnreal::Shader
     ShaderStage UserDataLayout::GetStage() const { return stage; }
     std::uint32_t UserDataLayout::GetVertexBufferUsageMask() const { return vertexBufferUsageMask; }
     bool UserDataLayout::UsesVertexBuffersPerAttribute() const { return vertexBuffersPerAttribute; }
+
+    std::optional<std::uint32_t> UserDataLayout::GetBaseVertexSlot() const
+    {
+        for (const auto& binding : bindings) if (binding.Kind == Input::BaseVertex) return binding.Slot;
+        return std::nullopt;
+    }
+
+    std::optional<std::uint32_t> UserDataLayout::GetStartInstanceSlot() const
+    {
+        for (const auto& binding : bindings) if (binding.Kind == Input::StartInstance) return binding.Slot;
+        return std::nullopt;
+    }
 }

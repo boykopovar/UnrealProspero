@@ -5,6 +5,7 @@
 #include "AnyUnreal/RHI/Command/Submission.h"
 #include "AnyUnreal/RHI/Command/Viewport.h"
 #include "AnyUnreal/RHI/Command/ColorTarget.h"
+#include "AnyUnreal/RHI/Command/IndirectDraw.h"
 #include "AnyUnreal/RHI/Descriptor/VertexBufferTable.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
@@ -54,6 +55,7 @@ int main()
     const AgcShader vertex({Shaders::ShaderStage::Vertex, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, Shaders::ShaderStage::Vertex, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
+    for (const auto indirect : {false, true})
     for (const auto indexStride : {0u, 2u, 4u})
     for (const auto baseVertex : {0u, 1u})
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float})
@@ -67,6 +69,20 @@ int main()
         auto colors = std::make_shared<BufferAllocation>(80 + baseVertex * 16, aperture);
         BufferAllocation fenceStorage(8, aperture);
         BufferAllocation indexStorage(16, aperture);
+        BufferAllocation argumentStorage(32, aperture);
+        if (indirect)
+        {
+            if (indexStride)
+            {
+                const std::array arguments{3u, 1u, 1u, baseVertex - 1, 0u};
+                argumentStorage.Upload(4, std::as_bytes(std::span(arguments)));
+            }
+            else
+            {
+                const std::array arguments{3u, 1u, baseVertex, 0u};
+                argumentStorage.Upload(4, std::as_bytes(std::span(arguments)));
+            }
+        }
         if (indexStride == 2)
         {
             const std::array<std::uint16_t, 4> indices{99, 1, 2, 3};
@@ -141,11 +157,12 @@ int main()
         WriteScissor(commands, {width / 8, height / 8, width - width / 8, height - height / 8});
         Shaders::UserDataInputs vertexInputs;
         descriptors.Apply(vertexInputs);
-        vertexInputs.BaseVertex = indexStride ? baseVertex - 1 : baseVertex;
+        vertexInputs.BaseVertex = indirect ? 19u : indexStride ? baseVertex - 1 : baseVertex;
         WriteShaderRegisters(commands, vertex, vertexLayout, vertexInputs);
         WriteShaderRegisters(commands, pixel, pixelLayout, {});
         sceAgcDcbSetNumInstances(&commands, 1);
-        if (indexStride)
+        if (indirect) WriteIndirectDraw(commands, vertexLayout, argumentStorage, 4, indexStride ? &indexStorage : nullptr, indexStride);
+        else if (indexStride)
         {
             sceAgcDcbSetIndexSize(&commands, indexStride == 2 ? 0 : 1, 0);
             sceAgcDcbDrawIndex(&commands, 3, static_cast<std::byte*>(indexStorage.Data()) + indexStride, 0);

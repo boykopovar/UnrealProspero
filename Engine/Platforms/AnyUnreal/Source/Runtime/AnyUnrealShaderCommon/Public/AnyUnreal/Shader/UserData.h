@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <optional>
 #include <vector>
 
 namespace AnyUnreal::Shader
@@ -32,6 +33,8 @@ namespace AnyUnreal::Shader
         ShaderStage GetStage() const;
         std::uint32_t GetVertexBufferUsageMask() const;
         bool UsesVertexBuffersPerAttribute() const;
+        std::optional<std::uint32_t> GetBaseVertexSlot() const;
+        std::optional<std::uint32_t> GetStartInstanceSlot() const;
 
     private:
         enum class Input { DescriptorSet, VertexBuffers, PushConstants, RingTable, BaseVertex, StartInstance, DrawId, ViewIndex, Constant };
