@@ -54,6 +54,8 @@ namespace AnyUnreal::Shader
         std::span<const std::uint8_t> Metadata;
         std::span<const std::uint8_t> ResourceTable;
         std::vector<RuntimeBinding> Bindings;
+        std::span<const std::uint8_t> Spirv{};
+        std::string EntryPoint{};
     };
 
     ANYUNREALSHADERCOMMON_API void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings);

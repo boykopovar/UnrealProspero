@@ -11,7 +11,7 @@ namespace AnyUnreal::Shader
     namespace
     {
         constexpr std::uint32_t magic = 0x53475541;
-        constexpr std::uint32_t version = 1;
+        constexpr std::uint32_t version = 2;
 
         std::uint32_t narrow(std::size_t size)
         {
@@ -56,6 +56,23 @@ namespace AnyUnreal::Shader
             if (shader.Stage > ShaderStage::Geometry || shader.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader stage or target");
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
             ValidateRuntimeBindings(shader.Bindings);
+            if (shader.Spirv.empty() != shader.EntryPoint.empty() || shader.EntryPoint.find('\0') != std::string::npos) throw std::invalid_argument("Incomplete SPIR-V entry point");
+            if (!shader.Spirv.empty())
+            {
+                if (shader.Spirv.size() < 20 || shader.Spirv.size() % 4 != 0) throw std::invalid_argument("Invalid SPIR-V payload size");
+                Reader reader(shader.Spirv);
+                if (reader.Read() != 0x07230203u) throw std::invalid_argument("Invalid SPIR-V magic");
+                const auto spirvVersion = reader.Read();
+                if (spirvVersion < 0x10000u || spirvVersion > 0x10600u || (spirvVersion & 0xffu) != 0) throw std::invalid_argument("Unsupported SPIR-V version");
+                reader.Read();
+                if (reader.Read() == 0 || reader.Read() != 0) throw std::invalid_argument("Invalid SPIR-V header");
+                while (reader.Size() != 0)
+                {
+                    const auto words = reader.Read() >> 16;
+                    if (words == 0) throw std::invalid_argument("Invalid SPIR-V instruction length");
+                    reader.Take(static_cast<std::size_t>(words - 1) * 4);
+                }
+            }
         }
     }
 
@@ -101,12 +118,16 @@ namespace AnyUnreal::Shader
         std::vector<std::uint8_t> result;
         for (auto value : {magic, version, static_cast<std::uint32_t>(shader.Stage), static_cast<std::uint32_t>(shader.Target), narrow(shader.Bindings.size())}) append(result, value);
         for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.ResourceTable}) append(result, narrow(section.size()));
+        append(result, narrow(shader.Spirv.size()));
+        append(result, narrow(shader.EntryPoint.size()));
         for (const auto& binding : shader.Bindings)
         {
             for (auto value : {static_cast<std::uint32_t>(binding.Kind), binding.ParameterIndex, binding.Set, binding.Binding, binding.Count, binding.Offset, binding.Stride, binding.BlockSize, narrow(binding.Type.size())}) append(result, value);
             result.insert(result.end(), binding.Type.begin(), binding.Type.end());
         }
-        for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.ResourceTable}) result.insert(result.end(), section.begin(), section.end());
+        for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.Spirv}) result.insert(result.end(), section.begin(), section.end());
+        result.insert(result.end(), shader.EntryPoint.begin(), shader.EntryPoint.end());
+        result.insert(result.end(), shader.ResourceTable.begin(), shader.ResourceTable.end());
         narrow(result.size());
         return result;
     }
@@ -124,7 +145,9 @@ namespace AnyUnreal::Shader
         const auto codeSize = reader.Read();
         const auto metadataSize = reader.Read();
         const auto resourceSize = reader.Read();
-        const auto payloadSize = static_cast<std::uint64_t>(headerSize) + codeSize + metadataSize + resourceSize;
+        const auto spirvSize = reader.Read();
+        const auto entryPointSize = reader.Read();
+        const auto payloadSize = static_cast<std::uint64_t>(headerSize) + codeSize + metadataSize + resourceSize + spirvSize + entryPointSize;
         if (payloadSize > reader.Size() || count > (reader.Size() - payloadSize) / 37) throw std::invalid_argument("Invalid shader binary section sizes");
         result.Bindings.reserve(count);
         for (std::uint32_t index = 0; index < count; ++index)
@@ -145,6 +168,9 @@ namespace AnyUnreal::Shader
         result.Header = reader.Take(headerSize);
         result.Code = reader.Take(codeSize);
         result.Metadata = reader.Take(metadataSize);
+        result.Spirv = reader.Take(spirvSize);
+        const auto entryPoint = reader.Take(entryPointSize);
+        result.EntryPoint.assign(entryPoint.begin(), entryPoint.end());
         result.ResourceTable = reader.Take(resourceSize);
         if (reader.Size() != 0) throw std::invalid_argument("Trailing shader binary data");
         validate(result);

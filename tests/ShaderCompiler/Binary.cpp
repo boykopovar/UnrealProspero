@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 
 namespace
@@ -27,7 +29,7 @@ namespace
     }
 }
 
-int main()
+int main(int count, char** arguments)
 {
     using namespace AnyUnreal::Shader;
     const std::array<std::uint8_t, 5> payload{1, 2, 3, 4, 5};
@@ -36,6 +38,17 @@ int main()
         {ResourceKind::ShaderResource, 2, 0, 2, 2, 0, 32, 0, "sampled-image"},
         {ResourceKind::Sampler, 7, 0, 7, 1, 64, 16, 0, "sampler"}
     }};
+    std::vector<std::uint8_t> intermediate;
+    if (count == 2)
+    {
+        std::ifstream input(arguments[1], std::ios::binary);
+        if (!input) throw std::runtime_error("Cannot open SPIR-V test input");
+        intermediate.assign(std::istreambuf_iterator<char>(input), {});
+        if (input.bad() || intermediate.empty()) throw std::runtime_error("Cannot read SPIR-V test input");
+        shader.Spirv = intermediate;
+        shader.EntryPoint = "main";
+    }
+    else if (count != 1) throw std::invalid_argument("Expected at most one SPIR-V input");
     ConstantData constants(shader.Bindings);
     require(!constants.Contains(0));
     const std::array<std::byte, 8> source{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}, std::byte{5}, std::byte{6}, std::byte{7}, std::byte{8}};
@@ -62,6 +75,7 @@ int main()
     require(bytes[0] == 'A' && bytes[1] == 'U' && bytes[2] == 'G' && bytes[3] == 'S');
     const auto decoded = DecodeShaderBinary(bytes);
     require(decoded.Stage == shader.Stage && decoded.Target == shader.Target);
+    require(std::ranges::equal(decoded.Spirv, shader.Spirv) && decoded.EntryPoint == shader.EntryPoint);
     require(decoded.Bindings.size() == 3 && decoded.Bindings[0].BlockSize == 65536);
     require(decoded.Bindings[1].Type == "sampled-image" && decoded.Bindings[1].Count == 2);
     require(decoded.Header.data() >= bytes.data() && decoded.Header.data() < bytes.data() + bytes.size());
@@ -107,5 +121,29 @@ int main()
     invalid = shader;
     invalid.Header = {};
     reject([&] { EncodeShaderBinary(invalid); });
+    invalid = shader;
+    invalid.Spirv = {};
+    invalid.EntryPoint = "main";
+    reject([&] { EncodeShaderBinary(invalid); });
+    if (!intermediate.empty())
+    {
+        invalid = shader;
+        invalid.EntryPoint = {};
+        reject([&] { EncodeShaderBinary(invalid); });
+        invalid = shader;
+        invalid.EntryPoint = std::string("ma\0in", 5);
+        reject([&] { EncodeShaderBinary(invalid); });
+        auto broken = intermediate;
+        invalid = shader;
+        invalid.Spirv = broken;
+        broken[0] = 0;
+        reject([&] { EncodeShaderBinary(invalid); });
+        broken = intermediate;
+        invalid.Spirv = broken;
+        std::fill_n(broken.begin() + 20, 4, 0);
+        reject([&] { EncodeShaderBinary(invalid); });
+        invalid.Spirv = std::span(intermediate).first(19);
+        reject([&] { EncodeShaderBinary(invalid); });
+    }
     std::cout << "Shader binary round trip, bounds and binding validation passed\n";
 }
