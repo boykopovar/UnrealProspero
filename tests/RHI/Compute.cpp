@@ -157,13 +157,15 @@ int main()
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
     const bool withSampler = operation == "sample-wrap" || operation == "sample-clamp" || operation == "sample-mirror" || operation == "sample-border" || operation == "sample-linear";
-    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
+    if (!withSampler && operation != "write" && operation != "read-write" && operation != "typed-buffer" && operation != "constants" && operation != "texture" && operation != "mip-texture" && operation != "mip-view" && operation != "texture-view" && operation != "texture-write" && operation != "depth-texture" && operation != "half-texture" && operation != "volume-texture" && operation != "volume-write") throw std::invalid_argument("Unknown compute operation");
     const bool volumeRead = operation == "volume-texture" || operation == "volume-write";
+    const bool mipView = operation == "mip-view";
+    const bool mipRead = operation == "mip-texture" || mipView;
     const bool halfRead = operation == "half-texture";
     const bool depthRead = operation == "depth-texture";
     const bool textureWrite = operation == "texture-write" || operation == "volume-write";
     const bool textureView = operation == "texture-view";
-    const bool withTexture = operation == "texture" || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
+    const bool withTexture = operation == "texture" || mipRead || textureView || withSampler || (textureWrite && !volumeRead) || halfRead;
     const bool typedBuffer = operation == "typed-buffer";
     const bool readWrite = operation == "read-write" || typedBuffer;
     const bool withConstants = operation == "constants";
@@ -200,7 +202,7 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
+        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), AnyUnreal::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (textureView)
@@ -221,7 +223,20 @@ int main()
             }
             texture->Upload(std::as_bytes(std::span(colors)), 8 * 4 * sizeof(std::uint16_t));
         }
-        else texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
+        else if (!mipRead) texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
+        if (mipRead)
+        {
+            for (std::uint32_t level = 0; level < texture->GetMipCount(); ++level)
+            {
+                const auto& mip = texture->GetMipLayout(level);
+                std::vector<float> pixels(mip.Width * mip.Height);
+                for (std::size_t pixel = 0; pixel < pixels.size(); ++pixel) pixels[pixel] = static_cast<float>(level * 100 + pixel * 3 + 1);
+                texture->Upload(std::as_bytes(std::span(pixels)), mip.RowBytes, level);
+                std::vector<float> copied(pixels.size());
+                texture->CopyRowsTo(std::as_writable_bytes(std::span(copied)), mip.RowBytes, level);
+                if (copied != pixels) throw std::runtime_error("Mip upload or readback changed texels");
+            }
+        }
         bool invalidPitchRejected = false;
         try { texture->Upload(std::as_bytes(std::span(texels)), 16 * sizeof(float)); }
         catch (const std::invalid_argument&) { invalidPitchRejected = true; }
@@ -286,7 +301,7 @@ int main()
     if (texture)
     {
         const auto original = texture->GetDescriptor();
-        const auto view = texture->CreateViewDescriptor(textureView);
+        const auto view = texture->CreateViewDescriptor(textureView, mipView ? 1u : 0u);
         if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
         descriptors.SetDescriptor(textureWrite ? Shaders::ResourceKind::UnorderedAccess : Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
     }
@@ -476,6 +491,12 @@ int main()
             if (readWrite && input[index] != iteration) throw std::runtime_error("GPU producer did not fill the compute input");
             auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? iteration : index) * 3 + 1;
             if (volumeRead) expected = index * 3 + 1;
+            if (mipRead)
+            {
+                const auto level = index % 4;
+                const auto width = 8u >> level;
+                expected = (level + (mipView ? 1u : 0u)) * 100 + ((index / 4) % (width * width)) * 3 + 1;
+            }
             if (depthRead) expected = iteration == 1 ? 1 : 0;
             if (textureWrite) expected = ((index + 1) % 64) * 3 + 1;
             if (withSampler)
