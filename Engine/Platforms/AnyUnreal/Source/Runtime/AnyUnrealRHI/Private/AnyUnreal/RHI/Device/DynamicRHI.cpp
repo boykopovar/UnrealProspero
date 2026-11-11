@@ -7,6 +7,7 @@
 #include "AnyUnreal/RHI/Transition/BufferTransition.h"
 #include "AnyUnreal/RHI/Command/CommandList.h"
 #include "AnyUnreal/RHI/Command/GpuFence.h"
+#include "AnyUnreal/RHI/State/SamplerState.h"
 #include "RHICommandList.h"
 #include <stdexcept>
 #include <set>
@@ -17,6 +18,11 @@ namespace AnyUnreal::RHI
     {
         if (target != Shader::AgcTarget::Windows && target != Shader::AgcTarget::Linux && target != Shader::AgcTarget::Ps5) throw std::invalid_argument("Invalid AGC target");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
+    }
+
+    FSamplerStateRHIRef DynamicRHI::RHICreateSamplerState(const FSamplerStateInitializerRHI& initializer)
+    {
+        return new SamplerState(initializer);
     }
 
     void* DynamicRHI::RHILockBuffer(FRHICommandListBase& commandList, FRHIBuffer* buffer, uint32 offset, uint32 size, EResourceLockMode mode)
