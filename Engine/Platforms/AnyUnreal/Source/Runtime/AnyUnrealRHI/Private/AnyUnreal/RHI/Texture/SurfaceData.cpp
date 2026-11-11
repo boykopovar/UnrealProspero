@@ -20,7 +20,7 @@ namespace AnyUnreal::RHI
         uint8* source(const LinearTexture2D& texture, FIntRect rectangle)
         {
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * (texture.GetRowBytes() / texture.GetWidth());
-            return static_cast<uint8*>(texture.GetStorage().Data()) + offset;
+            return reinterpret_cast<uint8*>(texture.GetMipRange(0).data()) + offset;
         }
 
         std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const LinearTexture2D& texture, FIntRect rectangle)
@@ -28,7 +28,7 @@ namespace AnyUnreal::RHI
             const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + rectangle.Min.X * pixelBytes;
             const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
-            return ExpandHalfPixels(texture.GetStorage().GetRange(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
+            return ExpandHalfPixels(texture.GetMipRange(0).subspan(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetRowPitch(), texture.GetFormat());
         }
 
         std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle)

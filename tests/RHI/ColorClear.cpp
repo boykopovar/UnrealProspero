@@ -83,12 +83,14 @@ int main()
     const std::array srgbBytes{std::array{0, 0, 0, 0}, std::array{255, 255, 255, 255}, std::array{188, 137, 225, 255}, std::array{0, 255, 10, 128}};
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const auto dimensions : {std::array{1u, 1u}, std::array{67u, 9u}, std::array{129u, 37u}})
+    for (const auto mipCount : {1u, 3u})
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
-        LinearTexture2D texture(dimensions[0], dimensions[1], format, 2);
+        if (mipCount > static_cast<std::uint32_t>(std::bit_width(std::max(dimensions[0], dimensions[1])))) continue;
+        LinearTexture2D texture(dimensions[0], dimensions[1], format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, mipCount);
         const auto& allocation = texture.GetStorage();
         if (allocation.AllocationSize() < allocation.Size() || allocation.AllocationSize() % 16384 != 0 || allocation.AllocationSize() - allocation.Size() >= 16384) throw std::runtime_error("Texture allocation size does not match kernel pages");
-        const auto predictedSize = LinearTexture2D::CalculateDataSize(dimensions[0], dimensions[1], format);
+        const auto predictedSize = LinearTexture2D::CalculateDataSize(dimensions[0], dimensions[1], format, mipCount);
         if (predictedSize != allocation.Size() || LinearTexture2D::CalculateRowPitch(dimensions[0], format) != texture.GetRowPitch() || BufferAllocation::CalculateAllocationSize(predictedSize) != allocation.AllocationSize()) throw std::runtime_error("Texture size query differs from its allocation");
         const auto bytes = allocation.GetRange(0, allocation.Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xa5});
@@ -116,7 +118,9 @@ int main()
         SubmitAndWait(commands, fence, 1, 10000000);
         for (std::size_t index = 0; index < bytes.size(); ++index)
         {
-            if (bytes[index] != pixel[index % pixelSize]) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
+            const auto& mip = texture.GetMipLayout(0);
+            const auto expected = index >= mip.Offset && index < mip.Offset + mip.Size ? pixel[(index - mip.Offset) % pixelSize] : std::byte{0xa5};
+            if (bytes[index] != expected) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }
     }
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Unorm, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
@@ -147,6 +151,6 @@ int main()
             if (bytes[byte] != pixel[byte % pixelSize]) throw std::runtime_error("Integer volume clear changed component bits");
         }
     }
-    std::cout << "Color clears verified for eleven formats, 132 float cases and nine integer volumes\n";
+    std::cout << "Color clears verified for eleven formats, single-level and mip-chain float cases and nine integer volumes\n";
     return 0;
 }

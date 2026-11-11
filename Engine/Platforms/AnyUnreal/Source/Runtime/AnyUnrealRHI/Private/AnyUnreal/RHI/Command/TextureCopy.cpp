@@ -62,8 +62,8 @@ namespace AnyUnreal::RHI
         WriteMemoryAcquire(commands, ranges);
         for (std::uint32_t row = 0; row < region.Height; ++row)
         {
-            const auto sourceOffset = (region.SourceY + row) * source.GetRowPitch() + region.SourceX * pixelBytes;
-            const auto destinationOffset = (region.DestinationY + row) * destination.GetRowPitch() + region.DestinationX * pixelBytes;
+            const auto sourceOffset = source.GetMipLayout(0).Offset + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * pixelBytes;
+            const auto destinationOffset = destination.GetMipLayout(0).Offset + (region.DestinationY + row) * destination.GetRowPitch() + region.DestinationX * pixelBytes;
             WriteBufferCopy(commands, destinationStorage.GetRange(destinationOffset, rowBytes).data(), sourceStorage.GetRange(sourceOffset, rowBytes).data(), rowBytes);
         }
     }

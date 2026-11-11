@@ -42,7 +42,7 @@ namespace AnyUnreal::RHI
     {
         checkIndex(index);
         const auto info = colorInfo(texture.GetFormat());
-        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetStorage().Data());
+        const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(0).data());
         const auto bytesPerPixel = texture.GetRowBytes() / texture.GetWidth();
         const auto pitch = texture.GetRowPitch() / bytesPerPixel;
         if (pitch == 0 || pitch > 16384) throw std::out_of_range("Color target pitch exceeds the hardware limit");

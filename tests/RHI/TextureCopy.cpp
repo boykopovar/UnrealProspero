@@ -148,13 +148,14 @@ int main()
     CheckVolumeCopies();
     CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
+    for (const auto mipCount : {1u, 3u})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
-        LinearTexture2D source(67, 9, format, 2);
+        LinearTexture2D source(67, 9, format, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, mipCount);
         auto destinationFormat = format;
         if (mode == 4 && format == TextureFormat::Rgba8Srgb) destinationFormat = TextureFormat::Rgba8Unorm;
         if (mode == 4 && format == TextureFormat::Bgra8Srgb) destinationFormat = TextureFormat::Bgra8Unorm;
-        LinearTexture2D other(91, 13, destinationFormat, 2);
+        LinearTexture2D other(91, 13, destinationFormat, 2, AnyUnreal::Kernel::DirectAllocation::PageSize, mipCount == 1 ? 1u : 4u);
         const auto& destination = mode == 2 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
@@ -174,8 +175,8 @@ int main()
         const auto bytesPerPixel = source.GetRowBytes() / source.GetWidth();
         for (std::uint32_t row = 0; row < region.Height; ++row)
         {
-            const auto from = (region.SourceY + row) * source.GetRowPitch() + region.SourceX * bytesPerPixel;
-            const auto to = (region.DestinationY + row) * destination.GetRowPitch() + region.DestinationX * bytesPerPixel;
+            const auto from = source.GetMipLayout(0).Offset + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * bytesPerPixel;
+            const auto to = destination.GetMipLayout(0).Offset + (region.DestinationY + row) * destination.GetRowPitch() + region.DestinationX * bytesPerPixel;
             std::copy_n(original.begin() + from, region.Width * bytesPerPixel, expected.begin() + to);
         }
         BufferAllocation fenceStorage(8, 2);
@@ -190,7 +191,7 @@ int main()
         {
             const auto pitch = region.Width * bytesPerPixel + 7;
             std::vector<std::byte> data(pitch * (region.Height - 1) + region.Width * bytesPerPixel);
-            for (std::uint32_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * bytesPerPixel, region.Width * bytesPerPixel, data.begin() + row * pitch);
+            for (std::uint32_t row = 0; row < region.Height; ++row) std::copy_n(original.begin() + source.GetMipLayout(0).Offset + (region.SourceY + row) * source.GetRowPitch() + region.SourceX * bytesPerPixel, region.Width * bytesPerPixel, data.begin() + row * pitch);
             upload = std::make_unique<TextureUpload>(region.Width, region.Height, format, data, pitch, 2);
             std::fill(data.begin(), data.end(), std::byte{0xff});
             upload->Record(commands, destination, region.DestinationX, region.DestinationY);
@@ -206,7 +207,7 @@ int main()
             destination.CopyRowsTo(readback, pitch);
             for (std::size_t row = 0; row < destination.GetHeight(); ++row)
             {
-                for (std::size_t column = 0; column < destination.GetRowBytes(); ++column) if (readback[row * pitch + column] != expected[row * destination.GetRowPitch() + column]) throw std::runtime_error("Texture readback changed pixels");
+                for (std::size_t column = 0; column < destination.GetRowBytes(); ++column) if (readback[row * pitch + column] != expected[destination.GetMipLayout(0).Offset + row * destination.GetRowPitch() + column]) throw std::runtime_error("Texture readback changed pixels");
                 for (std::size_t column = destination.GetRowBytes(); column < pitch; ++column) if (readback[row * pitch + column] != std::byte{0xee}) throw std::runtime_error("Texture readback overwrote destination padding");
             }
         }
