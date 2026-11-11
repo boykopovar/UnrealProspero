@@ -43,8 +43,8 @@ namespace
     std::optional<UnrealProspero::RHI::TextureFormat> compressedFormat(std::string_view operation)
     {
         using Format = UnrealProspero::RHI::TextureFormat;
-        const std::array names{"bc1", "bc1-srgb", "bc2", "bc2-srgb", "bc3", "bc3-srgb", "bc4", "bc5", "bc6", "bc6-signed", "bc7", "bc7-srgb"};
-        const std::array formats{Format::Bc1Unorm, Format::Bc1Srgb, Format::Bc2Unorm, Format::Bc2Srgb, Format::Bc3Unorm, Format::Bc3Srgb, Format::Bc4Unorm, Format::Bc5Unorm, Format::Bc6Ufloat, Format::Bc6Sfloat, Format::Bc7Unorm, Format::Bc7Srgb};
+        const std::array names{"bc1", "bc1-srgb", "bc2", "bc2-srgb", "bc3", "bc3-srgb", "bc4", "bc4-signed", "bc5", "bc5-signed", "bc6", "bc6-signed", "bc7", "bc7-srgb"};
+        const std::array formats{Format::Bc1Unorm, Format::Bc1Srgb, Format::Bc2Unorm, Format::Bc2Srgb, Format::Bc3Unorm, Format::Bc3Srgb, Format::Bc4Unorm, Format::Bc4Snorm, Format::Bc5Unorm, Format::Bc5Snorm, Format::Bc6Ufloat, Format::Bc6Sfloat, Format::Bc7Unorm, Format::Bc7Srgb};
         for (std::size_t index = 0; index < names.size(); ++index)
         {
             if (operation == names[index]) return formats[index];
@@ -90,9 +90,10 @@ namespace
                     data[8] = std::byte{1};
                 }
             }
-            else if (operation == "bc4" || operation == "bc5")
+            else if (operation.starts_with("bc4") || operation.starts_with("bc5"))
             {
-                data[0] = white ? std::byte{0xff} : middle ? std::byte{0x80} : std::byte{0};
+                const bool signedFormat = operation.ends_with("-signed");
+                data[0] = white ? (signedFormat ? std::byte{0x7f} : std::byte{0xff}) : middle ? (signedFormat ? std::byte{0x40} : std::byte{0x80}) : std::byte{0};
             }
             else
             {
@@ -602,6 +603,7 @@ int main()
                 const bool rgb565 = operation.starts_with("bc1") || operation.starts_with("bc2") || operation.starts_with("bc3");
                 const auto middle = operation.ends_with("-srgb") ? (rgb565 ? 59u : 55u) : (rgb565 ? 132u : 128u);
                 expected = block == 2 ? 255 : block == 1 ? middle : 0;
+                if (block == 1 && (operation == "bc4-signed" || operation == "bc5-signed")) expected = 129;
                 if (operation.starts_with("bc6")) expected = block == 2 ? 16703520u : block == 1 ? (operation == "bc6-signed" ? 390u : 386u) : 0u;
             }
             if (volumeRead) expected = index * 3 + 1;
