@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Memory/BufferAllocation.h"
 #include "AnyUnreal/RHI/Descriptor/Tables.h"
+#include "AnyUnreal/RHI/Descriptor/MergedTables.h"
 #include "AnyUnreal/RHI/Descriptor/SamplerDescriptor.h"
 #include "AnyUnreal/Shader/ConstantData.h"
 #include <algorithm>
@@ -81,6 +82,34 @@ namespace
         const auto* array = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[2]);
         const auto* uniform = reinterpret_cast<const std::uint32_t*>(inputs.DescriptorSets[3]);
         if (array[10] != 64 || array[14] != 128 || uniform[2] != 64) throw std::runtime_error("Descriptor array offsets were assigned incorrectly");
+        const std::array secondBindings{Shaders::RuntimeBinding{Kind::UniformBuffer, 7, 2, 10, 1, 80, 16, 64, "uniform-buffer"}};
+        RHI::DescriptorTables second(secondBindings, addressHigh);
+        const std::array<const RHI::DescriptorTables*, 2> sources{&tables, &second};
+        reject([&] { RHI::MergedDescriptorTables incomplete(sources, addressHigh); });
+        second.SetBuffer(Kind::UniformBuffer, 7, buffer, 256);
+        RHI::MergedDescriptorTables merged(sources, addressHigh);
+        Shaders::UserDataInputs mergedInputs;
+        merged.Apply(mergedInputs);
+        const auto* mergedWords = reinterpret_cast<const std::uint32_t*>(mergedInputs.DescriptorSets[2]);
+        if (mergedWords[10] != 64 || mergedWords[14] != 128 || mergedWords[22] != 256) throw std::runtime_error("Merged descriptors lost stage resources");
+        if (mergedInputs.DescriptorSets[2] == inputs.DescriptorSets[2] || merged.GetMemoryRanges().size() != 2) throw std::runtime_error("Merged descriptor storage aliases a source");
+        for (unsigned index = 16; index < 20; ++index)
+        {
+            if (mergedWords[index] != 0) throw std::runtime_error("Merged descriptor padding is not zero");
+        }
+        second.SetBuffer(Kind::UniformBuffer, 7, buffer, 512);
+        if (mergedWords[22] != 256) throw std::runtime_error("Merged descriptors changed after source mutation");
+        reject([&] { RHI::MergedDescriptorTables duplicate(std::array<const RHI::DescriptorTables*, 2>{&tables, &tables}, addressHigh); });
+        reject([&] { RHI::MergedDescriptorTables nullSource(std::array<const RHI::DescriptorTables*, 2>{&tables, nullptr}, addressHigh); });
+        for (const auto offset : {48u, 128u})
+        {
+            auto overlappingBinding = secondBindings;
+            overlappingBinding[0].Offset = offset;
+            if (offset == 128) overlappingBinding[0].Binding = bindings[0].Binding;
+            RHI::DescriptorTables overlapping(overlappingBinding, addressHigh);
+            overlapping.SetBuffer(Kind::UniformBuffer, 7, buffer, 64);
+            reject([&] { RHI::MergedDescriptorTables collision(std::array<const RHI::DescriptorTables*, 2>{&tables, &overlapping}, addressHigh); });
+        }
         for (unsigned index = 0; index < 8; ++index)
         {
             if (array[index] != 0) throw std::runtime_error("Descriptor write overwrote layout padding");
@@ -230,6 +259,16 @@ int main()
     }
     if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
+    std::unique_ptr<RHI::MergedDescriptorTables> mergedDescriptors;
+    if (readWrite)
+    {
+        RHI::DescriptorTables inputDescriptors(std::span(bindings).first(1), layout.GetAddressHigh());
+        RHI::DescriptorTables outputDescriptors(std::span(bindings).last(1), layout.GetAddressHigh());
+        inputDescriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
+        outputDescriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
+        mergedDescriptors = std::make_unique<RHI::MergedDescriptorTables>(std::array<const RHI::DescriptorTables*, 2>{&inputDescriptors, &outputDescriptors}, layout.GetAddressHigh());
+        mergedDescriptors->Apply(inputs);
+    }
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
     {
         RHI::MemoryBarrier barrier(layout.GetAddressHigh());
@@ -325,7 +364,7 @@ int main()
         RHI::WriteViewportScissor(commands, 0, {0, 0, 1920, 1080});
         RHI::WriteViewportScissor(commands, 15, {16, 24, 256, 128});
         RHI::WriteScissor(commands, {0, 0, 32767, 32767});
-        const auto tableRanges = descriptors.GetMemoryRanges();
+        const auto tableRanges = mergedDescriptors ? mergedDescriptors->GetMemoryRanges() : descriptors.GetMemoryRanges();
         ranges.insert(ranges.end(), tableRanges.begin(), tableRanges.end());
         RHI::WriteMemoryAcquire(commands, ranges);
         upload.Record(commands, uploadOutput.subspan(3, uploadExpected.size()));
