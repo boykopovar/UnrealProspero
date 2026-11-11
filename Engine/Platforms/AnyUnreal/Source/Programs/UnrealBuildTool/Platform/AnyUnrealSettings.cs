@@ -33,7 +33,7 @@ public sealed class AnyUnrealSettings
         return settings;
     }
 
-    public UEBuildPlatform.StaticShader GetShaderPlatform(Target target)
+    internal UEBuildPlatform.StaticShader GetShaderPlatform(Target target)
     {
         foreach (int index in new[] { WindowsShaderPlatformIndex, LinuxShaderPlatformIndex, Ps5ShaderPlatformIndex })
         {
