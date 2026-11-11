@@ -13,7 +13,10 @@ int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    SwapChain chain(259, 137, TextureFormat::Bgra8Unorm, 2);
+    auto output = std::make_shared<AnyUnreal::Video::Output>();
+    const auto outputHandle = output->GetHandle();
+    SwapChain chain(output, 259, 137, TextureFormat::Bgra8Unorm, 2);
+    if (chain.GetHandle() != outputHandle) throw std::runtime_error("Swap chain did not retain the provided video output");
     for (const auto format : {TextureFormat::Bgra8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::Rgba8Srgb})
     {
         chain.Resize(259, 137, format);
@@ -66,6 +69,20 @@ int main()
     try { chain.Discard(); }
     catch (const std::runtime_error&) { rejected = true; }
     if (!rejected) throw std::runtime_error("Closed swap chain accepted a discarded frame");
-    std::cout << "Swap chain presented 48 GPU frames and resized safely\n";
+    if (output->GetHandle() != outputHandle) throw std::runtime_error("Closing the swap chain closed its shared video output");
+    SwapChain replacement(output, 131, 79, TextureFormat::Bgra8Unorm, 2);
+    output.reset();
+    if (replacement.GetHandle() != outputHandle) throw std::runtime_error("Replacement swap chain lost the shared video output");
+    const auto replacementBuffer = replacement.Acquire();
+    BufferAllocation fenceStorage(8, 2);
+    auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+    CommandStorage storage(65536, 2);
+    auto& commands = storage.Get();
+    sceAgcDcbContextStateOp(&commands, 0);
+    WriteColorClear(commands, *replacementBuffer, {0.5f, 0.25f, 0.75f, 1.0f});
+    SubmitAndWait(commands, fence, 1, 10000000);
+    replacement.Present(1);
+    replacement.Close();
+    std::cout << "Swap chain presented 49 GPU frames, resized and reused its video output safely\n";
     return 0;
 }

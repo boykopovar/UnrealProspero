@@ -11,6 +11,7 @@ namespace AnyUnreal::RHI
     {
     public:
         SwapChain(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
+        SwapChain(std::shared_ptr<Video::Output> output, std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         ~SwapChain() noexcept(false);
         SwapChain(const SwapChain&) = delete;
         SwapChain& operator=(const SwapChain&) = delete;
@@ -29,7 +30,7 @@ namespace AnyUnreal::RHI
         void drain();
         void requireOpen() const;
         Buffers buffers;
-        Video::Output output;
+        std::shared_ptr<Video::Output> output;
         std::uint32_t addressHigh;
         std::uint32_t bufferIndex = 0;
         std::int64_t sequence = 0;

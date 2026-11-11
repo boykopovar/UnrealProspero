@@ -3,6 +3,7 @@
 #include "prx/libSceVideoOut/include/Buffer.hpp"
 #include <limits>
 #include <stdexcept>
+#include <utility>
 
 namespace AnyUnreal::RHI
 {
@@ -29,8 +30,12 @@ namespace AnyUnreal::RHI
         return result;
     }
 
-    SwapChain::SwapChain(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh) : buffers(createBuffers(width, height, format, addressHigh)), addressHigh(addressHigh)
+    SwapChain::SwapChain(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh) : SwapChain(std::make_shared<Video::Output>(), width, height, format, addressHigh) {}
+
+    SwapChain::SwapChain(std::shared_ptr<Video::Output> output, std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh) : buffers(createBuffers(width, height, format, addressHigh)), output(std::move(output)), addressHigh(addressHigh)
     {
+        if (!this->output) throw std::invalid_argument("Swap chain requires a video output");
+        static_cast<void>(this->output->GetHandle());
         registerBuffers();
     }
 
@@ -44,7 +49,7 @@ namespace AnyUnreal::RHI
         attribute.pitch_in_pixel = static_cast<std::uint32_t>(first.GetRowPitch() / 4);
         std::array<VideoOutBuffers, 3> addresses{};
         for (std::size_t index = 0; index < buffers.size(); ++index) addresses[index].data = buffers[index]->GetStorage().Data();
-        output.RegisterBuffers(0, 0, addresses, attribute, 0);
+        output->RegisterBuffers(0, 0, addresses, attribute, 0);
         registered = true;
     }
 
@@ -58,7 +63,7 @@ namespace AnyUnreal::RHI
         requireOpen();
         if (!acquired)
         {
-            output.WaitForBufferRelease(static_cast<int>(bufferIndex), 5000000000ull);
+            output->WaitForBufferRelease(static_cast<int>(bufferIndex), 5000000000ull);
             acquired = true;
         }
         return buffers[bufferIndex];
@@ -72,8 +77,8 @@ namespace AnyUnreal::RHI
         if (sequence == std::numeric_limits<std::int64_t>::max()) throw std::overflow_error("Video flip sequence exhausted");
         try
         {
-            output.MarkBufferPending(static_cast<int>(bufferIndex));
-            output.SubmitFlip(static_cast<int>(bufferIndex), mode, ++sequence);
+            output->MarkBufferPending(static_cast<int>(bufferIndex));
+            output->SubmitFlip(static_cast<int>(bufferIndex), mode, ++sequence);
             acquired = false;
             bufferIndex = (bufferIndex + 1) % buffers.size();
         }
@@ -93,15 +98,15 @@ namespace AnyUnreal::RHI
     void SwapChain::drain()
     {
         if (sequence == std::numeric_limits<std::int64_t>::max()) throw std::overflow_error("Video flip sequence exhausted");
-        output.SubmitFlip(-1, 1, ++sequence);
+        output->SubmitFlip(-1, 1, ++sequence);
         const auto start = Kernel::Clock::MonotonicNanoseconds();
-        while (output.GetFlipStatus().flipArg != sequence)
+        while (output->GetFlipStatus().flipArg != sequence)
         {
             const auto now = Kernel::Clock::MonotonicNanoseconds();
             if (now < start || now - start >= 5000000000ull) throw std::runtime_error("Swap chain drain timed out");
-            output.WaitVblank();
+            output->WaitVblank();
         }
-        for (std::size_t index = 0; index < buffers.size(); ++index) output.WaitForBufferRelease(static_cast<int>(index), 5000000000ull);
+        for (std::size_t index = 0; index < buffers.size(); ++index) output->WaitForBufferRelease(static_cast<int>(index), 5000000000ull);
     }
 
     void SwapChain::Resize(std::uint32_t width, std::uint32_t height, TextureFormat format)
@@ -112,7 +117,7 @@ namespace AnyUnreal::RHI
         try
         {
             drain();
-            output.UnregisterBuffers(0);
+            output->UnregisterBuffers(0);
             registered = false;
             buffers = std::move(replacement);
             bufferIndex = 0;
@@ -131,14 +136,15 @@ namespace AnyUnreal::RHI
         if (registered)
         {
             drain();
-            output.UnregisterBuffers(0);
+            output->UnregisterBuffers(0);
             registered = false;
         }
-        output.Close();
+        if (output.use_count() == 1) output->Close();
+        output.reset();
         closed = true;
         acquired = false;
     }
 
-    int SwapChain::GetHandle() const { requireOpen(); return output.GetHandle(); }
+    int SwapChain::GetHandle() const { requireOpen(); return output->GetHandle(); }
     std::uint32_t SwapChain::GetBufferIndex() const { requireOpen(); return bufferIndex; }
 }
