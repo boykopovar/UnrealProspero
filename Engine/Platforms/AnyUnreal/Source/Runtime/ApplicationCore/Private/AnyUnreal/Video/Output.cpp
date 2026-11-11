@@ -10,6 +10,13 @@
 
 namespace AnyUnreal::Video
 {
+    std::shared_ptr<Output> Output::AcquirePrimary()
+    {
+        static const auto output = std::make_shared<Output>();
+        output->GetHandle();
+        return output;
+    }
+
     Output::Output(int userId)
     {
         const int opened = sceVideoOutOpen(userId, 0, 0, nullptr);

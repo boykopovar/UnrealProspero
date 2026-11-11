@@ -4,7 +4,7 @@
 
 namespace AnyUnreal::Windowing
 {
-    Application::Application() : GenericApplication(nullptr), output(std::make_shared<Video::Output>()), controllers(std::make_unique<Input::ControllerHub>()), controllerEvents(std::make_unique<Input::ControllerEvents>(controllers->GetInitialUser())) {}
+    Application::Application() : GenericApplication(nullptr), output(Video::Output::AcquirePrimary()), controllers(std::make_unique<Input::ControllerHub>()), controllerEvents(std::make_unique<Input::ControllerEvents>(controllers->GetInitialUser())) {}
 
     void Application::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& handler)
     {

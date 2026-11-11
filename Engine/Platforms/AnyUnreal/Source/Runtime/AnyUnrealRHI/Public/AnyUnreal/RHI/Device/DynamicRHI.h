@@ -12,6 +12,8 @@ namespace AnyUnreal::RHI
     {
     public:
         FTextureRHIRef RHIAsyncCreateTexture2D(uint32 width, uint32 height, uint8 format, uint32 mipCount, ETextureCreateFlags flags, ERHIAccess initialState, void** initialMipData, uint32 initialMipCount, const TCHAR* debugName, FGraphEventRef& completionEvent) override;
+        bool RHIGetAvailableResolutions(FScreenResolutionArray& resolutions, bool ignoreRefreshRate) override;
+        void RHIGetSupportedResolution(uint32& width, uint32& height) override;
         void RHIGetTextureMemoryStats(FTextureMemoryStats& statistics) override;
         void Init() override;
         void Shutdown() override;

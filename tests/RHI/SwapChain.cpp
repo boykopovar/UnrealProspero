@@ -13,7 +13,10 @@ int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
-    auto output = std::make_shared<AnyUnreal::Video::Output>();
+    auto output = AnyUnreal::Video::Output::AcquirePrimary();
+    if (AnyUnreal::Video::Output::AcquirePrimary() != output) throw std::runtime_error("Primary video output was opened more than once");
+    const auto resolution = output->GetResolution();
+    if (resolution.fullWidth == 0 || resolution.fullHeight == 0 || resolution.paneWidth == 0 || resolution.paneHeight == 0) throw std::runtime_error("Primary video output reported an empty mode");
     const auto outputHandle = output->GetHandle();
     SwapChain chain(output, 259, 137, TextureFormat::Bgra8Unorm, 2);
     if (chain.GetHandle() != outputHandle) throw std::runtime_error("Swap chain did not retain the provided video output");
@@ -83,6 +86,7 @@ int main()
     SubmitAndWait(commands, fence, 1, 10000000);
     replacement.Present(1);
     replacement.Close();
+    if (AnyUnreal::Video::Output::AcquirePrimary()->GetHandle() != outputHandle) throw std::runtime_error("Primary video output did not survive viewport replacement");
     std::cout << "Swap chain presented 49 GPU frames, resized and reused its video output safely\n";
     return 0;
 }

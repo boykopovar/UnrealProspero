@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Device/DynamicRHI.h"
+#include "AnyUnreal/Video/Output.h"
 #include "AnyUnreal/RHI/Presentation/ViewportResource.h"
 #include "AnyUnreal/RHI/Context/GraphicsContext.h"
 #include "AnyUnreal/RHI/Buffer/BufferInitializer.h"
@@ -47,6 +48,29 @@ namespace AnyUnreal::RHI
         FTextureRHIRef result = initialMipCount ? new TextureResource(description, addressHigh, initialMipData[0]) : new TextureResource(description, addressHigh);
         completionEvent.SafeRelease();
         return result;
+    }
+
+    bool DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& resolutions, bool)
+    {
+        const auto status = Video::Output::AcquirePrimary()->GetResolution();
+        uint32 refreshRate;
+        switch (status.refreshRate)
+        {
+        case 3: refreshRate = 60; break;
+        case 13: refreshRate = 120; break;
+        default: throw std::runtime_error("Video output refresh rate is not implemented");
+        }
+        FScreenResolutionArray result;
+        result.Add({status.fullWidth, status.fullHeight, refreshRate});
+        resolutions = MoveTemp(result);
+        return true;
+    }
+
+    void DynamicRHI::RHIGetSupportedResolution(uint32& width, uint32& height)
+    {
+        const auto status = Video::Output::AcquirePrimary()->GetResolution();
+        width = status.fullWidth;
+        height = status.fullHeight;
     }
 
     void DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& statistics)

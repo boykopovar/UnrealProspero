@@ -3,6 +3,7 @@
 
 #include "SceTypes.hpp"
 #include <optional>
+#include <memory>
 #include <span>
 
 namespace AnyUnreal::Video
@@ -10,6 +11,7 @@ namespace AnyUnreal::Video
     class Output final
     {
     public:
+        static std::shared_ptr<Output> AcquirePrimary();
         explicit Output(int userId = 255);
         ~Output() noexcept(false);
         Output(const Output&) = delete;
