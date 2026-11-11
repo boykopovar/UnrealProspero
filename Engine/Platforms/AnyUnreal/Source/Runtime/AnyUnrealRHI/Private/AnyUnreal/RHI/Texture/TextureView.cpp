@@ -19,9 +19,8 @@ namespace AnyUnreal::RHI
         }
     }
 
-    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description)), storage(texture.Capture()), descriptor(storage->GetDescriptor())
+    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description)), storage(texture.Capture()), descriptor(storage->CreateViewDescriptor(description.Texture.SRV.bDisableSRGB))
     {
-        const auto info = description.Texture.SRV.GetViewInfo(&texture);
-        if (!info.bSRGB && EnumHasAnyFlags(texture.GetDesc().Flags, ETextureCreateFlags::SRGB)) descriptor[1] = (descriptor[1] & ~(0x1ffu << 20)) | (56u << 20);
+        description.Texture.SRV.GetViewInfo(&texture);
     }
 }

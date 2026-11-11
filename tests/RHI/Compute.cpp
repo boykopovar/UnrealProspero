@@ -86,8 +86,9 @@ int main()
     if (getargc_nid_postfix() != 5) throw std::invalid_argument("Expected compute header, code, metadata and operation");
     const auto* arguments = getargv_nid_postfix();
     const std::string_view operation(arguments[4]);
-    if (operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture") throw std::invalid_argument("Unknown compute operation");
-    const bool withTexture = operation == "texture";
+    if (operation != "write" && operation != "read-write" && operation != "constants" && operation != "texture" && operation != "texture-view") throw std::invalid_argument("Unknown compute operation");
+    const bool textureView = operation == "texture-view";
+    const bool withTexture = operation == "texture" || textureView;
     const bool readWrite = operation == "read-write";
     const bool withConstants = operation == "constants";
     const auto header = read(arguments[1]);
@@ -123,10 +124,16 @@ int main()
     std::unique_ptr<RHI::LinearTexture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, RHI::TextureFormat::R32Float, layout.GetAddressHigh());
+        texture = std::make_unique<RHI::LinearTexture2D>(8, 8, textureView ? RHI::TextureFormat::Rgba8Srgb : RHI::TextureFormat::R32Float, layout.GetAddressHigh());
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(index * 3 + 1);
-        texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
+        if (textureView)
+        {
+            std::array<std::uint32_t, 64> colors;
+            for (unsigned index = 0; index < colors.size(); ++index) colors[index] = 0xff000000u | (index * 3 + 1);
+            texture->Upload(std::as_bytes(std::span(colors)), 8 * sizeof(std::uint32_t));
+        }
+        else texture->Upload(std::as_bytes(std::span(texels)), 8 * sizeof(float));
         bool invalidPitchRejected = false;
         try { texture->Upload(std::as_bytes(std::span(texels)), 16 * sizeof(float)); }
         catch (const std::invalid_argument&) { invalidPitchRejected = true; }
@@ -145,7 +152,13 @@ int main()
     if (!rejected) throw std::runtime_error("Uninitialized descriptor table was accepted");
     descriptors.SetBuffer(Shaders::ResourceKind::UnorderedAccess, 0, output, 64 * sizeof(std::uint32_t));
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
-    if (texture) descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(texture->GetDescriptor())));
+    if (texture)
+    {
+        const auto original = texture->GetDescriptor();
+        const auto view = texture->CreateViewDescriptor(textureView);
+        if (original != texture->GetDescriptor() || (textureView && view == original)) throw std::runtime_error("Texture view did not preserve the resource descriptor or disable sRGB");
+        descriptors.SetDescriptor(Shaders::ResourceKind::ShaderResource, 0, std::as_bytes(std::span(view)));
+    }
     if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
     for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
