@@ -1,4 +1,5 @@
 #include "AnyUnreal/RHI/Buffer/UniformBuffer.h"
+#include "RHICommandList.h"
 #include <stdexcept>
 #include <utility>
 
@@ -19,12 +20,30 @@ namespace AnyUnreal::RHI
         ResourceTable = storage->GetResources();
     }
 
-    void UniformBuffer::Update(const void* contents)
+    std::shared_ptr<const UniformBufferStorage> UniformBuffer::prepareUpdate(const void* contents) const
     {
         if (!contents) throw std::invalid_argument("Uniform buffer update contents are null");
-        auto replacement = std::make_shared<UniformBufferStorage>(GetLayout(), contents, validation, addressHigh);
+        return std::make_shared<UniformBufferStorage>(GetLayout(), contents, validation, addressHigh);
+    }
+
+    void UniformBuffer::applyUpdate(std::shared_ptr<const UniformBufferStorage> replacement)
+    {
         ResourceTable = replacement->GetResources();
         storage = std::move(replacement);
+    }
+
+    void UniformBuffer::Update(const void* contents)
+    {
+        applyUpdate(prepareUpdate(contents));
+    }
+
+    void UniformBuffer::Update(FRHICommandListBase& commandList, const void* contents)
+    {
+        auto replacement = prepareUpdate(contents);
+        commandList.EnqueueLambda([buffer = TRefCountPtr<UniformBuffer>(this), replacement = std::move(replacement)](FRHICommandListBase&) mutable
+        {
+            buffer->applyUpdate(std::move(replacement));
+        });
     }
 
     std::shared_ptr<const UniformBufferStorage> UniformBuffer::Capture() const { return storage; }

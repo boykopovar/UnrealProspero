@@ -46,6 +46,12 @@ namespace AnyUnreal::RHI
         return CreateBufferInitializer(commandList, description, addressHigh);
     }
 
+    void DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& commandList, FRHIUniformBuffer* buffer, const void* contents)
+    {
+        if (!buffer) throw std::invalid_argument("Uniform buffer is null");
+        static_cast<UniformBuffer*>(buffer)->Update(commandList, contents);
+    }
+
     FShaderResourceViewRHIRef DynamicRHI::RHICreateShaderResourceView(FRHICommandListBase&, FRHIViewableResource* resource, const FRHIViewDesc& description)
     {
         if (!resource || resource->GetType() != RRT_Buffer) throw std::runtime_error("Shader resource views require a buffer; texture views are not implemented");
