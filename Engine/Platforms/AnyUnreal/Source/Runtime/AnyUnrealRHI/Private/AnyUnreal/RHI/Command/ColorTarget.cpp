@@ -17,6 +17,8 @@ namespace AnyUnreal::RHI
             case TextureFormat::Rgba8Srgb: return (10 << 2) | (6 << 8) | (1 << 15) | (1 << 17);
             case TextureFormat::Bgra8Unorm: return (10 << 2) | (1 << 11) | (1 << 15) | (1 << 17);
             case TextureFormat::Bgra8Srgb: return (10 << 2) | (6 << 8) | (1 << 11) | (1 << 15) | (1 << 17);
+            case TextureFormat::R16Float: return (2 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
+            case TextureFormat::Rg16Float: return (5 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::R32Float: return (4 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::Rgba16Float: return (12 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::Rgba32Float: return (14 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
@@ -45,7 +47,7 @@ namespace AnyUnreal::RHI
         const auto pitch = texture.GetRowPitch() / bytesPerPixel;
         if (pitch == 0 || pitch > 16384) throw std::out_of_range("Color target pitch exceeds the hardware limit");
         const auto format = texture.GetFormat();
-        const bool forceAlpha = format == TextureFormat::R8Unorm || format == TextureFormat::Rg8Unorm || format == TextureFormat::R32Float;
+        const bool forceAlpha = format == TextureFormat::R8Unorm || format == TextureFormat::Rg8Unorm || format == TextureFormat::R32Float || format == TextureFormat::R16Float || format == TextureFormat::Rg16Float;
         const auto base = index * 15;
         const std::array registers{
             ShaderRegister{0x318 + base, static_cast<std::uint32_t>(address >> 8)},

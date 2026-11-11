@@ -42,7 +42,7 @@ int main()
     const std::array colors{std::array{0.0f, 0.0f, 0.0f, 0.0f}, std::array{1.0f, 1.0f, 1.0f, 1.0f}, std::array{0.5f, 0.25f, 0.75f, 1.0f}, std::array{-1.0f, 2.0f, 0.0031308f, 0.5f}};
     const std::array linearBytes{std::array{0, 0, 0, 0}, std::array{255, 255, 255, 255}, std::array{128, 64, 191, 255}, std::array{0, 255, 1, 128}};
     const std::array srgbBytes{std::array{0, 0, 0, 0}, std::array{255, 255, 255, 255}, std::array{188, 137, 225, 255}, std::array{0, 255, 10, 128}};
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const auto dimensions : {std::array{1u, 1u}, std::array{67u, 9u}, std::array{129u, 37u}})
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
@@ -56,7 +56,7 @@ int main()
         std::array<std::byte, 16> pixel{};
         const auto pixelSize = texture.GetRowBytes() / texture.GetWidth();
         if (format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float) std::memcpy(pixel.data(), colors[colorIndex].data(), pixelSize);
-        else if (format == TextureFormat::Rgba16Float)
+        else if (format == TextureFormat::Rgba16Float || format == TextureFormat::R16Float || format == TextureFormat::Rg16Float)
         {
             const std::array<std::array<std::uint16_t, 4>, 4> halfColors{{{0, 0, 0, 0}, {0x3c00, 0x3c00, 0x3c00, 0x3c00}, {0x3800, 0x3400, 0x3a00, 0x3c00}, {0xbc00, 0x4000, 0x1a69, 0x3800}}};
             std::memcpy(pixel.data(), halfColors[colorIndex].data(), pixelSize);
@@ -80,6 +80,6 @@ int main()
             if (bytes[index] != pixel[index % pixelSize]) throw std::runtime_error("Color clear pixel mismatch for format " + std::to_string(static_cast<int>(format)) + " and color " + std::to_string(colorIndex));
         }
     }
-    std::cout << "Color clears verified for nine formats and 108 cases\n";
+    std::cout << "Color clears verified for eleven formats and 132 cases\n";
     return 0;
 }

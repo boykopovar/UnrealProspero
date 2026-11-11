@@ -16,7 +16,7 @@
 void CheckVolumeCopies()
 {
     using namespace AnyUnreal::RHI;
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (unsigned mode = 0; mode < 4; ++mode)
     {
         LinearTexture3D source(13, 7, 5, format, 2);
@@ -65,13 +65,13 @@ void CheckVolumeCopies()
         if (!std::equal(targetBytes.begin(), targetBytes.end(), expected.begin())) throw std::runtime_error("Volume copy changed incorrect pixels or padding");
         if (mode != 2 && !std::equal(sourceBytes.begin(), sourceBytes.end(), original.begin())) throw std::runtime_error("Volume copy modified its source");
     }
-    std::cout << "Volume copies verified for nine formats, whole and partial regions, disjoint self copies and linear views\n";
+    std::cout << "Volume copies verified for eleven formats, whole and partial regions, disjoint self copies and linear views\n";
 }
 
 void CheckVolumeUploads()
 {
     using namespace AnyUnreal::RHI;
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const bool pendingWrite : {false, true})
     {
         LinearTexture3D destination(13, 7, 5, format, 2);
@@ -113,7 +113,7 @@ void CheckVolumeUploads()
         SubmitAndWait(commands, fence, 1, 10000000);
         if (!std::equal(bytes.begin(), bytes.end(), expected.begin())) throw std::runtime_error("Volume upload corrupted slices, pixels or padding");
     }
-    std::cout << "Volume uploads verified for nine formats and pending GPU writes\n";
+    std::cout << "Volume uploads verified for eleven formats and pending GPU writes\n";
 }
 
 int main()
@@ -122,7 +122,7 @@ int main()
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     CheckVolumeCopies();
     CheckVolumeUploads();
-    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float, TextureFormat::R16Float, TextureFormat::Rg16Float})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
         LinearTexture2D source(67, 9, format, 2);

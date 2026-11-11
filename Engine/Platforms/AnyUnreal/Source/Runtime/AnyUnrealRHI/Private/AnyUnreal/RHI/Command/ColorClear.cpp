@@ -37,7 +37,9 @@ namespace AnyUnreal::RHI
                 return result;
             }
             std::uint32_t word;
-            if (format == TextureFormat::R32Float) word = std::bit_cast<std::uint32_t>(color[0]);
+            if (format == TextureFormat::R16Float) word = static_cast<std::uint32_t>(EncodeHalfFloat(color[0])) * 0x00010001u;
+            else if (format == TextureFormat::Rg16Float) word = EncodeHalfFloat(color[0]) | (static_cast<std::uint32_t>(EncodeHalfFloat(color[1])) << 16);
+            else if (format == TextureFormat::R32Float) word = std::bit_cast<std::uint32_t>(color[0]);
             else
             {
                 const bool srgb = format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
