@@ -4,6 +4,7 @@
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/BufferCopy.h"
 #include "AnyUnreal/RHI/Command/MemoryAcquire.h"
+#include "AnyUnreal/RHI/Command/GpuFence.h"
 #include "prx/libSceAgc/DcbState/include/ContextState.hpp"
 #include <bit>
 #include <stdexcept>
@@ -11,7 +12,7 @@
 
 namespace AnyUnreal::RHI
 {
-    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(addressHigh), commands(commandStorage.Get())
+    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(addressHigh), commands(commandStorage.Get()), addressHigh(addressHigh)
     {
         sceAgcDcbContextStateOp(&commands, 0);
     }
@@ -101,6 +102,23 @@ namespace AnyUnreal::RHI
             const GpuMemoryRange ranges[]{{destinationRange.data(), destinationRange.size()}, {sourceRange.data(), sourceRange.size()}};
             WriteMemoryAcquire(commands, ranges);
             WriteBufferCopy(commands, destinationRange.data(), sourceRange.data(), size);
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
+    void ComputeContext::RHIWriteGPUFence(FRHIGPUFence* fence)
+    {
+        requireWritable();
+        if (!fence) throw std::invalid_argument("GPU fence is null");
+        try
+        {
+            auto marker = std::make_shared<Completion>(addressHigh);
+            fenceMarkers.push_back(marker);
+            static_cast<GpuFence*>(fence)->Write(commands, marker);
         }
         catch (...)
         {

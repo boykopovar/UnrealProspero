@@ -24,6 +24,7 @@ namespace AnyUnreal::RHI
         void RHIClearUAVUint(FRHIUnorderedAccessView* view, const FUintVector4& values) override;
         void RHIClearUAVFloat(FRHIUnorderedAccessView* view, const FVector4f& values) override;
         void RHICopyBufferRegion(FRHIBuffer* destination, uint64 destinationOffset, FRHIBuffer* source, uint64 sourceOffset, uint64 size) override;
+        void RHIWriteGPUFence(FRHIGPUFence* fence) override;
         void RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
         void RHIDispatchComputeShader(uint32 groupX, uint32 groupY, uint32 groupZ) override;
         void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& uniformBuffers) override;
@@ -56,6 +57,8 @@ namespace AnyUnreal::RHI
         std::vector<TRefCountPtr<FRHIUnorderedAccessView>> clearedViews;
         std::vector<std::shared_ptr<BufferTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
+        std::vector<std::shared_ptr<Completion>> fenceMarkers;
+        std::uint32_t addressHigh;
         bool failed = false;
         bool finalized = false;
     };

@@ -26,6 +26,7 @@ namespace AnyUnreal::RHI
         void RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args) override;
         void RHIProcessDeleteQueue() override;
         void RHIBlockUntilGPUIdle() override;
+        FGPUFenceRHIRef RHICreateGPUFence(const FName& name) override;
 
     protected:
         DynamicRHI(Shader::AgcTarget target, std::uint32_t addressHigh);
