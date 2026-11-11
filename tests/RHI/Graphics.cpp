@@ -29,6 +29,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace
 {
@@ -44,17 +45,20 @@ namespace
 
 int main()
 {
-    if (getargc_nid_postfix() != 7) throw std::invalid_argument("Expected vertex and pixel header, code and metadata");
+    if (getargc_nid_postfix() != 7 && getargc_nid_postfix() != 8) throw std::invalid_argument("Expected vertex and pixel header, code and metadata, optionally followed by geometry");
     const auto* argv = getargv_nid_postfix();
     using namespace AnyUnreal::RHI;
     namespace Shaders = AnyUnreal::Shader;
+    const bool geometry = getargc_nid_postfix() == 8;
+    if (geometry && std::string_view(argv[7]) != "geometry") throw std::invalid_argument("Unknown graphics program stage");
+    const auto vertexStage = geometry ? Shaders::ShaderStage::Geometry : Shaders::ShaderStage::Vertex;
     const auto vertexHeader = read(argv[1]);
     const auto vertexCode = read(argv[2]);
     const auto vertexMetadata = read(argv[3]);
     const auto pixelHeader = read(argv[4]);
     const auto pixelCode = read(argv[5]);
     const auto pixelMetadata = read(argv[6]);
-    const auto vertexLayout = Shaders::UserDataLayout::Read(vertexMetadata, Shaders::ShaderStage::Vertex);
+    const auto vertexLayout = Shaders::UserDataLayout::Read(vertexMetadata, vertexStage);
     const auto pixelLayout = Shaders::UserDataLayout::Read(pixelMetadata, Shaders::ShaderStage::Pixel);
     const bool dynamic = vertexLayout.UsesDynamicVertexInput();
     if (vertexLayout.GetVertexBufferUsageMask() != (dynamic ? 3u : 0x88u) || vertexLayout.UsesVertexBuffersPerAttribute() != dynamic) throw std::invalid_argument("Graphics fixture has an unexpected vertex layout");
@@ -62,7 +66,7 @@ int main()
     if (pixelLayout.GetAddressHigh() != aperture) throw std::invalid_argument("Shader apertures disagree");
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
     constexpr auto target = Shaders::AgcTarget::ANYUNREAL_TEST_AGC_TARGET;
-    const AgcShader vertex({Shaders::ShaderStage::Vertex, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, Shaders::ShaderStage::Vertex, target);
+    const AgcShader vertex({vertexStage, target, vertexHeader, vertexCode, vertexMetadata, {}, {}}, vertexStage, target);
     const AgcShader pixel({Shaders::ShaderStage::Pixel, target, pixelHeader, pixelCode, pixelMetadata, {}, {}}, Shaders::ShaderStage::Pixel, target);
     const GraphicsShaderLink link(vertex, &pixel, 4);
 #if ANYUNREAL_TEST_DEPTH

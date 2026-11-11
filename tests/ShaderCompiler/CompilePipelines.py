@@ -21,6 +21,8 @@ def main():
     stages = (("Triangle.vert.hlsl", "vs_6_2"), ("EmitTriangle.geom.hlsl", "gs_6_2"), ("Triangle.tesc.hlsl", "hs_6_2"), ("Triangle.tese.hlsl", "ds_6_2"))
     for name, profile in stages:
         run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", sources / name, "-Fo", output / (name + ".spv")])
+    for source, profile in ((sources.parent / "shaders/VertexStreams.vert.hlsl", "vs_6_2"), (sources / "VertexStreams.geom.hlsl", "gs_6_2")):
+        run([dxc, "-spirv", "-fspv-target-env=vulkan1.1", "-WX", "-T", profile, "-E", "main", source, "-Fo", output / (source.name + ".spv")])
     invalid = output / "invalid.spv"
     invalid.write_bytes(bytes(20))
     base = [str(adk), "shader-pipeline", "--geometry", str(output / "EmitTriangle.geom.hlsl.spv")]
@@ -35,6 +37,7 @@ def main():
         if result.returncode == 0 or message not in result.stderr or destination.exists():
             raise RuntimeError(f"Invalid pipeline input was not rejected cleanly: {result.stderr}")
     for target in ("windows", "linux", "ps5"):
+        run([adk, "shader-pipeline", "--input-format", "spirv", "--vertex", output / "VertexStreams.vert.hlsl.spv", "--geometry", output / "VertexStreams.geom.hlsl.spv", "--output", output / (target + "-geometry-streams"), "--target", target, "--vertex-attribute", "0,3,r32g32b32_float,0,12,4,0", "--vertex-attribute", "1,7,r32g32b32a32_float,0,16,4,0"])
         for pipeline in ("geometry", "tessellation"):
             directory = output / (target + "-" + pipeline)
             arguments = [adk, "shader-pipeline", "--input-format", "spirv", "--vertex", output / "Triangle.vert.hlsl.spv", "--output", directory, "--target", target]
