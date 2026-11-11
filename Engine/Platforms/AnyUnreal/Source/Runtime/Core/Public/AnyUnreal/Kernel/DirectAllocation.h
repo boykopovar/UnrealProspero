@@ -16,7 +16,7 @@ namespace AnyUnreal::Kernel
     {
     public:
         static constexpr std::size_t PageSize = 16384;
-        explicit DirectAllocation(std::size_t size, std::size_t alignment = PageSize, DirectMemoryAccess access = DirectMemoryAccess::Cpu);
+        explicit DirectAllocation(std::size_t size, std::size_t alignment = PageSize, DirectMemoryAccess access = DirectMemoryAccess::Cpu, void* addressHint = nullptr);
         ~DirectAllocation() noexcept(false);
         DirectAllocation(const DirectAllocation&) = delete;
         DirectAllocation& operator=(const DirectAllocation&) = delete;

@@ -8,11 +8,12 @@
 
 namespace AnyUnreal::Kernel
 {
-    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment, DirectMemoryAccess access) : size(size), gpuProtection(access == DirectMemoryAccess::CpuGpu ? 0x30 : 0)
+    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment, DirectMemoryAccess access, void* addressHint) : address(addressHint), size(size), gpuProtection(access == DirectMemoryAccess::CpuGpu ? 0x30 : 0)
     {
         if (access != DirectMemoryAccess::Cpu && access != DirectMemoryAccess::CpuGpu) throw std::invalid_argument("Invalid direct memory access mode");
         if (size == 0 || size % PageSize != 0) throw std::invalid_argument("Direct allocation size must be a positive multiple of the page size");
         if (alignment < PageSize || !std::has_single_bit(alignment)) throw std::invalid_argument("Invalid direct allocation alignment");
+        if (reinterpret_cast<std::uintptr_t>(addressHint) % alignment != 0) throw std::invalid_argument("Unaligned direct memory address hint");
         const auto capacity = sceKernelGetDirectMemorySize();
         if (capacity == 0 || capacity > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) throw std::runtime_error("Invalid direct memory capacity");
         constexpr int directMemoryType = 12;
