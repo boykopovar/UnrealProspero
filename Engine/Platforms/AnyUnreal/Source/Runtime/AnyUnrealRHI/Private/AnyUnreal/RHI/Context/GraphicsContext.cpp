@@ -67,6 +67,18 @@ namespace AnyUnreal::RHI
         });
     }
 
+    void GraphicsContext::UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z)
+    {
+        RecordCommands([&](CommandBuffer& commands)
+        {
+            if (activeRenderPass) throw std::runtime_error("Volume upload cannot execute inside a render pass");
+            if (!destination || !upload) throw std::invalid_argument("Volume upload requires storage and data");
+            uploadedVolumes.push_back(destination);
+            volumeUploads.push_back(upload);
+            upload->Record(commands, *destination, x, y, z);
+        });
+    }
+
     void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y)
     {
         RecordCommands([&](CommandBuffer& commands)

@@ -18,6 +18,7 @@ namespace AnyUnreal::RHI
         const TCHAR* GetName() override;
         void RHITick(float deltaTime) override;
         void RHIReplaceResources(FRHICommandListBase& commandList, TArray<FRHIResourceReplaceInfo>&& replacements) override;
+        void RHIUpdateTexture3D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion3D& region, uint32 sourceRowPitch, uint32 sourceSlicePitch, const uint8* sourceData) override;
         void RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData) override;
         FRHILockTextureResult RHILockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;
         void RHIUnlockTexture(FRHICommandListImmediate& commandList, const FRHILockTextureArgs& arguments) override;

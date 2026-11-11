@@ -138,6 +138,29 @@ namespace AnyUnreal::RHI
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU address aperture exceeds user address space");
     }
 
+    void DynamicRHI::RHIUpdateTexture3D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion3D& region, uint32 sourceRowPitch, uint32 sourceSlicePitch, const uint8* sourceData)
+    {
+        if (mipIndex != 0) throw std::out_of_range("Texture mip does not exist");
+        auto destination = ResolveTextureResource(texture).CaptureVolume();
+        if (!sourceData || region.SrcX < 0 || region.SrcY < 0 || region.SrcZ < 0 || region.Width == 0 || region.Height == 0 || region.Depth == 0) throw std::invalid_argument("Invalid volume update source");
+        if (region.DestX >= destination->GetWidth() || region.DestY >= destination->GetHeight() || region.DestZ >= destination->GetDepth() || region.Width > destination->GetWidth() - region.DestX || region.Height > destination->GetHeight() - region.DestY || region.Depth > destination->GetDepth() - region.DestZ) throw std::out_of_range("Volume update exceeds its destination");
+        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, destination->GetFormat());
+        const auto rowBytes = region.Width * pixelBytes;
+        const auto column = static_cast<std::size_t>(region.SrcX) * pixelBytes;
+        if (column > sourceRowPitch || rowBytes > sourceRowPitch - column) throw std::invalid_argument("Volume update source row pitch is too small");
+        const auto rows = static_cast<std::size_t>(region.SrcY) + region.Height;
+        if (rows > sourceSlicePitch / sourceRowPitch) throw std::invalid_argument("Volume update source slice pitch is too small");
+        const auto offset = static_cast<std::size_t>(region.SrcZ) * sourceSlicePitch + static_cast<std::size_t>(region.SrcY) * sourceRowPitch + column;
+        const auto bytes = static_cast<std::size_t>(region.Depth - 1) * sourceSlicePitch + static_cast<std::size_t>(region.Height - 1) * sourceRowPitch + rowBytes;
+        const auto limit = static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max());
+        if (bytes > limit || offset > limit - bytes) throw std::overflow_error("Volume update source exceeds pointer range");
+        auto upload = std::make_shared<VolumeUpload>(region.Width, region.Height, region.Depth, destination->GetFormat(), std::span{reinterpret_cast<const std::byte*>(sourceData) + offset, bytes}, sourceRowPitch, sourceSlicePitch, addressHigh);
+        commandList.EnqueueLambda([destination = std::move(destination), upload = std::move(upload), x = region.DestX, y = region.DestY, z = region.DestZ](FRHICommandListBase& executingList)
+        {
+            static_cast<GraphicsContext&>(executingList.GetContext()).UploadVolume(destination, upload, x, y, z);
+        });
+    }
+
     void DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& commandList, FRHITexture* texture, uint32 mipIndex, const FUpdateTextureRegion2D& region, uint32 sourcePitch, const uint8* sourceData)
     {
         if (mipIndex != 0) throw std::out_of_range("Texture mip does not exist");

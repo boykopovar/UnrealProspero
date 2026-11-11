@@ -1,5 +1,6 @@
 #include "AnyUnreal/RHI/Command/TextureCopy.h"
 #include "AnyUnreal/RHI/Memory/TextureUpload.h"
+#include "AnyUnreal/RHI/Memory/VolumeUpload.h"
 #include "AnyUnreal/RHI/Command/BufferFill.h"
 #include "AnyUnreal/RHI/Command/CommandStorage.h"
 #include "AnyUnreal/RHI/Command/Submission.h"
@@ -12,10 +13,59 @@
 #include <vector>
 #include <limits>
 
+void CheckVolumeUploads()
+{
+    using namespace AnyUnreal::RHI;
+    for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
+    for (const bool pendingWrite : {false, true})
+    {
+        LinearTexture3D destination(13, 7, 5, format, 2);
+        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto rowBytes = 5 * pixelBytes;
+        const auto rowPitch = rowBytes + 11;
+        const auto slicePitch = rowPitch * 3 + 17;
+        std::vector<std::byte> source(slicePitch * 2);
+        for (std::size_t i = 0; i < source.size(); ++i) source[i] = static_cast<std::byte>(i % 251);
+        const auto snapshot = source;
+        VolumeUpload upload(5, 3, 2, format, source, rowPitch, slicePitch, 2);
+        source.assign(source.size(), std::byte{0xff});
+        const auto bytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
+        std::fill(bytes.begin(), bytes.end(), std::byte{0x5a});
+        std::vector<std::byte> expected(bytes.size(), pendingWrite ? std::byte{0xa5} : std::byte{0x5a});
+        for (std::size_t z = 0; z < 2; ++z)
+        for (std::size_t y = 0; y < 3; ++y)
+        {
+            const auto target = (z + 2) * destination.GetSlicePitch() + (y + 1) * destination.GetRowPitch() + 3 * pixelBytes;
+            std::copy_n(snapshot.begin() + z * slicePitch + y * rowPitch, rowBytes, expected.begin() + target);
+        }
+        CommandStorage storage(16384, 2);
+        auto& commands = storage.Get();
+        sceAgcDcbContextStateOp(&commands, 0);
+        const auto before = commands.cursor_up;
+        bool rejected = false;
+        try { upload.Record(commands, destination, 12, 1, 2); }
+        catch (const std::out_of_range&) { rejected = true; }
+        if (!rejected || before != commands.cursor_up) throw std::runtime_error("Invalid volume upload changed commands");
+        if (pendingWrite) WriteBufferFill(commands, destination.GetStorage().Data(), bytes.size(), 0xa5a5a5a5u);
+        upload.Record(commands, destination, 3, 1, 2);
+        const auto recorded = commands.cursor_up;
+        rejected = false;
+        try { upload.Record(commands, destination, 3, 1, 2); }
+        catch (const std::runtime_error&) { rejected = true; }
+        if (!rejected || recorded != commands.cursor_up) throw std::runtime_error("Repeated volume upload changed commands");
+        BufferAllocation fenceStorage(8, 2);
+        auto& fence = *std::construct_at(static_cast<std::uint64_t*>(fenceStorage.Data()), 0);
+        SubmitAndWait(commands, fence, 1, 10000000);
+        if (!std::equal(bytes.begin(), bytes.end(), expected.begin())) throw std::runtime_error("Volume upload corrupted slices, pixels or padding");
+    }
+    std::cout << "Volume uploads verified for nine formats and pending GPU writes\n";
+}
+
 int main()
 {
     using namespace AnyUnreal::RHI;
     AnyUnreal::Kernel::CheckResult(sceAgcInit(11), "sceAgcInit");
+    CheckVolumeUploads();
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb, TextureFormat::R32Float, TextureFormat::Rgba32Float, TextureFormat::Rgba16Float})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
