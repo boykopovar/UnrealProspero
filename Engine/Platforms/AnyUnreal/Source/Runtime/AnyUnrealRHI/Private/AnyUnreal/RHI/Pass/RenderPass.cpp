@@ -52,7 +52,6 @@ namespace AnyUnreal::RHI
             const auto& entry = info.ColorRenderTargets[index];
             if (entry.ResolveTarget) throw std::runtime_error("Render pass resolves are not implemented");
             if (!entry.RenderTarget) continue;
-            if (entry.ArraySlice != -1 && entry.ArraySlice != 0) throw std::out_of_range("Color render pass subresource does not exist");
             switch (GetLoadAction(entry.Action))
             {
             case ERenderTargetLoadAction::ENoAction:
@@ -72,6 +71,9 @@ namespace AnyUnreal::RHI
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
             targets[index] = texture.Capture();
             const auto& mip = targets[index]->GetMipLayout(entry.MipIndex);
+            if (entry.ArraySlice < -1 || (entry.ArraySlice >= 0 && static_cast<std::uint32_t>(entry.ArraySlice) >= targets[index]->GetArrayLayers())) throw std::out_of_range("Color render pass array layer does not exist");
+            if (entry.ArraySlice == -1 && targets[index]->GetArrayLayers() > 1) throw std::runtime_error("Layered rendering to multiple array slices is not implemented");
+            layers[index] = entry.ArraySlice == -1 ? 0u : static_cast<std::uint32_t>(entry.ArraySlice);
             mips[index] = entry.MipIndex;
             if (GetLoadAction(entry.Action) == ERenderTargetLoadAction::EClear)
             {
@@ -81,7 +83,7 @@ namespace AnyUnreal::RHI
             }
             for (uint32 previous = 0; previous < index; ++previous)
             {
-                if (targets[previous] == targets[index] && mips[previous] == mips[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
+                if (targets[previous] == targets[index] && mips[previous] == mips[index] && layers[previous] == layers[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
             }
             formats[index] = description.Format;
             srgb[index] = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB);
@@ -118,8 +120,8 @@ namespace AnyUnreal::RHI
         {
             if (targets[index])
             {
-                if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index], mips[index]);
-                WriteColorTarget(commands, index, *targets[index], mips[index]);
+                if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index], mips[index], layers[index]);
+                WriteColorTarget(commands, index, *targets[index], mips[index], layers[index]);
             }
             else DisableColorTarget(commands, index);
         }

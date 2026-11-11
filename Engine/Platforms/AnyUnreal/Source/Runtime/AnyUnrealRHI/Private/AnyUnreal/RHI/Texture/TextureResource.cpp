@@ -27,7 +27,7 @@ namespace AnyUnreal::RHI
             }
             else if (volume) LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
             else LinearTexture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
-            if (array && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Array render targets are not implemented");
+            if (array && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Array depth and presentable targets are not implemented");
             if (volume && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Volume render targets are not implemented");
             if (description.Format == PF_ShadowDepth)
             {

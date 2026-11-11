@@ -21,6 +21,7 @@ namespace AnyUnreal::RHI
         std::array<EPixelFormat, MaxSimultaneousRenderTargets> formats{};
         std::array<bool, MaxSimultaneousRenderTargets> srgb{};
         std::array<std::uint32_t, MaxSimultaneousRenderTargets> mips{};
+        std::array<std::uint32_t, MaxSimultaneousRenderTargets> layers{};
         std::array<std::optional<std::array<float, 4>>, MaxSimultaneousRenderTargets> clearColors{};
         std::shared_ptr<const DepthTexture2D> depthTarget;
         std::optional<float> clearDepth;
