@@ -17,13 +17,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", type=Path, required=True)
     parser.add_argument("--compute-check", type=Path)
+    parser.add_argument("--graphics-check", type=Path)
     parser.add_argument("--shaders", type=Path, required=True)
     parser.add_argument("--target", choices=("windows", "linux", "ps5"))
     parser.add_argument("--log", type=Path, required=True)
     options = parser.parse_args()
-    if options.compute_check and options.target not in ("windows", "linux"):
-        parser.error("--compute-check requires a native --target windows or linux")
+    if (options.compute_check or options.graphics_check) and options.target not in ("windows", "linux"):
+        parser.error("GPU execution checks require a native --target windows or linux")
     compute = options.compute_check.resolve(strict=True) if options.compute_check else None
+    graphics = options.graphics_check.resolve(strict=True) if options.graphics_check else None
     executable = options.check.resolve(strict=True)
     shaders = options.shaders.resolve(strict=True)
     targets = (options.target,) if options.target else ("windows", "linux", "ps5")
@@ -41,6 +43,10 @@ def main():
                 code = header.with_name("code.bin").resolve(strict=True)
                 metadata = header.with_name("bindings.adk").resolve(strict=True)
                 run_check(executable, (header, code, stage, metadata), environment, f"{target}/{header.parent.name}", log, options.log)
+                count += 1
+            if graphics:
+                arguments = [(shaders / target / name / file).resolve(strict=True) for name in ("VertexStreams.vert.hlsl", "Color.frag.hlsl") for file in ("header.bin", "code.bin", "bindings.adk")]
+                run_check(graphics, arguments, environment, f"{target}/draw/VertexStreams.vert.hlsl", log, options.log)
                 count += 1
             if compute:
                 for name, operation in (("Write.comp.hlsl", "write"), ("ReadWrite.comp.hlsl", "read-write"), ("Constants.comp.hlsl", "constants"), ("TextureWrite.comp.hlsl", "texture-write"), ("TextureLoad.comp.hlsl", "texture"), ("TextureView.comp.hlsl", "texture-view"), *(("TextureSample.comp.hlsl", operation) for operation in ("sample-wrap", "sample-clamp", "sample-mirror", "sample-border", "sample-linear"))):

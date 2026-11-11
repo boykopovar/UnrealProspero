@@ -26,6 +26,7 @@ def main():
         ("compute", "cs_6_2", "TextureLoad.comp.hlsl", ["0,0,sampled-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("compute", "cs_6_2", "TextureView.comp.hlsl", ["0,0,sampled-image,1,0,32", "0,1,storage-buffer,1,32,16"]),
         ("vertex", "vs_6_2", "Fullscreen.vert.hlsl", []),
+        ("vertex", "vs_6_2", "VertexStreams.vert.hlsl", []),
         ("fragment", "ps_6_2", "Color.frag.hlsl", []),
         ("compute", "cs_6_2", "Constants.comp.hlsl", ["0,0,storage-buffer,1,0,16", "1,0,uniform-buffer,1,0,16"]),
         ("compute", "cs_6_2", "Write.comp.hlsl", ["0,0,storage-buffer,1,0,16"]),
@@ -40,6 +41,7 @@ def main():
         "TextureView.comp.hlsl": ['"inputTexture" 2 0', '"outputValues" 3 0'],
         "TextureLoad.comp.hlsl": ['"inputTexture" 2 0', '"outputValues" 3 0'],
         "Fullscreen.vert.hlsl": [],
+        "VertexStreams.vert.hlsl": [],
         "Color.frag.hlsl": [],
         "Constants.comp.hlsl": ['"outputValues" 3 0', '"Constants" 0 16', '"multiplier" 0 4', '"addend" 4 4'],
         "Write.comp.hlsl": ['"outputValues" 3 0'],
@@ -61,6 +63,9 @@ def main():
         if reflection.stderr.splitlines() != details[source]:
             raise RuntimeError(f"Unexpected resource details for {source}: {reflection.stderr}")
         descriptors = [argument for binding in reflected for argument in ("--descriptor", binding)]
+        attributes = []
+        if source == "VertexStreams.vert.hlsl":
+            attributes = ["--vertex-attribute", "0,3,r32g32b32_float,0,12,4,0", "--vertex-attribute", "1,7,r32g32b32a32_float,0,16,4,0"]
         for target in ("windows", "linux", "ps5"):
             directory = output / target / source
             directory.mkdir(parents=True)
@@ -68,7 +73,7 @@ def main():
             code = directory / "code.bin"
             metadata = directory / "bindings.adk"
             (directory / "shader.spv").write_bytes(data)
-            run([adk, "spirv", "--input", "shader.spv", "--header", "header.bin", "--code", "code.bin", "--metadata", "bindings.adk", "--stage", stage, "--target", target, "--entry", "main", "--omit-implicit-primitive-id", "true", *descriptors], cwd=directory)
+            run([adk, "spirv", "--input", "shader.spv", "--header", "header.bin", "--code", "code.bin", "--metadata", "bindings.adk", "--stage", stage, "--target", target, "--entry", "main", "--omit-implicit-primitive-id", "true", *descriptors, *attributes], cwd=directory)
             for path in (header, code, metadata):
                 if not path.read_bytes():
                     raise RuntimeError(f"Empty shader output: {path}")

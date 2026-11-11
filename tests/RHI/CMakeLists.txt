@@ -33,7 +33,19 @@ if(ANYUNREAL_TEST_CREATE_SHADER)
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
         "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
-    list(APPEND test_targets ComputeCheck)
+    adk_add_executable(GraphicsCheck Graphics.cpp
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/GraphicsShaderLink.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/ShaderCommands.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Shader/AgcShader.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/CommandStorage.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/MemoryAcquire.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Submission.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Command/Viewport.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Descriptor/BufferDescriptor.cpp"
+        "${runtime_root}/AnyUnrealRHI/Private/AnyUnreal/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/Core/Private/AnyUnreal/Kernel/DirectAllocation.cpp")
+    list(APPEND test_targets ComputeCheck GraphicsCheck)
+    adk_link_libraries(GraphicsCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(ComputeCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_link_libraries(AgcHeaderCheck libc libkernel libSceAgc)
     foreach(test_target IN LISTS test_targets)
