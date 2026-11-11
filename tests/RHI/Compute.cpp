@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <string_view>
 #include "AnyUnreal/RHI/Command/Submission.h"
-#include "AnyUnreal/RHI/Shader/ShaderCommands.h"
+#include "AnyUnreal/RHI/Command/ComputeDispatch.h"
 #include "AnyUnreal/Kernel/Result.h"
 #include "prx/libSceAgc/libSceAgc.hpp"
 #include "prx/libkernel/include/Api.hpp"
@@ -124,7 +124,7 @@ int main()
     if (readWrite) descriptors.SetBuffer(Shaders::ResourceKind::ShaderResource, 0, input, 64 * sizeof(std::uint32_t));
     if (withConstants) descriptors.SetBuffer(Shaders::ResourceKind::UniformBuffer, 0, memory.GetRange(1024, 16).data(), 16);
     descriptors.Apply(inputs);
-    for (std::uint64_t iteration = 1; iteration <= 2; ++iteration)
+    for (std::uint64_t iteration = 1; iteration <= 3; ++iteration)
     {
         const std::array<std::uint32_t, 4> constants{static_cast<std::uint32_t>(iteration + 2), static_cast<std::uint32_t>(iteration * 11), 0, 0};
         memory.Upload(1024, std::as_bytes(std::span(constants)));
@@ -150,14 +150,13 @@ int main()
             }
             sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, reinterpret_cast<const void*>(inputs.DescriptorSets[set]), size, 40);
         }
-        RHI::WriteShaderRegisters(commands, shader, layout, inputs);
-        sceAgcCbDispatch(&commands, 1, 1, 1, shader.Get().specials->dispatch_modifier);
+        RHI::WriteComputeDispatch(commands, shader, layout, inputs, iteration == 3 ? 0 : 1, 1, 1);
         RHI::SubmitAndWait(commands, *fence, iteration, 10000000);
         for (unsigned index = 0; index < 64; ++index)
         {
             const auto expected = withConstants ? index * constants[0] + constants[1] : (readWrite ? input[index] : index) * 3 + 1;
-            if (output[index] != expected) throw std::runtime_error("GPU compute output does not match the shader");
+            if (output[index] != (iteration == 3 ? 0xffffffff : expected)) throw std::runtime_error("GPU compute output does not match the shader");
         }
     }
-    std::cout << "GPU compute output verified for two dispatches\n";
+    std::cout << "GPU compute output verified for two dispatches and a zero-sized dispatch\n";
 }
