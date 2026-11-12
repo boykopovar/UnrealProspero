@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.24)
+project(UnrealProsperoMemoryChecks LANGUAGES CXX)
+find_package(AnyDevKit CONFIG REQUIRED)
+set(core "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/UnrealProspero/Source/Runtime/Core")
+adk_add_executable(MemoryCheck Budget.cpp "${core}/Private/UnrealProspero/Kernel/MemoryBudget.cpp" "${core}/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
+set_target_properties(MemoryCheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+target_include_directories(MemoryCheck PRIVATE "${core}/Public")
+adk_link_libraries(MemoryCheck libc libkernel)
