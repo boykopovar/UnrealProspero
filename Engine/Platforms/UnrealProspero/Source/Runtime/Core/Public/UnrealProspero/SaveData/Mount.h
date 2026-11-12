@@ -10,7 +10,8 @@ namespace UnrealProspero::SaveData
     class Mount final
     {
     public:
-        Mount(int userId, std::string_view directory, std::uint64_t blocks, std::uint32_t resourceSize);
+        enum class Access { ReadOnly, ReadWrite, CreateOrOpen };
+        Mount(int userId, std::string_view directory, std::uint64_t blocks, std::uint32_t resourceSize, Access access = Access::CreateOrOpen);
         ~Mount() noexcept(false);
         Mount(const Mount&) = delete;
         Mount& operator=(const Mount&) = delete;
@@ -25,6 +26,7 @@ namespace UnrealProspero::SaveData
     private:
         TransactionResource resource;
         SaveDataMountResult result{};
+        Access access;
         bool mounted = false;
         bool prepared = false;
         void requireMounted() const;

@@ -7,7 +7,7 @@
 
 namespace UnrealProspero::SaveData
 {
-    Mount::Mount(int userId, std::string_view directory, std::uint64_t blocks, std::uint32_t resourceSize) : resource(resourceSize)
+    Mount::Mount(int userId, std::string_view directory, std::uint64_t blocks, std::uint32_t resourceSize, Access access) : resource(resourceSize), access(access)
     {
         SceSaveDataDirName name{};
         if (directory.empty() || directory.size() >= sizeof(name.data) || directory.find('\0') != std::string_view::npos) throw std::invalid_argument("Invalid SaveData directory name");
@@ -15,9 +15,17 @@ namespace UnrealProspero::SaveData
         SaveDataMount3 request{};
         request.user_id = userId;
         request.dir_name = &name;
-        request.blocks = blocks;
-        request.system_blocks = std::numeric_limits<std::uint64_t>::max();
-        request.mount_mode = 32;
+        switch (access)
+        {
+        case Access::ReadOnly: request.mount_mode = 1; break;
+        case Access::ReadWrite: request.mount_mode = 1; break;
+        case Access::CreateOrOpen:
+            request.blocks = blocks;
+            request.system_blocks = std::numeric_limits<std::uint64_t>::max();
+            request.mount_mode = 32;
+            break;
+        default: throw std::invalid_argument("Invalid SaveData mount access");
+        }
         request.resource = resource.GetHandle();
         Kernel::CheckResult(sceSaveDataMount3(&request, &result), "sceSaveDataMount3");
         mounted = true;
@@ -57,6 +65,7 @@ namespace UnrealProspero::SaveData
     void Mount::Prepare()
     {
         requireMounted();
+        if (access == Access::ReadOnly) throw std::logic_error("SaveData mount is read-only");
         if (prepared) throw std::logic_error("SaveData transaction is already prepared");
         SaveDataPrepareParam parameters{};
         parameters.resource = resource.GetHandle();
