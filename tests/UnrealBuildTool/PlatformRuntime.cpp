@@ -5,6 +5,7 @@
 #include <string_view>
 
 std::size_t UnrealProsperoRuntimeProbe(std::size_t count);
+bool CheckUsers();
 bool CheckMutexes();
 bool CheckEvents();
 bool CheckSemaphores();
@@ -60,6 +61,7 @@ int main()
     if (count > 1 && std::string_view(arguments[1]) == "--arguments-probe") return RunArgumentProbe();
     if (count == 3 && std::string_view(arguments[1]) == "--exit-probe") RunExitProbe(arguments[2]);
     if (count != 1) return RunFileLockProbe(count, arguments);
+    if (!CheckUsers()) return 32;
     if (!CheckFileLocks()) return 24;
     if (UnrealProsperoRuntimeProbe(3) != 42) return 1;
     if (!CheckMutexes()) return 10;

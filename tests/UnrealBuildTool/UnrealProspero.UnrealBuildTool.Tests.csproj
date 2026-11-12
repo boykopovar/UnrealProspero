@@ -20,6 +20,7 @@
     <Compile Include="$(UnrealRoot)/Engine/Source/Runtime/ApplicationCore/ApplicationCore.Build.cs" Link="Rules/ApplicationCore.Build.cs" />
     <Compile Include="../../Engine/Platforms/UnrealProspero/Source/Runtime/ApplicationCore/ApplicationCore_UnrealProspero.Build.cs" Link="Rules/ApplicationCore_UnrealProspero.Build.cs" />
     <None Update="PlatformRuntime.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="UserChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MutexChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="SemaphoreChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
