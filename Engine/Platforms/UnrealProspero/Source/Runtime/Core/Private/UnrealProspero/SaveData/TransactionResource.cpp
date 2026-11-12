@@ -95,5 +95,6 @@ namespace UnrealProspero::SaveData
         if (service.References == 1) releaseService(service);
         --service.References;
         active = false;
+        userService.Close();
     }
 }
