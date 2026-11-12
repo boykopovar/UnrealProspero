@@ -1,5 +1,7 @@
 #include "UnrealProspero/Kernel/DirectAllocation.h"
 #include "UnrealProspero/Kernel/MemoryBudget.h"
+#include "UnrealProspero/Kernel/Result.h"
+#include "prx/libkernel/include/Api.hpp"
 #include <cstdio>
 #include <optional>
 #include <stdexcept>
@@ -27,6 +29,14 @@ int main()
         check(6 * page);
     }
     check(0);
+    const auto beforeFlexible = MemoryBudget::Query();
+    void* flexible = nullptr;
+    UnrealProspero::Kernel::CheckResult(sceKernelMapFlexibleMemory(&flexible, 2 * page, 3, 0), "sceKernelMapFlexibleMemory");
+    const auto allocatedFlexible = MemoryBudget::Query();
+    UnrealProspero::Kernel::CheckResult(sceKernelReleaseFlexibleMemory(flexible, 2 * page), "sceKernelReleaseFlexibleMemory");
+    const auto releasedFlexible = MemoryBudget::Query();
+    if (allocatedFlexible.Flexible.Allocated != beforeFlexible.Flexible.Allocated + 2 * page || releasedFlexible.Flexible.Allocated != beforeFlexible.Flexible.Allocated) throw std::runtime_error("Incorrect flexible memory allocation accounting");
+    if (allocatedFlexible.Direct.Allocated != beforeFlexible.Direct.Allocated || releasedFlexible.Direct.Allocated != beforeFlexible.Direct.Allocated) throw std::runtime_error("Flexible memory changed the direct memory budget");
     if (std::puts("Memory budget allocation, fragmentation and release checks passed") < 0) throw std::runtime_error("Cannot write memory results");
     return 0;
 }
