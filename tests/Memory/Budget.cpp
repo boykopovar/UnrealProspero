@@ -1,5 +1,6 @@
 #include "UnrealProspero/Kernel/DirectAllocation.h"
 #include "UnrealProspero/Kernel/MemoryBudget.h"
+#include "UnrealProspero/Kernel/ProcessMemory.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <cstdio>
@@ -11,6 +12,8 @@ int main()
     using UnrealProspero::Kernel::DirectAllocation;
     using UnrealProspero::Kernel::MemoryBudget;
     constexpr auto page = DirectAllocation::PageSize;
+    const auto process = UnrealProspero::Kernel::ProcessMemory::Query();
+    if (std::printf("Process memory: virtual=%llu resident=%llu peak=%llu\n", static_cast<unsigned long long>(process.VirtualBytes), static_cast<unsigned long long>(process.ResidentBytes), static_cast<unsigned long long>(process.PeakResidentBytes)) < 0) throw std::runtime_error("Cannot write process memory results");
     const auto initial = MemoryBudget::Query();
     const auto check = [&](std::uint64_t added)
     {
