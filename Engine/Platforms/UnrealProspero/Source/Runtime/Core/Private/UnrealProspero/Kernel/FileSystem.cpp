@@ -37,7 +37,9 @@ namespace UnrealProspero::Kernel
     void FileSystem::CreateDirectory(std::string_view path, std::uint16_t permissions)
     {
         validatePermissions(permissions);
-        CheckResult(sceKernelMkdir(Path(path).CStr(), permissions), "sceKernelMkdir");
+        const Path directory(path);
+        const int result = sceKernelMkdir(directory.CStr(), permissions);
+        if (result != 0) throw Error(result, (std::string("sceKernelMkdir ") + directory.CStr()).c_str());
     }
 
     void FileSystem::RemoveDirectory(std::string_view path)
