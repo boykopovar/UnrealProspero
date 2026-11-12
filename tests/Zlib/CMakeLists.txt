@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.24)
+project(UnrealProsperoZlibChecks LANGUAGES C CXX)
+find_package(AnyDevKit CONFIG REQUIRED)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Platforms/UnrealProspero/Build/Zlib" zlib)
+adk_add_executable(ZlibCheck RoundTrip.cpp)
+set_target_properties(ZlibCheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+target_link_libraries(ZlibCheck PRIVATE UnrealProsperoZlib)
+adk_link_libraries(ZlibCheck libc libkernel)
