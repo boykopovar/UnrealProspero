@@ -1,8 +1,8 @@
 #ifndef UNREALPROSPERO_PLATFORM_MUTEX_H
 #define UNREALPROSPERO_PLATFORM_MUTEX_H
 
-#include "UnrealProspero/Mutex/RecursiveMutex.h"
-#include "UnrealProspero/Mutex/SharedMutex.h"
+#include "UnrealProspero/Mutex/UnrealProsperoRecursiveMutex.h"
+#include "UnrealProspero/Mutex/UnrealProsperoSharedMutex.h"
 
 namespace UE
 {

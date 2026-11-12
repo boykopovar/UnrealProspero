@@ -1,5 +1,5 @@
 #include "UnrealProspero/Runnable/Priority.h"
-#include "UnrealProspero/Kernel/Thread.h"
+#include "UnrealProspero/Kernel/KernelThread.h"
 #include "UnrealProspero/Kernel/Affinity.h"
 #include "UnrealProspero/Kernel/Event.h"
 #include "UnrealProspero/Kernel/Result.h"

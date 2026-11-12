@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_MUTEX_SCOPED_LOCK_H
 #define UNREALPROSPERO_MUTEX_SCOPED_LOCK_H
 
-#include "UnrealProspero/Mutex/RecursiveMutex.h"
+#include "UnrealProspero/Mutex/UnrealProsperoRecursiveMutex.h"
 
 namespace UnrealProspero
 {

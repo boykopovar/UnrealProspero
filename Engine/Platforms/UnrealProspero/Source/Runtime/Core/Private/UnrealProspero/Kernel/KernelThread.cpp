@@ -1,4 +1,4 @@
-#include "UnrealProspero/Kernel/Thread.h"
+#include "UnrealProspero/Kernel/KernelThread.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <string>

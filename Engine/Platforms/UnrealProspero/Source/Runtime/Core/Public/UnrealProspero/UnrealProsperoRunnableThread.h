@@ -3,7 +3,7 @@
 
 #include "HAL/RunnableThread.h"
 #include "UnrealProspero/Kernel/Event.h"
-#include "UnrealProspero/Kernel/Thread.h"
+#include "UnrealProspero/Kernel/KernelThread.h"
 #include <atomic>
 #include <exception>
 #include <optional>
