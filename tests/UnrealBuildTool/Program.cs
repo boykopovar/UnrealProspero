@@ -44,6 +44,7 @@ internal static class Program
         for (int index = 0; index < platforms.Length; index++)
         {
             UnrealProsperoPlatform buildPlatform = new(platforms[index], settings, NullLogger.Instance);
+            if (buildPlatform.GetBinaryExtension(UEBuildBinaryType.DynamicLinkLibrary) != ".prx") throw new InvalidOperationException("UBT cannot discover runtime libraries");
             UEBuildPlatform.RegisterBuildPlatform(buildPlatform, NullLogger.Instance);
             UEBuildPlatform.RegisterPlatformWithGroup(platforms[index], UnrealPlatformGroup.UnrealProspero);
             UnrealProsperoPlatformSdk sdk = (UnrealProsperoPlatformSdk)buildPlatform.GetSDK()!;

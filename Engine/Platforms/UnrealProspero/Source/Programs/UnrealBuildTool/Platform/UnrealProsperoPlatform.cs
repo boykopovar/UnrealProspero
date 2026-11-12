@@ -98,6 +98,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     {
         UEBuildBinaryType.Executable => target == Target.Windows ? ".exe" : target == Target.Ps5 ? ".elf" : "",
         UEBuildBinaryType.StaticLibrary => ".a",
+        UEBuildBinaryType.DynamicLinkLibrary => ".prx",
         _ => throw new BuildException("Unsupported UnrealProspero binary type: " + binaryType)
     };
 
