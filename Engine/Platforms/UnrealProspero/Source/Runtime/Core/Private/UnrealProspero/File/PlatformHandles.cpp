@@ -2,6 +2,8 @@
 #include "UnrealProspero/File/FileHandle.h"
 #include "UnrealProspero/File/Path.h"
 #include "UnrealProspero/Kernel/FileSystem.h"
+#include "UnrealProspero/Kernel/Error.h"
+#include "prx/libkernel/KernelErrors.hpp"
 #include <memory>
 
 using UnrealProspero::File::EncodePath;
@@ -11,16 +13,32 @@ using UnrealProspero::Kernel::FileSystem;
 
 IFileHandle* FUnrealProsperoPlatformFile::OpenRead(const TCHAR* filename, bool)
 {
-    return new FUnrealProsperoFileHandle(EncodePath(filename), FileAccess::Read);
+    try
+    {
+        return new FUnrealProsperoFileHandle(EncodePath(filename), FileAccess::Read);
+    }
+    catch (const UnrealProspero::Kernel::Error& error)
+    {
+        if (error.Code() == SCE_KERNEL_ERROR_ENOENT || error.Code() == SCE_KERNEL_ERROR_ENOTDIR) return nullptr;
+        throw;
+    }
 }
 
 IFileHandle* FUnrealProsperoPlatformFile::OpenWrite(const TCHAR* filename, bool append, bool allowRead)
 {
-    const auto access = allowRead ? FileAccess::ReadWrite : FileAccess::Write;
-    const auto creation = append ? FileCreation::OpenOrCreate : FileCreation::CreateOrTruncate;
-    auto handle = std::make_unique<FUnrealProsperoFileHandle>(EncodePath(filename), access, creation, append);
-    if (append) handle->SeekFromEnd();
-    return handle.release();
+    try
+    {
+        const auto access = allowRead ? FileAccess::ReadWrite : FileAccess::Write;
+        const auto creation = append ? FileCreation::OpenOrCreate : FileCreation::CreateOrTruncate;
+        auto handle = std::make_unique<FUnrealProsperoFileHandle>(EncodePath(filename), access, creation, append);
+        if (append) handle->SeekFromEnd();
+        return handle.release();
+    }
+    catch (const UnrealProspero::Kernel::Error& error)
+    {
+        if (error.Code() == SCE_KERNEL_ERROR_ENOENT || error.Code() == SCE_KERNEL_ERROR_ENOTDIR) return nullptr;
+        throw;
+    }
 }
 
 bool FUnrealProsperoPlatformFile::DeleteFile(const TCHAR* filename)
