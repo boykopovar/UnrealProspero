@@ -1,4 +1,5 @@
 #include "UnrealProspero/Kernel/File.h"
+#include "UnrealProspero/File/Path.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libkernel/File/include/File.hpp"
@@ -38,6 +39,14 @@ namespace
 
 bool CheckFiles()
 {
+    using UnrealProspero::File::ResolveStagedPath;
+    if (ResolveStagedPath("/app0/", "../../../Engine/Config/Base.ini") != "/app0/Engine/Config/Base.ini") return false;
+    if (ResolveStagedPath("/app0/", "Game/Content/../Config/./") != "/app0/Game/Config/") return false;
+    if (ResolveStagedPath("/app0/", "Game\\Content\\Data.bin") != "/app0/Game/Content/Data.bin") return false;
+    if (ResolveStagedPath("/app0/", "/savedata0/settings.bin") != "/savedata0/settings.bin") return false;
+    if (!rejects<std::invalid_argument>([] { ResolveStagedPath("/app0/", "../../../../outside.bin"); })) return false;
+    if (!rejects<std::invalid_argument>([] { ResolveStagedPath("/app0/", "Game/../../outside.bin"); })) return false;
+    if (!rejects<std::invalid_argument>([] { ResolveStagedPath("/app0/", std::string_view("bad\0path", 8)); })) return false;
     using UnrealProspero::Kernel::File;
     using UnrealProspero::Kernel::FileAccess;
     using UnrealProspero::Kernel::FileCreation;

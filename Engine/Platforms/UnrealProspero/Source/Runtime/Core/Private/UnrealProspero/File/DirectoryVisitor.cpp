@@ -1,5 +1,6 @@
 #include "UnrealProspero/File/DirectoryVisitor.h"
 #include "UnrealProspero/File/Metadata.h"
+#include "UnrealProspero/File/Path.h"
 #include "UnrealProspero/Kernel/Directory.h"
 #include "UnrealProspero/Kernel/Error.h"
 #include "UnrealProspero/Kernel/FileSystem.h"
@@ -14,7 +15,7 @@ namespace UnrealProspero::File
         template<typename TVisitor>
         bool iterate(std::basic_string_view<TCHAR> path, TVisitor& visitor)
         {
-            auto encoded = Text::EncodeUtf8(path);
+            auto encoded = EncodePath(path);
             std::optional<Kernel::Directory> directory;
             try
             {
