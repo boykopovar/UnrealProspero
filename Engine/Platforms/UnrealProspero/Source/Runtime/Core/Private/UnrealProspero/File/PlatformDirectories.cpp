@@ -23,6 +23,7 @@ bool FUnrealProsperoPlatformFile::CreateDirectory(const TCHAR* directory)
     }
     catch (const UnrealProspero::Kernel::Error& error)
     {
+        if (error.Code() == SCE_KERNEL_ERROR_ENOENT || error.Code() == SCE_KERNEL_ERROR_ENOTDIR) return false;
         if (error.Code() != SCE_KERNEL_ERROR_EEXIST) throw;
         const auto status = FileSystem::Stat(path);
         return status && FileSystem::IsDirectory(*status);
