@@ -2,6 +2,7 @@
 #include "UnrealProspero/Kernel/PosixResult.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <bit>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -36,8 +37,12 @@ namespace UnrealProspero::Kernel
 
     std::uint64_t SystemConfiguration::PhysicalMemorySize()
     {
-        const auto size = read<std::uint64_t>("hw.physmem");
-        if (size == 0) throw std::runtime_error("Invalid physical memory capacity");
-        return size;
+        constexpr int physicalPageCount = 121;
+        const auto pages = sysconf_nid_postfix(physicalPageCount);
+        if (pages <= 0) throw std::runtime_error("Invalid physical page count");
+        const auto pageSize = PageSize();
+        const auto count = static_cast<std::uint64_t>(pages);
+        if (count > std::numeric_limits<std::uint64_t>::max() / pageSize) throw std::overflow_error("Physical memory capacity exceeds the byte counter range");
+        return count * pageSize;
     }
 }
