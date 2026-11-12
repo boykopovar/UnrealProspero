@@ -6,6 +6,7 @@
 #include "UnrealProspero/Kernel/Clock.h"
 #include <limits>
 #include <stdexcept>
+#include <string_view>
 
 namespace
 {
@@ -22,6 +23,9 @@ namespace
     bool checkIdentity()
     {
         using UnrealProspero::Kernel::Affinity;
+        const auto* base = FPlatformProcess::BaseDir();
+        const std::basic_string_view<TCHAR> directory(base);
+        if (directory.empty() || directory.back() != '/' || base != FPlatformProcess::BaseDir()) return false;
         if (FPlatformProcess::GetCurrentProcessId() != static_cast<uint32>(getpid_nid_postfix())) return false;
         AffinityRestore restore;
         const auto available = Affinity::Available();
