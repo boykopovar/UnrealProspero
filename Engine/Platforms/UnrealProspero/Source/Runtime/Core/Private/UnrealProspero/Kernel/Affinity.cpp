@@ -1,12 +1,16 @@
 #include "UnrealProspero/Kernel/Affinity.h"
 #include "UnrealProspero/Kernel/Result.h"
+#include "UnrealProspero/Kernel/PosixResult.h"
 #include "prx/libkernel/include/Api.hpp"
 
 namespace UnrealProspero::Kernel
 {
     KernelCpumask Affinity::Available()
     {
-        const auto mask = sceKernelGetAvailableCpumask();
+        constexpr int processSet = 2;
+        constexpr int process = 2;
+        KernelCpumask mask = 0;
+        CheckPosixResult(cpuset_getaffinity_nid_postfix(processSet, process, -1, sizeof(mask), &mask), "cpuset_getaffinity");
         if (mask == 0) throw std::runtime_error("No processors are available");
         return mask;
     }
