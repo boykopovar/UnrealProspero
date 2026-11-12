@@ -2,6 +2,9 @@
 #include "UnrealProspero/File/TemporaryStorage.h"
 #include "UnrealProspero/Text/Encoding.h"
 #include <string>
+#if UNREALPROSPERO_TARGET_PS5
+#include "Containers/UnrealString.h"
+#endif
 
 namespace
 {
@@ -32,5 +35,15 @@ bool FUnrealProsperoPlatformProcess::ShouldSaveToUserDir()
 const TCHAR* FUnrealProsperoPlatformProcess::UserSettingsDir()
 {
     return UserTempDir();
+}
+
+const TCHAR* FUnrealProsperoPlatformProcess::ApplicationSettingsDir()
+{
+    return UserSettingsDir();
+}
+
+FString FUnrealProsperoPlatformProcess::GetApplicationSettingsDir(const ApplicationSettingsContext&)
+{
+    return ApplicationSettingsDir();
 }
 #endif
