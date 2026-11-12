@@ -12,6 +12,10 @@ struct FUnrealProsperoPlatformProcess : FGenericPlatformProcess
 {
     static CORE_API const TCHAR* BaseDir();
     static CORE_API const TCHAR* UserTempDir();
+#if UNREALPROSPERO_TARGET_PS5
+    static CORE_API bool ShouldSaveToUserDir();
+    static CORE_API const TCHAR* UserSettingsDir();
+#endif
     static CORE_API const TCHAR* ExecutableName(bool removeExtension = true);
     static CORE_API void* GetDllHandle(const TCHAR* filename);
     static CORE_API void FreeDllHandle(void* handle);

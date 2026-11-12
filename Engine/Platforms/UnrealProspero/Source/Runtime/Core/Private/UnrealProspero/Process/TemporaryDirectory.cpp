@@ -22,3 +22,15 @@ const TCHAR* FUnrealProsperoPlatformProcess::UserTempDir()
     static const TemporaryDirectory directory;
     return directory.Path.c_str();
 }
+
+#if UNREALPROSPERO_TARGET_PS5
+bool FUnrealProsperoPlatformProcess::ShouldSaveToUserDir()
+{
+    return true;
+}
+
+const TCHAR* FUnrealProsperoPlatformProcess::UserSettingsDir()
+{
+    return UserTempDir();
+}
+#endif
