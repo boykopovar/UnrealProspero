@@ -10,14 +10,11 @@ namespace UnrealProspero::Input
 {
     ControllerHub::ControllerHub()
     {
-        Kernel::CheckResult(sceSysmoduleLoadModuleInternal(0x80000011), "sceSysmoduleLoadModuleInternal");
         Kernel::CheckResult(sceSysmoduleLoadModuleInternal(0x80000024), "sceSysmoduleLoadModuleInternal");
-        Kernel::CheckResult(sceUserServiceInitialize(nullptr), "sceUserServiceInitialize");
         initialized = true;
         try
         {
-            Kernel::CheckResult(sceUserServiceGetInitialUser(&initialUser), "sceUserServiceGetInitialUser");
-            if (initialUser < 0) throw std::runtime_error("User service returned an invalid initial user");
+            initialUser = userService.GetInitialUser();
             Kernel::CheckResult(scePadInit_nid_postfix(), "scePadInit");
         }
         catch (...)
@@ -86,7 +83,7 @@ namespace UnrealProspero::Input
             }
         }
         handles.clear();
-        Kernel::CheckResult(sceUserServiceTerminate(), "sceUserServiceTerminate");
+        userService.Close();
         initialized = false;
     }
 }

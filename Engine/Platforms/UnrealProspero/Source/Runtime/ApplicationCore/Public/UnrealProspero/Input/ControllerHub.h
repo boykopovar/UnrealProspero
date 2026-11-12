@@ -2,6 +2,7 @@
 #define UNREALPROSPERO_INPUT_CONTROLLER_HUB_H
 
 #include "SceTypes.hpp"
+#include "UnrealProspero/Kernel/UserService.h"
 #include <map>
 #include <optional>
 #include <vector>
@@ -26,6 +27,7 @@ namespace UnrealProspero::Input
         int GetInitialUser() const;
 
     private:
+        Kernel::UserService userService;
         std::map<int, std::optional<int>> handles;
         bool initialized = false;
         int initialUser = -1;
