@@ -55,6 +55,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     public override void ModifyModuleRulesForActivePlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
     {
         AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
+        if (moduleName == "Engine" && !rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoPlatformFeatures")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoPlatformFeatures");
         if (moduleName == "RHI")
         {
             if (!rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoRHI")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoRHI");
