@@ -24,8 +24,8 @@
 struct FUnrealProsperoPlatformTypes : FGenericPlatformTypes
 {
     using DWORD = unsigned int;
-    using SIZE_T = std::size_t;
-    using SSIZE_T = std::ptrdiff_t;
+    using SIZE_T = uint64;
+    using SSIZE_T = int64;
     using TYPE_OF_NULL = decltype(NULL);
 };
 
@@ -45,6 +45,8 @@ static_assert(std::endian::native == std::endian::little);
 #define PLATFORM_WCHAR_IS_4_BYTES 0
 #define PLATFORM_TCHAR_IS_CHAR16 0
 #define PLATFORM_IS_ANSI_MALLOC_THREADSAFE 1
+#define PLATFORM_USE_PTHREADS 0
+#define PLATFORM_ALWAYS_HAS_AESNI UNREALPROSPERO_TARGET_PS5
 #define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA 0
 #define FORCEINLINE inline
 #define PLATFORM_BREAK() UnrealProspero::Kernel::DebugBreak()

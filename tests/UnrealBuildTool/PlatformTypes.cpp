@@ -15,8 +15,10 @@
 static_assert(sizeof(TCHAR) == 2);
 static_assert(sizeof(UPTRINT) == sizeof(void*));
 static_assert(sizeof(PTRINT) == sizeof(void*));
-static_assert(std::is_same_v<SIZE_T, std::size_t>);
-static_assert(std::is_same_v<SSIZE_T, std::ptrdiff_t>);
+static_assert(std::is_same_v<SIZE_T, uint64>);
+static_assert(std::is_same_v<SSIZE_T, int64>);
+static_assert(sizeof(SSIZE_T) == sizeof(void*));
+static_assert(PLATFORM_USE_PTHREADS == 0);
 static_assert(std::is_same_v<TCHAR, wchar_t>);
 static_assert(PLATFORM_WINDOWS == 0);
 static_assert(PLATFORM_LINUX == 0);

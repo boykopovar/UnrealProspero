@@ -22,6 +22,7 @@
     <None Update="PlatformRuntime.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MutexChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="EventChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="SemaphoreChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="AtomicChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="MathChecks.cpp" CopyToOutputDirectory="PreserveNewest" />
     <None Update="VideoOutputChecks.cpp" CopyToOutputDirectory="PreserveNewest" />

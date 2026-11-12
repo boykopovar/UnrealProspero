@@ -7,6 +7,7 @@
 std::size_t UnrealProsperoRuntimeProbe(std::size_t count);
 bool CheckMutexes();
 bool CheckEvents();
+bool CheckSemaphores();
 bool CheckAtomics();
 bool CheckMath();
 bool CheckMisc();
@@ -60,9 +61,10 @@ int main()
     if (count == 3 && std::string_view(arguments[1]) == "--exit-probe") RunExitProbe(arguments[2]);
     if (count != 1) return RunFileLockProbe(count, arguments);
     if (!CheckFileLocks()) return 24;
-    if (UnrealProsperoRuntimeProbe(3) != 27) return 1;
+    if (UnrealProsperoRuntimeProbe(3) != 42) return 1;
     if (!CheckMutexes()) return 10;
     if (!CheckEvents()) return 11;
+    if (!CheckSemaphores()) return 31;
     if (!CheckAtomics()) return 12;
     if (!CheckMath()) return 13;
     if (!CheckMisc()) return 14;

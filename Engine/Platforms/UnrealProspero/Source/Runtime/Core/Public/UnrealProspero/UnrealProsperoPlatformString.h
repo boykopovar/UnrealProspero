@@ -2,6 +2,7 @@
 #define UNREALPROSPERO_PLATFORM_STRING_H
 
 #include "GenericPlatform/GenericWidePlatformString.h"
+#include "UnrealProspero/Text/SecureString.h"
 #include <stdexcept>
 #include <type_traits>
 
@@ -38,12 +39,12 @@ struct FUnrealProsperoPlatformString : FGenericWidePlatformString
 
 using FPlatformString = FUnrealProsperoPlatformString;
 
-#define SIZE_T_FMT "zu"
-#define SIZE_T_x_FMT "zx"
-#define SIZE_T_X_FMT "zX"
-#define SSIZE_T_FMT "td"
-#define SSIZE_T_x_FMT "tx"
-#define SSIZE_T_X_FMT "tX"
+#define SIZE_T_FMT "llu"
+#define SIZE_T_x_FMT "llx"
+#define SIZE_T_X_FMT "llX"
+#define SSIZE_T_FMT "lld"
+#define SSIZE_T_x_FMT "llx"
+#define SSIZE_T_X_FMT "llX"
 #define UPTRINT_FMT "llu"
 #define UPTRINT_x_FMT "llx"
 #define UPTRINT_X_FMT "llX"

@@ -38,8 +38,8 @@ namespace
 
 bool CheckStrings()
 {
-    static_assert(std::is_same_v<SIZE_T, std::size_t>);
-    static_assert(std::is_same_v<SSIZE_T, std::ptrdiff_t>);
+    static_assert(std::is_same_v<SIZE_T, uint64>);
+    static_assert(std::is_same_v<SSIZE_T, int64>);
     static_assert(std::is_same_v<PTRINT, long long>);
     static_assert(std::is_same_v<UPTRINT, unsigned long long>);
     if (!checkTokens<ANSICHAR>() || !checkTokens<WIDECHAR>() || !checkTokens<UTF8CHAR>()) return false;
@@ -49,6 +49,10 @@ bool CheckStrings()
     if (FPlatformString::Strchr(text, static_cast<TCHAR>(0x0411)) != text + 1) return false;
     if (FPlatformString::Strcmp(text, text) != 0) return false;
     if (FPlatformString::Strlen("abc") != 3) return false;
+#if !UNREALPROSPERO_TARGET_WINDOWS
+    if (strnlen_s(nullptr, 8) != 0 || strnlen_s("abc", 2) != 2 || strnlen_s("abc", 8) != 3) return false;
+    if (wcsnlen_s(nullptr, 8) != 0 || wcsnlen_s(text, 2) != 2 || wcsnlen_s(text, 8) != 3) return false;
+#endif
     using UnrealProspero::Text::DecodeUtf8;
     using UnrealProspero::Text::EncodeUtf8;
     const std::string encoded = "A\xc2\x80\xdf\xbf\xe0\xa0\x80\xef\xbf\xbf\xf0\x90\x80\x80\xf4\x8f\xbf\xbf";
