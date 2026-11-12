@@ -7,6 +7,10 @@
 
 struct FUnrealProsperoPlatformMisc : FGenericPlatformMisc
 {
+#if UNREALPROSPERO_TARGET_PS5
+    static CORE_API const TCHAR* RootDir();
+    static CORE_API const TCHAR* EngineDir();
+#endif
     static CORE_API void RequestExit(bool force, const TCHAR* callSite = nullptr);
     static CORE_API void RequestExitWithStatus(bool force, uint8 status, const TCHAR* callSite = nullptr);
     static CORE_API bool HasOverriddenReturnCode(uint8* status);

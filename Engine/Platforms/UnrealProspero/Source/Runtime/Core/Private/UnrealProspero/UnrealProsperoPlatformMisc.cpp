@@ -1,10 +1,12 @@
 #include "UnrealProspero/UnrealProsperoPlatformMisc.h"
+#include "UnrealProspero/UnrealProsperoPlatformProcess.h"
 #include "UnrealProspero/Kernel/SystemConfiguration.h"
 #include "UnrealProspero/Kernel/Debug.h"
 #include "UnrealProspero/Text/Encoding.h"
 #include "prx/libkernel/File/include/File.hpp"
 #include <atomic>
 #include <stdexcept>
+#include <string>
 
 bool FUnrealProsperoPlatformMisc::IsDebuggerPresent()
 {
@@ -43,3 +45,16 @@ int32 FUnrealProsperoPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
     return UnrealProspero::Kernel::SystemConfiguration::LogicalProcessorCount();
 }
+
+#if UNREALPROSPERO_TARGET_PS5
+const TCHAR* FUnrealProsperoPlatformMisc::RootDir()
+{
+    return FUnrealProsperoPlatformProcess::BaseDir();
+}
+
+const TCHAR* FUnrealProsperoPlatformMisc::EngineDir()
+{
+    static const auto directory = std::basic_string<TCHAR>(RootDir()) + TEXT("Engine/");
+    return directory.c_str();
+}
+#endif
