@@ -56,6 +56,15 @@ namespace UnrealProspero::SaveData
         return {path, static_cast<std::size_t>(end - path)};
     }
 
+    Mount::Space Mount::GetSpace() const
+    {
+        requireMounted();
+        SaveDataMountInfo info{};
+        Kernel::CheckResult(sceSaveDataGetMountInfo(&result.mount_point, &info), "sceSaveDataGetMountInfo");
+        if (info.blocks == 0 || info.free_blocks > info.blocks) throw std::runtime_error("Invalid SaveData capacity");
+        return {info.blocks, info.free_blocks};
+    }
+
     bool Mount::IsNew() const
     {
         requireMounted();

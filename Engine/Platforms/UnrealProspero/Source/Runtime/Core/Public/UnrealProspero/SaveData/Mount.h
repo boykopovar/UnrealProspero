@@ -10,12 +10,18 @@ namespace UnrealProspero::SaveData
     class Mount final
     {
     public:
+        struct Space
+        {
+            std::uint64_t Blocks;
+            std::uint64_t FreeBlocks;
+        };
         enum class Access { ReadOnly, ReadWrite, CreateOrOpen };
         Mount(int userId, std::string_view directory, std::uint64_t blocks, std::uint32_t resourceSize, Access access = Access::CreateOrOpen);
         ~Mount() noexcept(false);
         Mount(const Mount&) = delete;
         Mount& operator=(const Mount&) = delete;
         std::string_view GetPath() const;
+        Space GetSpace() const;
         bool IsNew() const;
         void Prepare();
         void SetParameters(const SaveDataParam& parameters);
