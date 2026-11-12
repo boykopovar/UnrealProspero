@@ -38,15 +38,9 @@ struct FUnrealProsperoPlatformMemory : FGenericPlatformMemory
         return true;
     }
 
-    static FPlatformMemoryStats GetStats()
-    {
-        throw std::runtime_error("UnrealProspero process memory statistics are not implemented");
-    }
+    static FPlatformMemoryStats GetStats();
+    static const FPlatformMemoryConstants& GetConstants();
 
-    static const FPlatformMemoryConstants& GetConstants()
-    {
-        throw std::runtime_error("UnrealProspero memory capacity reporting is not implemented");
-    }
 };
 
 using FPlatformMemory = FUnrealProsperoPlatformMemory;

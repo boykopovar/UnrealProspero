@@ -171,14 +171,6 @@ bool CheckMemory()
     catch (const std::invalid_argument&)
     {
     }
-    try
-    {
-        FPlatformMemory::GetStats();
-        return false;
-    }
-    catch (const std::runtime_error&)
-    {
-    }
     Pthread threads[4]{};
     bool passed[4]{};
     for (int index = 0; index < 4; ++index) UnrealProspero::Kernel::CheckResult(scePthreadCreate(&threads[index], nullptr, checkConcurrentPages, &passed[index], "UnrealProsperoPages"), "scePthreadCreate");
