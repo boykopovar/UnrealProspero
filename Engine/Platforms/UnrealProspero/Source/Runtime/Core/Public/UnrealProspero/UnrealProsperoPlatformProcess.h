@@ -11,6 +11,7 @@ struct FProcHandle : TProcHandle<int32, -1>
 struct FUnrealProsperoPlatformProcess : FGenericPlatformProcess
 {
     static CORE_API const TCHAR* BaseDir();
+    static CORE_API const TCHAR* UserTempDir();
     static CORE_API const TCHAR* ExecutableName(bool removeExtension = true);
     static CORE_API void* GetDllHandle(const TCHAR* filename);
     static CORE_API void FreeDllHandle(void* handle);
