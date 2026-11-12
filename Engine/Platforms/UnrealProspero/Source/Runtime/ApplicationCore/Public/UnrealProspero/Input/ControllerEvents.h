@@ -27,7 +27,6 @@ namespace UnrealProspero::Input
         };
         void dispatchDevice(Device& device, const PadData* sample, FGenericApplicationMessageHandler& handler, bool enabled, double deltaSeconds);
         std::map<int, Device> devices;
-        int initialUser;
     };
 }
 

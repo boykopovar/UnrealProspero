@@ -11,6 +11,8 @@ namespace UnrealProspero::Kernel
         UserService(const UserService&) = delete;
         UserService& operator=(const UserService&) = delete;
         int GetInitialUser() const;
+        int GetUserIndex(int userId) const;
+        int GetUserId(int userIndex) const;
         void Close();
 
     private:

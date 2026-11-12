@@ -1,23 +1,26 @@
 #include "UnrealProspero/Input/ControllerEvents.h"
+#include "UnrealProspero/Kernel/UserService.h"
 #include <algorithm>
 #include <stdexcept>
 
 namespace UnrealProspero::Input
 {
-    ControllerEvents::ControllerEvents(int initialUser) : initialUser(initialUser)
+    ControllerEvents::ControllerEvents(int initialUser)
     {
-        if (initialUser < 0) throw std::invalid_argument("Invalid initial controller user");
+        Kernel::UserService users;
+        if (users.GetUserId(0) != initialUser) throw std::invalid_argument("Invalid initial controller user");
     }
 
     void ControllerEvents::Dispatch(const std::vector<ControllerSample>& samples, FGenericApplicationMessageHandler& handler, bool enabled, double deltaSeconds)
     {
         auto& mapper = IPlatformInputDeviceMapper::Get();
+        Kernel::UserService users;
         for (const auto& sample : samples)
         {
             if (!devices.contains(sample.UserId))
             {
                 Device device;
-                device.User = sample.UserId == initialUser ? mapper.GetPlatformUserForUserIndex(0) : mapper.AllocateNewUserId();
+                device.User = FPlatformUserId::CreateFromInternalId(users.GetUserIndex(sample.UserId));
                 device.Id = mapper.AllocateNewInputDeviceId();
                 if (!mapper.Internal_MapInputDeviceToUser(device.Id, device.User, EInputDeviceConnectionState::Disconnected)) throw std::runtime_error("Controller user mapping failed");
                 devices.emplace(sample.UserId, device);
