@@ -7,12 +7,16 @@ namespace UnrealProspero::Kernel
 {
     KernelCpumask Affinity::Available()
     {
-        constexpr int processSet = 2;
-        constexpr int process = 2;
-        KernelCpumask mask = 0;
-        CheckPosixResult(cpuset_getaffinity_nid_postfix(processSet, process, -1, sizeof(mask), &mask), "cpuset_getaffinity");
-        if (mask == 0) throw std::runtime_error("No processors are available");
-        return mask;
+        static const KernelCpumask available = []
+        {
+            constexpr int processAffinity = 3;
+            constexpr int process = 2;
+            KernelCpumask mask = 0;
+            CheckPosixResult(cpuset_getaffinity_nid_postfix(processAffinity, process, -1, sizeof(mask), &mask), "cpuset_getaffinity");
+            if (mask == 0) throw std::runtime_error("No processors are available");
+            return mask;
+        }();
+        return available;
     }
 
     KernelCpumask Affinity::Get(Pthread thread)
