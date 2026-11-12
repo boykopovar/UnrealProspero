@@ -1,6 +1,8 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformAffinity.h"
 #include "UnrealProspero/Kernel/Affinity.h"
+#include "UnrealProspero/Process/ExecutablePath.h"
+#include "UnrealProspero/Text/Encoding.h"
 #include "prx/libkernel/include/Api.hpp"
 #include <bit>
 #include "UnrealProspero/Kernel/Clock.h"
@@ -26,6 +28,15 @@ namespace
         const auto* base = FPlatformProcess::BaseDir();
         const std::basic_string_view<TCHAR> directory(base);
         if (directory.empty() || directory.back() != '/' || base != FPlatformProcess::BaseDir()) return false;
+        const std::basic_string_view<TCHAR> fullName(FPlatformProcess::ExecutableName(false));
+        const std::basic_string_view<TCHAR> shortName(FPlatformProcess::ExecutableName());
+        if (fullName.empty() || fullName.find_first_of(TEXT("/\\")) != fullName.npos || shortName.empty()) return false;
+        const auto path = UnrealProspero::Text::DecodeUtf8(UnrealProspero::Process::ExecutablePath());
+        if (path != std::basic_string<TCHAR>(directory) + std::basic_string<TCHAR>(fullName)) return false;
+        const auto dot = fullName.find_last_of(TEXT('.'));
+        const auto expectedName = dot == fullName.npos || dot == 0 ? fullName : fullName.substr(0, dot);
+        if (shortName != expectedName) return false;
+        if (FPlatformProcess::ExecutableName(false) != fullName.data() || FPlatformProcess::ExecutableName() != shortName.data()) return false;
         if (FPlatformProcess::GetCurrentProcessId() != static_cast<uint32>(getpid_nid_postfix())) return false;
         AffinityRestore restore;
         const auto available = Affinity::Available();
