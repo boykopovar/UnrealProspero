@@ -93,7 +93,7 @@ internal static class ToolchainChecks
         toolchain.LinkFiles(videoLink, false, graph);
         int rhiActions = RhiCompileChecks.Add(toolchain, platformCompile, intermediate, graph);
         graph.WaitOnWriteTasks();
-        if (makefile.Actions.Count != 85 + rhiActions) throw new InvalidOperationException("Unexpected UBT action count");
+        if (makefile.Actions.Count != 87 + rhiActions) throw new InvalidOperationException("Unexpected UBT action count");
         string? startupInput = target switch
         {
             Target.Windows => Path.Combine(sdk.Root, "lib/libAnyDevKitWindowsStartup.a"),
