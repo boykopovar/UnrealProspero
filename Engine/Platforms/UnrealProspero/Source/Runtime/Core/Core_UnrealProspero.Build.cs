@@ -4,7 +4,7 @@ public sealed class Core_UnrealProspero : Core
 {
     public Core_UnrealProspero(ReadOnlyTargetRules target) : base(target)
     {
-        PublicSystemLibraries.AddRange(new[] { "libkernel_sys", "libSceUserService", "libSceSysmodule" });
+        PublicSystemLibraries.AddRange(new[] { "libkernel_sys", "libSceUserService", "libSceSysmodule", "libSceAppContent" });
         if (target.Platform == UnrealTargetPlatform.AnyPS5) PublicSystemLibraries.Add("libSceSystemService");
         AddEngineThirdPartyPrivateStaticDependencies(target, "zlib");
     }
