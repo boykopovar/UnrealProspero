@@ -10,7 +10,8 @@ namespace UnrealProspero::Process
     public:
         static void SetStatus(std::uint8_t status) noexcept;
         static bool GetStatus(std::uint8_t* status) noexcept;
-        [[noreturn]] static void Force() noexcept;
+        static int Complete(int status);
+        [[noreturn]] static void Force();
     };
 }
 

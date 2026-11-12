@@ -72,6 +72,7 @@ internal static class ToolchainChecks
         link.InputFiles.AddRange(entry.ObjectFiles);
         link.Libraries.Add(library.Location);
         link.SystemLibraries.Add("libkernel_sys");
+        if (target == Target.Ps5) link.SystemLibraries.Add("libSceSystemService");
         link.OutputFilePaths.Add(executable);
         toolchain.LinkFiles(link, false, graph);
         CppCompileEnvironment videoCompile = new(platformCompile);
