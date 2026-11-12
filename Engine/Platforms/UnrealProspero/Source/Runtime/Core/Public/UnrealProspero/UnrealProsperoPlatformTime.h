@@ -3,6 +3,7 @@
 
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "UnrealProspero/Kernel/Clock.h"
+#include "UnrealProspero/Time/GameThreadCpuTicker.h"
 #include <cmath>
 #include <stdexcept>
 
@@ -72,21 +73,15 @@ struct FUnrealProsperoPlatformTime : FGenericPlatformTime
     static CORE_API bool UpdateCPUTime(float deltaTime);
     static CORE_API bool UpdateThreadCPUTime(float deltaTime = 0);
 
-    static void AutoUpdateGameThreadCPUTime(double)
+    static void AutoUpdateGameThreadCPUTime(double updateInterval)
     {
-        rejectCpuSampling();
+        UnrealProspero::Time::GameThreadCpuTicker::Enable(updateInterval);
     }
 
     static CORE_API FCPUTime GetCPUTime();
     static CORE_API FCPUTime GetThreadCPUTime();
     static CORE_API double GetLastIntervalCPUTimeInSeconds();
     static CORE_API double GetLastIntervalThreadCPUTimeInSeconds();
-
-private:
-    [[noreturn]] static void rejectCpuSampling()
-    {
-        throw std::runtime_error("UnrealProspero CPU utilization sampling is not implemented");
-    }
 };
 
 using FPlatformTime = FUnrealProsperoPlatformTime;
