@@ -18,8 +18,8 @@ int main()
     const auto check = [&](std::uint64_t added)
     {
         const auto current = MemoryBudget::Query();
-        if (current.Direct.Capacity != initial.Direct.Capacity || current.Direct.Allocated != initial.Direct.Allocated + added) throw std::runtime_error("Incorrect direct memory accounting");
-        if (current.Flexible.Capacity != initial.Flexible.Capacity || current.Flexible.Allocated > current.Flexible.Capacity) throw std::runtime_error("Incorrect flexible memory accounting");
+        if (current.Direct.Capacity != initial.Direct.Capacity || current.Direct.Available + added != initial.Direct.Available) throw std::runtime_error("Incorrect direct memory accounting");
+        if (current.Flexible.Capacity != initial.Flexible.Capacity || current.Flexible.Available > current.Flexible.Capacity) throw std::runtime_error("Incorrect flexible memory accounting");
     };
     {
         DirectAllocation first(page);
@@ -33,13 +33,14 @@ int main()
     }
     check(0);
     const auto beforeFlexible = MemoryBudget::Query();
+    constexpr std::size_t flexibleSize = 1024 * 1024;
     void* flexible = nullptr;
-    UnrealProspero::Kernel::CheckResult(sceKernelMapFlexibleMemory(&flexible, 2 * page, 3, 0), "sceKernelMapFlexibleMemory");
+    UnrealProspero::Kernel::CheckResult(sceKernelMapFlexibleMemory(&flexible, flexibleSize, 3, 0), "sceKernelMapFlexibleMemory");
     const auto allocatedFlexible = MemoryBudget::Query();
-    UnrealProspero::Kernel::CheckResult(sceKernelReleaseFlexibleMemory(flexible, 2 * page), "sceKernelReleaseFlexibleMemory");
+    UnrealProspero::Kernel::CheckResult(sceKernelMunmap(reinterpret_cast<std::uint64_t>(flexible), flexibleSize), "sceKernelMunmap");
     const auto releasedFlexible = MemoryBudget::Query();
-    if (allocatedFlexible.Flexible.Allocated != beforeFlexible.Flexible.Allocated + 2 * page || releasedFlexible.Flexible.Allocated != beforeFlexible.Flexible.Allocated) throw std::runtime_error("Incorrect flexible memory allocation accounting");
-    if (allocatedFlexible.Direct.Allocated != beforeFlexible.Direct.Allocated || releasedFlexible.Direct.Allocated != beforeFlexible.Direct.Allocated) throw std::runtime_error("Flexible memory changed the direct memory budget");
+    if (allocatedFlexible.Flexible.Available + flexibleSize != beforeFlexible.Flexible.Available || releasedFlexible.Flexible.Available != beforeFlexible.Flexible.Available) throw std::runtime_error("Incorrect flexible memory allocation accounting");
+    if (allocatedFlexible.Direct.Available != beforeFlexible.Direct.Available || releasedFlexible.Direct.Available != beforeFlexible.Direct.Available) throw std::runtime_error("Flexible memory changed the direct memory budget");
     if (std::puts("Memory budget allocation, fragmentation and release checks passed") < 0) throw std::runtime_error("Cannot write memory results");
     return 0;
 }

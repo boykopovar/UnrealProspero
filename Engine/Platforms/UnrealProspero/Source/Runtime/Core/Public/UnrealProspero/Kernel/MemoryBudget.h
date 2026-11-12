@@ -5,16 +5,16 @@
 
 namespace UnrealProspero::Kernel
 {
-    struct MemoryPoolUsage
+    struct MemoryPoolBudget
     {
         std::uint64_t Capacity;
-        std::uint64_t Allocated;
+        std::uint64_t Available;
     };
 
     struct MemoryBudget
     {
-        MemoryPoolUsage Direct;
-        MemoryPoolUsage Flexible;
+        MemoryPoolBudget Direct;
+        MemoryPoolBudget Flexible;
 
         static MemoryBudget Query();
     };

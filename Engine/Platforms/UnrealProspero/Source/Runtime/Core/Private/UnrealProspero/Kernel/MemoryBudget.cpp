@@ -22,6 +22,7 @@ namespace UnrealProspero::Kernel
         MemoryBudget budget{};
         budget.Direct.Capacity = sceKernelGetDirectMemorySize();
         if (budget.Direct.Capacity == 0 || budget.Direct.Capacity > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) || budget.Direct.Capacity % DirectAllocation::PageSize != 0) throw std::runtime_error("Invalid direct memory capacity");
+        budget.Direct.Available = budget.Direct.Capacity;
         std::int64_t cursor = 0;
         while (static_cast<std::uint64_t>(cursor) < budget.Direct.Capacity)
         {
@@ -30,7 +31,7 @@ namespace UnrealProspero::Kernel
             if (result == SCE_KERNEL_ERROR_EACCES) break;
             CheckResult(result, "sceKernelDirectMemoryQuery");
             if (range.Start < cursor || range.End <= range.Start || static_cast<std::uint64_t>(range.End) > budget.Direct.Capacity || range.Start % DirectAllocation::PageSize != 0 || range.End % DirectAllocation::PageSize != 0) throw std::runtime_error("Invalid direct memory range");
-            budget.Direct.Allocated += static_cast<std::uint64_t>(range.End - range.Start);
+            budget.Direct.Available -= static_cast<std::uint64_t>(range.End - range.Start);
             cursor = range.End;
         }
         std::size_t configured = 0;
@@ -39,7 +40,7 @@ namespace UnrealProspero::Kernel
         CheckResult(sceKernelAvailableFlexibleMemorySize(&available), "sceKernelAvailableFlexibleMemorySize");
         if (available > configured) throw std::runtime_error("Flexible memory availability exceeds capacity");
         budget.Flexible.Capacity = configured;
-        budget.Flexible.Allocated = configured - available;
+        budget.Flexible.Available = available;
         return budget;
     }
 }
