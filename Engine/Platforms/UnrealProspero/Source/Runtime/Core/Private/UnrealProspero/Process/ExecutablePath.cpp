@@ -9,6 +9,9 @@ namespace UnrealProspero::Process
 {
     std::string ExecutablePath()
     {
+#if UNREALPROSPERO_TARGET_PS5
+        return "/app0/eboot.bin";
+#else
         constexpr std::array<int, 4> query{1, 14, 12, -1};
         std::size_t size = 0;
         UnrealProspero::Kernel::CheckPosixResult(sysctl_nid_postfix(query.data(), query.size(), nullptr, &size, nullptr, 0), "executable path size");
@@ -19,5 +22,6 @@ namespace UnrealProspero::Process
         std::string value(path.data(), path.size() - 1);
         std::replace(value.begin(), value.end(), '\\', '/');
         return value;
+#endif
     }
 }
