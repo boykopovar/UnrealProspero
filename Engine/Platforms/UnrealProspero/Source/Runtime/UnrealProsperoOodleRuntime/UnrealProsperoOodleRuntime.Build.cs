@@ -8,5 +8,6 @@ public sealed class UnrealProsperoOodleRuntime : ModuleRules
         bEnableExceptions = true;
         PCHUsage = PCHUsageMode.NoPCHs;
         bUseUnity = false;
+        bRequiresImplementModule = false;
     }
 }
