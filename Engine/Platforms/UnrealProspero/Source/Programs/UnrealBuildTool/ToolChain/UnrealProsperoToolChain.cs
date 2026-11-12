@@ -33,6 +33,20 @@ internal sealed partial class UnrealProsperoToolChain : ClangToolChain
 
     protected override string GetPreprocessorDefinitionArgument(string definition) => quoteResponseArgument("-D" + definition);
 
+    protected override void GetCompileArguments_Optimizations(CppCompileEnvironment environment, List<string> arguments)
+    {
+        if (environment.bCodeCoverage || environment.bPGOProfile || environment.bPGOOptimize) throw new BuildException("UnrealProspero does not provide a profiling runtime");
+        base.GetCompileArguments_Optimizations(environment, arguments);
+        arguments.Add(!environment.bOptimizeCode ? "-O0" : environment.OptimizationLevel switch
+        {
+            OptimizationMode.Speed => "-O3",
+            OptimizationMode.Size => "-Oz",
+            OptimizationMode.SizeAndSpeed => "-Os",
+            _ => throw new BuildException("Unsupported optimization mode: {0}", environment.OptimizationLevel)
+        });
+        if (environment.bRetainFramePointers) arguments.Add("-fno-omit-frame-pointer");
+    }
+
     protected override void GetCompileArguments_Global(CppCompileEnvironment environment, List<string> arguments)
     {
         if (environment.Architecture != UnrealArch.X64) throw new BuildException("UnrealProspero requires x86-64");
