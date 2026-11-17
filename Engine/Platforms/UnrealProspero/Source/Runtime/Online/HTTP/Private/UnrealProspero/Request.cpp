@@ -94,6 +94,10 @@ namespace UnrealProspero::Http
     {
         if (GetStatus() == EHttpRequestStatus::Processing) return false;
         ResponseCommon.Reset();
+        bytesSent = 0;
+        bytesReceived = 0;
+        reportedBytesSent = 0;
+        reportedBytesReceived = 0;
         if (!PreProcess()) return false;
         SetStatus(EHttpRequestStatus::Processing);
         FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
@@ -154,6 +158,7 @@ namespace UnrealProspero::Http
             }
 
             native->Send(std::as_bytes(std::span(body.GetData(), static_cast<std::size_t>(size))));
+            bytesSent = size;
             ResetActivityTimeoutTimer(TEXTVIEW("Response headers"));
             auto response = MakeShared<Response>(*this);
             response->SetNativeHeaders(native->GetStatusCode(), native->GetHeaders());
@@ -169,6 +174,7 @@ namespace UnrealProspero::Http
                     if (!PassReceivedDataToStream(buffer.data(), count)) return {};
                 }
                 else response->AppendBody(reinterpret_cast<const uint8*>(buffer.data()), static_cast<int32>(count));
+                bytesReceived += count;
             }
         }
         catch (const std::exception& error)
@@ -178,8 +184,10 @@ namespace UnrealProspero::Http
         return {};
     }
 
-    void Request::TickThreadedRequest(float)
+    void Request::TickThreadedRequest(float deltaSeconds)
     {
+        ElapsedTime += deltaSeconds;
+        if (DelegateThreadPolicy == EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread) reportProgress();
     }
 
     bool Request::IsThreadedRequestComplete()
@@ -190,6 +198,7 @@ namespace UnrealProspero::Http
     void Request::FinishRequest()
     {
         if (task.IsValid()) ResponseCommon = task.Get();
+        reportProgress();
         StopActivityTimeoutTimer();
         PostProcess();
         const bool succeeded = ResponseCommon.IsValid() && !bCanceled && !bTimedOut && !bActivityTimedOut;
@@ -203,6 +212,20 @@ namespace UnrealProspero::Http
 
     void Request::Tick(float)
     {
+        if (DelegateThreadPolicy == EHttpRequestDelegateThreadPolicy::CompleteOnGameThread) reportProgress();
+    }
+
+    void Request::reportProgress()
+    {
+        if (GetStatus() != EHttpRequestStatus::Processing) return;
+
+        const auto sent = bytesSent.load();
+        const auto received = bytesReceived.load();
+        if (sent == reportedBytesSent && received == reportedBytesReceived) return;
+
+        reportedBytesSent = sent;
+        reportedBytesReceived = received;
+        RequestProgressDelegate64.ExecuteIfBound(SharedThis(this), sent, received);
     }
 
     void Request::AbortRequest()

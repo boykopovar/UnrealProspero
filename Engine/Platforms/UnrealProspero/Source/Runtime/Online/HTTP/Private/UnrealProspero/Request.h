@@ -3,6 +3,7 @@
 
 #include "GenericPlatform/HttpRequestCommon.h"
 #include "Async/Future.h"
+#include <atomic>
 #include <memory>
 #include <mutex>
 
@@ -43,11 +44,16 @@ namespace UnrealProspero::Http
         void MockResponseData() override;
 
         TSharedPtr<Response> Execute();
+        void reportProgress();
 
         std::shared_ptr<const Context> context;
         std::mutex handleMutex;
         std::shared_ptr<RequestHandle> handle;
         TFuture<TSharedPtr<Response>> task;
+        std::atomic<uint64> bytesSent{0};
+        std::atomic<uint64> bytesReceived{0};
+        uint64 reportedBytesSent = 0;
+        uint64 reportedBytesReceived = 0;
         FString verb = TEXT("GET");
     };
 }
