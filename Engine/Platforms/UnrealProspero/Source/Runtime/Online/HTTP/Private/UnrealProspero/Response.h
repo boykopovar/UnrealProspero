@@ -2,6 +2,7 @@
 #define UNREALPROSPERO_HTTP_RESPONSE_H
 
 #include "GenericPlatform/HttpResponseCommon.h"
+#include <optional>
 #include <string_view>
 
 namespace UnrealProspero::Http
@@ -18,7 +19,7 @@ namespace UnrealProspero::Http
 
     private:
         TArray<FString> headerLines;
-        uint64 contentLength = 0;
+        std::optional<uint64> contentLength;
     };
 }
 

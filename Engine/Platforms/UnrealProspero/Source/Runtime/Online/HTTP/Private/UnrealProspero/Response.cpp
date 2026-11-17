@@ -2,7 +2,6 @@
 #include "Containers/StringConv.h"
 #include <charconv>
 #include <limits>
-#include <optional>
 #include <stdexcept>
 
 namespace UnrealProspero::Http
@@ -49,7 +48,7 @@ namespace UnrealProspero::Http
             if (!stored.IsEmpty()) stored += TEXT(", ");
             stored += value;
         }
-        contentLength = parsedLength.value_or(0);
+        contentLength = parsedLength;
         bIsReady = true;
     }
 
@@ -72,6 +71,6 @@ namespace UnrealProspero::Http
 
     uint64 Response::GetContentLength() const
     {
-        return contentLength;
+        return contentLength.value_or(static_cast<uint64>(Payload.Num()));
     }
 }
