@@ -29,6 +29,12 @@ namespace UnrealProspero::Http
         if (requestResult != 0 || templateResult != 0) std::terminate();
     }
 
+    void RequestHandle::SetHeader(const char* name, const char* value) const
+    {
+        constexpr std::uint32_t replace = 0;
+        Kernel::CheckResult(sceHttp2AddRequestHeader(request, name, value, replace), "sceHttp2AddRequestHeader");
+    }
+
     void RequestHandle::Send(std::span<const std::byte> body) const
     {
         Kernel::CheckResult(sceHttp2SendRequest(request, body.data(), body.size()), "sceHttp2SendRequest");

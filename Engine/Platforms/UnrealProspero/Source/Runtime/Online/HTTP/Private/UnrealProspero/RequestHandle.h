@@ -18,6 +18,7 @@ namespace UnrealProspero::Http
         ~RequestHandle() noexcept;
         RequestHandle(const RequestHandle&) = delete;
         RequestHandle& operator=(const RequestHandle&) = delete;
+        void SetHeader(const char* name, const char* value) const;
         void Send(std::span<const std::byte> body) const;
         void Abort() const;
         int GetStatusCode() const;
