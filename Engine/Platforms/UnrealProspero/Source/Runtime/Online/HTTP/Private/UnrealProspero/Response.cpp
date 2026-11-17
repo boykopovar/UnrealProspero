@@ -55,7 +55,9 @@ namespace UnrealProspero::Http
 
     void Response::AppendBody(const uint8* data, int32 size)
     {
-        AppendToPayload(data, size);
+        if (size < 0 || (size > 0 && !data)) throw std::invalid_argument("Invalid HTTP response body chunk");
+        if (size > std::numeric_limits<int32>::max() - Payload.Num()) throw std::length_error("HTTP response body exceeds the in-memory limit");
+        if (size > 0) AppendToPayload(data, size);
     }
 
     TArray<FString> Response::GetAllHeaders() const
