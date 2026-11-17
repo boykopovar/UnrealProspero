@@ -35,6 +35,12 @@ namespace UnrealProspero::Http
         Kernel::CheckResult(sceHttp2AddRequestHeader(request, name, value, replace), "sceHttp2AddRequestHeader");
     }
 
+    void RequestHandle::SetTimeout(std::uint32_t microseconds) const
+    {
+        if (!microseconds) throw std::invalid_argument("HTTP timeout must be positive");
+        Kernel::CheckResult(sceHttp2SetTimeOut(request, microseconds), "sceHttp2SetTimeOut");
+    }
+
     void RequestHandle::Send(std::span<const std::byte> body) const
     {
         Kernel::CheckResult(sceHttp2SendRequest(request, body.data(), body.size()), "sceHttp2SendRequest");
