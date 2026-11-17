@@ -34,6 +34,7 @@ namespace UnrealProspero::Http
         void TickThreadedRequest(float deltaSeconds) override;
         bool IsThreadedRequestComplete() override;
         void FinishRequest() override;
+        void Shutdown() override;
         void Tick(float deltaSeconds) override;
 
     private:

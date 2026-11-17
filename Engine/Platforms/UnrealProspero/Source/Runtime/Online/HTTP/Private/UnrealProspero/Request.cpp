@@ -228,6 +228,13 @@ namespace UnrealProspero::Http
         RequestProgressDelegate64.ExecuteIfBound(SharedThis(this), sent, received);
     }
 
+    void Request::Shutdown()
+    {
+        bCanceled = true;
+        FHttpRequestCommon::Shutdown();
+        AbortRequest();
+    }
+
     void Request::AbortRequest()
     {
         const std::lock_guard lock(handleMutex);
