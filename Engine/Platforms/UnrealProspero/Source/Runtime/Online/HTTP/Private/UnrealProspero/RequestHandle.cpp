@@ -1,6 +1,6 @@
 #include "RequestHandle.h"
 #include "Context.h"
-#include "UnrealProspero/Kernel/Error.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceHttp2/include/Http2.hpp"
 #include <exception>
 #include <stdexcept>
@@ -29,8 +29,39 @@ namespace UnrealProspero::Http
         if (requestResult != 0 || templateResult != 0) std::terminate();
     }
 
-    int RequestHandle::GetId() const
+    void RequestHandle::Send(std::span<const std::byte> body) const
     {
-        return request;
+        Kernel::CheckResult(sceHttp2SendRequest(request, body.data(), body.size()), "sceHttp2SendRequest");
+    }
+
+    void RequestHandle::Abort() const
+    {
+        Kernel::CheckResult(sceHttp2AbortRequest(request), "sceHttp2AbortRequest");
+    }
+
+    int RequestHandle::GetStatusCode() const
+    {
+        int status = 0;
+        Kernel::CheckResult(sceHttp2GetStatusCode(request, &status), "sceHttp2GetStatusCode");
+        return status;
+    }
+
+    std::string RequestHandle::GetHeaders() const
+    {
+        char* data = nullptr;
+        std::size_t size = 0;
+        Kernel::CheckResult(sceHttp2GetAllResponseHeaders(request, &data, &size), "sceHttp2GetAllResponseHeaders");
+        if (size == 0) return {};
+        if (!data) throw std::runtime_error("HTTP response headers have no data");
+        if (data[size - 1] == '\0') --size;
+        return std::string(data, size);
+    }
+
+    std::size_t RequestHandle::Read(std::span<std::byte> buffer) const
+    {
+        if (buffer.empty()) throw std::invalid_argument("HTTP read buffer is empty");
+        const int result = sceHttp2ReadData(request, buffer.data(), buffer.size());
+        if (result < 0) throw Kernel::Error(result, "sceHttp2ReadData");
+        return static_cast<std::size_t>(result);
     }
 }

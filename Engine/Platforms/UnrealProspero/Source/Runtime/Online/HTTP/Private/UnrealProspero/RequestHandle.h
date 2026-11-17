@@ -1,8 +1,11 @@
 #ifndef UNREALPROSPERO_HTTP_REQUEST_HANDLE_H
 #define UNREALPROSPERO_HTTP_REQUEST_HANDLE_H
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <string>
 
 namespace UnrealProspero::Http
 {
@@ -15,7 +18,11 @@ namespace UnrealProspero::Http
         ~RequestHandle() noexcept;
         RequestHandle(const RequestHandle&) = delete;
         RequestHandle& operator=(const RequestHandle&) = delete;
-        int GetId() const;
+        void Send(std::span<const std::byte> body) const;
+        void Abort() const;
+        int GetStatusCode() const;
+        std::string GetHeaders() const;
+        std::size_t Read(std::span<std::byte> buffer) const;
 
     private:
         explicit RequestHandle(std::shared_ptr<const Context> context);
