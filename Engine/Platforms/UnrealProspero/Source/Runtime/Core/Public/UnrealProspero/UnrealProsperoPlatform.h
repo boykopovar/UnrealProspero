@@ -31,6 +31,14 @@ struct FUnrealProsperoPlatformTypes : FGenericPlatformTypes
 
 using FPlatformTypes = FUnrealProsperoPlatformTypes;
 
+struct tagRECT
+{
+    FPlatformTypes::int32 left;
+    FPlatformTypes::int32 top;
+    FPlatformTypes::int32 right;
+    FPlatformTypes::int32 bottom;
+};
+
 static_assert(sizeof(void*) == 8);
 static_assert(sizeof(wchar_t) == 2);
 static_assert(std::endian::native == std::endian::little);
