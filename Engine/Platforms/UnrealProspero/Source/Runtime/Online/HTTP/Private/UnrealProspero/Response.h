@@ -18,6 +18,7 @@ namespace UnrealProspero::Http
 
     private:
         TArray<FString> headerLines;
+        uint64 contentLength = 0;
     };
 }
 

@@ -2,6 +2,7 @@
 #include "Containers/StringConv.h"
 #include <charconv>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 
 namespace UnrealProspero::Http
@@ -13,6 +14,7 @@ namespace UnrealProspero::Http
         if (rawHeaders.size() > static_cast<std::size_t>(std::numeric_limits<int32>::max())) throw std::length_error("HTTP response headers are too large");
 
         SetResponseCode(status);
+        std::optional<uint64> parsedLength;
         FUTF8ToTCHAR converted(rawHeaders.data(), static_cast<int32>(rawHeaders.size()));
         FString text(converted.Length(), converted.Get());
         TArray<FString> lines;
@@ -24,11 +26,30 @@ namespace UnrealProspero::Http
             FString value;
             if (!line.Split(TEXT(":"), &name, &value) || name.IsEmpty()) throw std::runtime_error("Invalid HTTP response header");
             value.TrimStartAndEndInline();
+            if (name.Equals(TEXT("Content-Length"), ESearchCase::IgnoreCase))
+            {
+                TArray<FString> lengths;
+                value.ParseIntoArray(lengths, TEXT(","), false);
+                if (lengths.IsEmpty()) throw std::runtime_error("Empty HTTP content length");
+                for (FString& length : lengths)
+                {
+                    length.TrimStartAndEndInline();
+                    FTCHARToUTF8 utf8(*length);
+                    const char* end = utf8.Get() + utf8.Length();
+                    uint64 size = 0;
+                    const auto result = std::from_chars(utf8.Get(), end, size);
+                    if (result.ec != std::errc{} || result.ptr != end) throw std::runtime_error("Invalid HTTP content length");
+                    if (parsedLength && *parsedLength != size) throw std::runtime_error("Conflicting HTTP content lengths");
+                    parsedLength = size;
+                }
+            }
+
             headerLines.Add(name + TEXT(": ") + value);
             FString& stored = Headers.FindOrAdd(name);
             if (!stored.IsEmpty()) stored += TEXT(", ");
             stored += value;
         }
+        contentLength = parsedLength.value_or(0);
         bIsReady = true;
     }
 
@@ -49,13 +70,6 @@ namespace UnrealProspero::Http
 
     uint64 Response::GetContentLength() const
     {
-        const FString length = GetHeader(TEXT("Content-Length"));
-        uint64 value = 0;
-        if (length.IsEmpty()) return 0;
-        FTCHARToUTF8 converted(*length);
-        const char* end = converted.Get() + converted.Length();
-        const auto result = std::from_chars(converted.Get(), end, value);
-        if (result.ec != std::errc{} || result.ptr != end) throw std::runtime_error("Invalid HTTP content length");
-        return value;
+        return contentLength;
     }
 }
