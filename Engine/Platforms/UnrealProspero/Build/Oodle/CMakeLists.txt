@@ -16,6 +16,10 @@ if(OODLE_COMPONENT STREQUAL "network")
 else()
     set(library oo2core)
 endif()
+option(OODLE_DEBUG "Prepare the debug Oodle archive" OFF)
+if(OODLE_DEBUG)
+    string(APPEND library "_debug")
+endif()
 set(output "${CMAKE_CURRENT_BINARY_DIR}/lib${library}.a")
 add_custom_command(OUTPUT "${output}"
     COMMAND "${CMAKE_COMMAND}" "-DOODLE_ARCHIVE=${OODLE_ARCHIVE}" "-DOODLE_COMPONENT=${OODLE_COMPONENT}" "-DLIBC_IMPORT_LIBRARY=${LIBC_IMPORT_LIBRARY}" "-DLLVM_NM=${LLVM_NM}" "-DLLVM_OBJCOPY=${LLVM_OBJCOPY}" "-DOUTPUT=${output}" -P "${CMAKE_CURRENT_SOURCE_DIR}/PrepareArchive.cmake"
