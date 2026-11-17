@@ -36,6 +36,11 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
         return platformName.data();
     }
 
+    static constexpr const TCHAR* GetRuntimeSettingsClassName()
+    {
+        return TEXT("UnrealProsperoRuntimeSettings");
+    }
+
     static constexpr bool HasEditorOnlyData()
     {
         return false;
