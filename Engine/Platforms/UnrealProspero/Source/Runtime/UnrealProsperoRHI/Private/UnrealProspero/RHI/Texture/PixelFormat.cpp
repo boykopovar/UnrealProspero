@@ -15,7 +15,7 @@ namespace UnrealProspero::RHI
             std::optional<TextureFormat> Srgb;
         };
 
-        constexpr std::array mappings{
+        constexpr std::array pixelFormatMappings{
             FormatMapping{PF_R8G8B8A8, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb},
             FormatMapping{PF_B8G8R8A8, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb},
             FormatMapping{PF_DXT1, TextureFormat::Bc1Unorm, TextureFormat::Bc1Srgb},
@@ -42,7 +42,7 @@ namespace UnrealProspero::RHI
 
     TextureFormat ResolveTextureFormat(EPixelFormat format, bool srgb)
     {
-        for (const auto& mapping : mappings)
+        for (const auto& mapping : pixelFormatMappings)
         {
             if (mapping.Pixel != format) continue;
             if (!srgb) return mapping.Linear;
@@ -61,7 +61,7 @@ namespace UnrealProspero::RHI
             format.Capabilities = Caps::None;
         }
         constexpr auto colorCaps = Caps::Texture2D | Caps::Texture3D | Caps::TextureCube | Caps::TextureMipmaps | Caps::RenderTarget | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable | Caps::TextureStore | Caps::UAV | Caps::TypedUAVLoad | Caps::TypedUAVStore;
-        for (const auto& mapping : mappings)
+        for (const auto& mapping : pixelFormatMappings)
         {
             auto& format = GPixelFormats[mapping.Pixel];
             format.Supported = true;

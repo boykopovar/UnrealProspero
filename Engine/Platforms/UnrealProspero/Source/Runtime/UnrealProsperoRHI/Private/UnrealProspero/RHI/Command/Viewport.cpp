@@ -10,7 +10,7 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        void checkIndex(std::uint32_t index)
+        void checkViewportIndex(std::uint32_t index)
         {
             if (index >= 16) throw std::out_of_range("Viewport index exceeds the hardware limit");
         }
@@ -25,7 +25,7 @@ namespace UnrealProspero::RHI
 
     void WriteViewport(CommandBuffer& commands, std::uint32_t index, const Viewport& viewport)
     {
-        checkIndex(index);
+        checkViewportIndex(index);
         const std::array values{viewport.MinX, viewport.MinY, viewport.MinDepth, viewport.MaxX, viewport.MaxY, viewport.MaxDepth};
         if (!std::all_of(values.begin(), values.end(), [](float value) { return std::isfinite(value); })) throw std::invalid_argument("Viewport coordinates must be finite");
         if (viewport.MaxX < viewport.MinX || viewport.MaxY < viewport.MinY || viewport.MinDepth < 0 || viewport.MinDepth > 1 || viewport.MaxDepth < 0 || viewport.MaxDepth > 1) throw std::out_of_range("Invalid viewport extent or depth range");
@@ -40,7 +40,7 @@ namespace UnrealProspero::RHI
 
     void WriteViewportScissor(CommandBuffer& commands, std::uint32_t index, const ScissorRect& rectangle)
     {
-        checkIndex(index);
+        checkViewportIndex(index);
         writeRectangle(commands, 0x94u + index * 2, rectangle);
     }
 
