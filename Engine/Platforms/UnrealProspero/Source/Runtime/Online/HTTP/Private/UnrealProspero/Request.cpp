@@ -17,6 +17,7 @@ namespace UnrealProspero::Http
     Request::Request(std::shared_ptr<const Context> context) : context(std::move(context))
     {
         if (!this->context) throw std::invalid_argument("HTTP context is required");
+        bUsePlatformActivityTimeout = false;
     }
 
     FString Request::GetVerb() const
@@ -107,6 +108,7 @@ namespace UnrealProspero::Http
     bool Request::StartThreadedRequest()
     {
         if (bCanceled || !FHttpRequestCommon::StartThreadedRequest()) return false;
+        StartActivityTimeoutTimer();
         task = Async(EAsyncExecution::ThreadPool, [self = SharedThis(this)] { return self->Execute(); });
         return true;
     }
@@ -122,7 +124,7 @@ namespace UnrealProspero::Http
             std::size_t offset = 0;
             while (offset < size)
             {
-                if (bCanceled || bTimedOut) return {};
+                if (bCanceled || bTimedOut || bActivityTimedOut) return {};
                 const auto count = RequestPayload->FillOutputBuffer(body.GetData() + offset, size - offset, offset);
                 if (!count || count > size - offset) throw std::runtime_error("Invalid HTTP request body length");
                 offset += count;
@@ -147,19 +149,21 @@ namespace UnrealProspero::Http
             }
             {
                 const std::lock_guard lock(handleMutex);
-                if (bCanceled || bTimedOut) return {};
+                if (bCanceled || bTimedOut || bActivityTimedOut) return {};
                 handle = native;
             }
 
             native->Send(std::as_bytes(std::span(body.GetData(), static_cast<std::size_t>(size))));
+            ResetActivityTimeoutTimer(TEXTVIEW("Response headers"));
             auto response = MakeShared<Response>(*this);
             response->SetNativeHeaders(native->GetStatusCode(), native->GetHeaders());
             std::array<std::byte, 16384> buffer;
-            while (!bCanceled && !bTimedOut)
+            while (!bCanceled && !bTimedOut && !bActivityTimedOut)
             {
                 const auto count = native->Read(buffer);
                 if (!count) return response;
                 if (count > buffer.size()) throw std::runtime_error("Invalid native HTTP read count");
+                ResetActivityTimeoutTimer(TEXTVIEW("Response data"));
                 if (bInitializedWithValidStream)
                 {
                     if (!PassReceivedDataToStream(buffer.data(), count)) return {};
@@ -186,8 +190,9 @@ namespace UnrealProspero::Http
     void Request::FinishRequest()
     {
         if (task.IsValid()) ResponseCommon = task.Get();
+        StopActivityTimeoutTimer();
         PostProcess();
-        const bool succeeded = ResponseCommon.IsValid() && !bCanceled && !bTimedOut;
+        const bool succeeded = ResponseCommon.IsValid() && !bCanceled && !bTimedOut && !bActivityTimedOut;
         if (succeeded)
         {
             StatusCodeReceivedDelegate.ExecuteIfBound(SharedThis(this), ResponseCommon->GetResponseCode());
