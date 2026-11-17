@@ -4,6 +4,10 @@
 #include "LaunchEngineLoop.h"
 #include "Misc/CommandLine.h"
 #include <vector>
+#if UNREALPROSPERO_TARGET_PS5
+#include "Misc/FileHelper.h"
+#include <stdexcept>
+#endif
 
 extern int32 GuardedMain(const TCHAR* commandLine);
 
@@ -20,7 +24,20 @@ namespace
         std::vector<TCHAR*> pointers;
         pointers.reserve(arguments.size());
         for (auto& argument : arguments) pointers.push_back(argument.data());
-        const FString commandLine = FCommandLine::BuildFromArgV(static_cast<const TCHAR*>(nullptr), static_cast<int32>(pointers.size()), pointers.data(), nullptr);
+        const FString processCommandLine = FCommandLine::BuildFromArgV(static_cast<const TCHAR*>(nullptr), static_cast<int32>(pointers.size()), pointers.data(), nullptr);
+#if UNREALPROSPERO_TARGET_PS5
+        FString commandLine;
+        if (!FFileHelper::LoadFileToString(commandLine, TEXT("/app0/UECommandLine.txt"))) throw std::runtime_error("Cannot read /app0/UECommandLine.txt");
+        commandLine.TrimStartAndEndInline();
+        if (commandLine.IsEmpty()) throw std::runtime_error("Empty /app0/UECommandLine.txt");
+        if (!processCommandLine.IsEmpty())
+        {
+            commandLine += TEXT(" ");
+            commandLine += processCommandLine;
+        }
+#else
+        const FString& commandLine = processCommandLine;
+#endif
         int32 result = 0;
         {
             ApplicationExit exit;
