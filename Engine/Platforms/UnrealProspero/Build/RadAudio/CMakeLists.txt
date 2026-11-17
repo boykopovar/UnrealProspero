@@ -10,6 +10,7 @@ endif()
 set(codec "${RAD_AUDIO_SDK_DIRECTORY}/Src/RadAudio")
 set(avx2 "${codec}/radaudio_decoder_avx2.c" "${codec}/radaudio_mdct_avx2.cpp")
 add_library(radaudio_decoder STATIC
+    src/Interleave.cpp
     "${codec}/cpux86.cpp"
     "${codec}/radaudio_decoder.c"
     "${codec}/radaudio_decoder_sse2.c"
