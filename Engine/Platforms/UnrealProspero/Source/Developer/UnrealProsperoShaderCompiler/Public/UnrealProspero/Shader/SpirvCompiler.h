@@ -5,7 +5,7 @@
 #include "UnrealProspero/Shader/VertexInputs.h"
 #include "RHIResources.h"
 
-struct FShaderPreprocessOutput;
+class FShaderPreprocessOutput;
 
 namespace UnrealProspero::Shader
 {
