@@ -2,6 +2,7 @@
 #include "AudioMixerDevice.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/CoreDelegates.h"
 #include "UnrealProspero/OutputPort.h"
 #include <atomic>
 #include <exception>
@@ -24,7 +25,7 @@ namespace
 
         ~FProsperoMixer() override
         {
-            CloseAudioStream();
+            TeardownHardware();
         }
 
         FString GetPlatformApi() const override { return TEXT("SceAudioOut"); }
@@ -34,6 +35,9 @@ namespace
 
         bool InitializeHardware() override
         {
+            if (IsInitialized()) return true;
+            enteringBackground = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FProsperoMixer::SuspendContext);
+            enteringForeground = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FProsperoMixer::ResumeContext);
             bIsDeviceInitialized = true;
             return true;
         }
@@ -41,6 +45,10 @@ namespace
         bool TeardownHardware() override
         {
             if (!CloseAudioStream()) return false;
+            FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(enteringBackground);
+            FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(enteringForeground);
+            enteringBackground.Reset();
+            enteringForeground.Reset();
             bIsDeviceInitialized = false;
             return true;
         }
@@ -163,6 +171,8 @@ namespace
             FProsperoMixer& owner;
         };
 
+        FDelegateHandle enteringBackground;
+        FDelegateHandle enteringForeground;
         std::unique_ptr<OutputPort> port;
         std::atomic<bool> running{false};
         std::atomic<bool> primed{false};
