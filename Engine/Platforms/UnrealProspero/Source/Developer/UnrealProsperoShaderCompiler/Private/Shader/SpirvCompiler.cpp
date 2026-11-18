@@ -53,6 +53,7 @@ namespace UnrealProspero::Shader
             }
             if (!BuildResourceTableMapping(input.Environment.ResourceTableMap, input.Environment.UniformBufferMap, usedUniformBuffers, output.ParameterMap, resourceTable)) throw std::runtime_error("Unreal shader resource table construction failed");
             UE::ShaderCompilerCommon::BuildShaderResourceTable(resourceTable, result.ResourceTable);
+            CullGlobalUniformBuffers(input.Environment.UniformBufferMap, output.ParameterMap);
             return result;
         }
         catch (...)
