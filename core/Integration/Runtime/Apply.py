@@ -220,10 +220,23 @@ const FShaderPipelineType* GetUnrealProsperoVolumeGeometryPipeline()
 """)
     fog = "Renderer/Private/VolumetricFog.cpp"
     fog_vertex = 'IMPLEMENT_GLOBAL_SHADER(FWriteToBoundingSphereVS, "/Engine/Private/VolumetricFog.usf", "WriteToBoundingSphereVS", SF_Vertex);'
-    edit(fog, fog_vertex, fog_vertex + "\nIMPLEMENT_SHADERPIPELINE_TYPE_VSGS(UnrealProsperoGlobalGeometryFog, FWriteToBoundingSphereVS, FWriteToSliceGS, true)")
+    def deferred_pipeline(name, vertex, geometry):
+        return f"""
+
+static const FShaderPipelineType* Get{name}()
+{{
+    IMPLEMENT_SHADERPIPELINE_TYPE_VSGS({name}, {vertex}, {geometry}, true)
+    return &{name};
+}}
+
+static FDelayedAutoRegisterHelper Register{name}(EDelayedRegisterRunPhase::PreRHIInit, [] {{ Get{name}(); }});
+"""
+
+    edit(fog, '#include "VolumeRendering.h"', '#include "VolumeRendering.h"\n#include "Misc/DelayedAutoRegister.h"')
+    edit(fog, fog_vertex, fog_vertex + deferred_pipeline("UnrealProsperoGlobalGeometryFog", "FWriteToBoundingSphereVS", "FWriteToSliceGS"))
     for shader_map_name, indent in (("View.ShaderMap", "\t\t\t\t"), ("GlobalShaderMap", "\t\t")):
         edit(fog, f"auto VertexShader = {shader_map_name}->GetShader< FWriteToBoundingSphereVS >();\n{indent}TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader({shader_map_name});",
-             f"auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<FWriteToBoundingSphereVS, FWriteToSliceGS>({shader_map_name}, &UnrealProsperoGlobalGeometryFog);")
+             f"auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<FWriteToBoundingSphereVS, FWriteToSliceGS>({shader_map_name}, GetUnrealProsperoGlobalGeometryFog());")
     lighting = "Renderer/Private/TranslucentLighting.cpp"
     for shader_map_name, indent in (("View.ShaderMap", "\t\t\t\t\t"), ("View.ShaderMap", "\t\t\t\t"), ("View.ShaderMap", "\t\t\t\t\t\t"), ("GlobalShaderMap", "\t")):
         edit(lighting, f"\n{indent}TShaderMapRef<FWriteToSliceVS> VertexShader({shader_map_name});\n{indent}TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader({shader_map_name});",
@@ -232,11 +245,11 @@ const FShaderPipelineType* GetUnrealProsperoVolumeGeometryPipeline()
          "TShaderRef<FWriteToSliceVS> VertexShader,\n\tTShaderRef<FWriteToSliceGS> GeometryShader,", 2)
     shadows = "Renderer/Private/ShadowDepthRendering.cpp"
     cube_shader = 'IMPLEMENT_GLOBAL_SHADER(FCopyShadowMapsCubeGS, "/Engine/Private/CopyShadowMaps.usf", "CopyCubeDepthGS", SF_Geometry);'
-    edit(shadows, cube_shader, cube_shader + "\nIMPLEMENT_SHADERPIPELINE_TYPE_VSGS(UnrealProsperoGlobalGeometryCube, TScreenVSForGS<false>, FCopyShadowMapsCubeGS, true)")
+    edit(shadows, cube_shader, cube_shader + deferred_pipeline("UnrealProsperoGlobalGeometryCube", "TScreenVSForGS<false>", "FCopyShadowMapsCubeGS"))
     include = '#include "ScreenRendering.h"'
-    edit(shadows, include, include + '\n#include "VolumeRendering.h"')
+    edit(shadows, include, include + '\n#include "VolumeRendering.h"\n#include "Misc/DelayedAutoRegister.h"')
     edit(shadows, "TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);\n\t\t\t\t\tTShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);",
-         "auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<TScreenVSForGS<false>, FCopyShadowMapsCubeGS>(View.ShaderMap, &UnrealProsperoGlobalGeometryCube);")
+         "auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<TScreenVSForGS<false>, FCopyShadowMapsCubeGS>(View.ShaderMap, GetUnrealProsperoGlobalGeometryCube());")
 
 
 if __name__ == "__main__":
