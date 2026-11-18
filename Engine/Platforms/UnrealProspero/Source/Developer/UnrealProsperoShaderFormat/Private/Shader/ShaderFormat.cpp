@@ -117,6 +117,14 @@ namespace UnrealProspero::Shader
     void ShaderFormat::CompilePreprocessedShader(const FShaderCompilerInput& input, const FShaderPreprocessOutput& preprocessed, FShaderCompilerOutput& output) const
     {
         output.bSucceeded = false;
-        CompileShader(input, preprocessed, output, getTarget(input.ShaderFormat), executable, workingRoot);
+        try
+        {
+            CompileShader(input, preprocessed, output, getTarget(input.ShaderFormat), executable, workingRoot);
+        }
+        catch (const std::exception& error)
+        {
+            output.bSucceeded = false;
+            output.AddErrorf(TEXT("%s"), UTF8_TO_TCHAR(error.what()));
+        }
     }
 }
