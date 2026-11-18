@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 
-def prepare(source):
+def prepare_entropy(source):
     path = source / "providers/implementations/rands/seeding/rand_unix.c"
     data = path.read_bytes()
     newline = b"\r\n" if b"\r\n" in data else b"\n"
@@ -26,6 +26,29 @@ def prepare(source):
     if end < 0 or not data[start:end].rstrip().endswith(b"}"):
         raise RuntimeError(f"Unexpected OpenSSL entropy implementation boundary in {path}")
     path.write_bytes(data[:start] + replacement + data[end + len(newline):])
+
+
+def replace_once(path, old, new):
+    data = path.read_bytes()
+    newline = b"\r\n" if b"\r\n" in data else b"\n"
+    old = old.replace(b"\n", newline)
+    new = new.replace(b"\n", newline)
+    if data.count(new) == 1:
+        return
+    if data.count(old) != 1:
+        raise RuntimeError(f"Unexpected OpenSSL thread implementation in {path}")
+    path.write_bytes(data.replace(old, new))
+
+
+def prepare(source):
+    prepare_entropy(source)
+    replace_once(source / "include/openssl/crypto.h.in", b"typedef pthread_once_t CRYPTO_ONCE;", b"typedef unsigned int CRYPTO_ONCE;")
+    replace_once(source / "include/openssl/crypto.h.in", b"#define CRYPTO_ONCE_STATIC_INIT PTHREAD_ONCE_INIT", b"#define CRYPTO_ONCE_STATIC_INIT 0u")
+    replace_once(
+        source / "crypto/threads_pthread.c",
+        b"int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))\n{\n    if (pthread_once(once, init) != 0)",
+        b"extern int UnrealProsperoOpenSslRunOnce(CRYPTO_ONCE *once, void (*init)(void));\n\nint CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))\n{\n    if (UnrealProsperoOpenSslRunOnce(once, init) != 0)",
+    )
 
 
 if __name__ == "__main__":
