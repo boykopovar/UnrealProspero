@@ -146,6 +146,15 @@ def apply(engine):
             data = data.replace(b"IPPROTO_IPV6, IP_MULTICAST_LOOP,", b"IPPROTO_IPV6, IPV6_MULTICAST_LOOP,")
         changes[path] = data.replace(b"\n", newline)
 
+    path = engine / "Shaders/Private/ShaderPrint.ush"
+    data = path.read_bytes()
+    old_shader_print = b"#if ES3_1_PROFILE || (COMPILER_HLSL && !COMPILER_DXC)"
+    new_shader_print = old_shader_print + b" || UNREALPROSPERO_SHADER_PRINT_GLOBAL_RESOURCES"
+    if data.count(new_shader_print) != 1:
+        if data.count(old_shader_print) != 1:
+            raise RuntimeError(f"Unexpected shader print resource selection in {path}")
+        changes[path] = data.replace(old_shader_print, new_shader_print)
+
     for path, data in changes.items():
         path.write_bytes(data)
 
