@@ -30,9 +30,9 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
-        "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/ConstantData.cpp"
+        "${runtime_root}/UnrealProsperoShaderCommon/Private/Shader/ConstantData.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ComputeDispatch.cpp"
-        "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/ShaderBinary.cpp"
+        "${runtime_root}/UnrealProsperoShaderCommon/Private/Shader/ShaderBinary.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/Tables.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/Storage.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/MergedTables.cpp"
@@ -182,7 +182,7 @@ endif()
 foreach(test_target IN LISTS test_targets)
     target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/HalfFloat.cpp")
     target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcHeader.cpp")
-    target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoShaderCommon/Private/UnrealProspero/Shader/UserData.cpp")
+    target_sources(${test_target} PRIVATE "${runtime_root}/UnrealProsperoShaderCommon/Private/Shader/UserData.cpp")
     target_include_directories(${test_target} PRIVATE "${runtime_root}/UnrealProsperoRHI/Public" "${runtime_root}/UnrealProsperoShaderCommon/Public" "${runtime_root}/Core/Public")
     target_compile_definitions(${test_target} PRIVATE UNREALPROSPERORHI_API= UNREALPROSPEROSHADERCOMMON_API=)
     target_compile_features(${test_target} PRIVATE cxx_std_20)
