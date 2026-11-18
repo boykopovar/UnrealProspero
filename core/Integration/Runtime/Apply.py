@@ -42,6 +42,19 @@ def apply(engine):
     elif data.count(new_seed) != 1 or guid_header not in data or old_seed in data:
         raise RuntimeError(f"Unexpected random seed code in {path}")
 
+    path = runtime / "Experimental/Chaos/Private/Chaos/PBDSuspensionConstraints.cpp"
+    data = path.read_bytes()
+    newline = b"\r\n" if b"\r\n" in data else b"\n"
+    old_solver = newline.join((
+        b"\t\tCollisionSolvers.Add(Private::FPBDCollisionSolver());",
+        b"\t\tCollisionSolvers[CollisionSolvers.Num() - 1].MakeInitialized();",
+    ))
+    new_solver = b"\t\tCollisionSolvers.Add(Private::FPBDCollisionSolver::MakeInitialized());"
+    if data.count(old_solver) == 1 and new_solver not in data:
+        changes[path] = data.replace(old_solver, new_solver)
+    elif old_solver in data or data.count(new_solver) != 1:
+        raise RuntimeError(f"Unexpected suspension solver initialization in {path}")
+
     for path, data in changes.items():
         path.write_bytes(data)
 
