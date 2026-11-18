@@ -7,9 +7,12 @@
 #if UNREALPROSPERO_TARGET_PS5
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/FileHelper.h"
+#include "UnrealProspero/Kernel/Result.h"
+#include "prx/libkernel/include/Api.hpp"
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #endif
 
 extern int32 GuardedMain(const TCHAR* commandLine);
@@ -61,5 +64,18 @@ namespace
 
 int main()
 {
+#if UNREALPROSPERO_TARGET_PS5
+    try
+    {
+        return UnrealProspero::Process::Exit::Complete(run());
+    }
+    catch (const std::exception& error)
+    {
+        const std::string message = std::string("UnrealProspero startup error: ") + error.what() + '\n';
+        UnrealProspero::Kernel::CheckResult(sceKernelDebugOutText(0, message.c_str()), "sceKernelDebugOutText");
+        throw;
+    }
+#else
     return UnrealProspero::Process::Exit::Complete(run());
+#endif
 }
