@@ -27,8 +27,8 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
     static constexpr const char* IniPlatformName()
     {
         if constexpr (TTarget == EUnrealProsperoTarget::Windows) return "AnyWin64";
-        if constexpr (TTarget == EUnrealProsperoTarget::Linux) return "AnyLinux";
-        return "AnyPS5";
+        else if constexpr (TTarget == EUnrealProsperoTarget::Linux) return "AnyLinux";
+        else return "AnyPS5";
     }
 
     static constexpr const char* PlatformName()
