@@ -1,5 +1,6 @@
 #include "UnrealProspero/Shader/AgcCompiler.h"
 #include "UnrealProspero/Shader/EntryPoint.h"
+#include "UnrealProspero/Shader/SpirvReflection.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
@@ -71,6 +72,24 @@ namespace UnrealProspero::Shader
             return result;
         }
 
+        std::uint32_t getColorExportFormat(std::span<const std::uint32_t> words)
+        {
+            constexpr std::uint32_t fullColorExport = 9;
+            constexpr std::uint32_t maxRenderTargets = 8;
+            const SpirvReflection reflection(words);
+            const auto* entry = spvReflectGetEntryPoint(reflection.Get(), "main");
+            if (!entry) throw std::invalid_argument("Fragment shader entry point does not exist");
+            std::uint32_t format = 0;
+            for (std::uint32_t index = 0; index < entry->output_variable_count; ++index)
+            {
+                const auto& output = *entry->output_variables[index];
+                if (output.decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) continue;
+                if (output.location >= maxRenderTargets) throw std::invalid_argument("Fragment shader output exceeds the AGC render target range");
+                format |= fullColorExport << (4 * output.location);
+            }
+            return format;
+        }
+
         std::vector<AgcCompilation> runCompiler(FString arguments, std::span<const ShaderInput> inputs, std::span<const ShaderOutput> outputs, std::span<const DescriptorBinding> descriptors, const FString& executable, const FString& workingRoot)
         {
             for (const auto& descriptor : descriptors)
@@ -126,6 +145,11 @@ namespace UnrealProspero::Shader
         const auto normalized = normalizeInput(words, entryPoint);
         FString arguments = FString::Printf(TEXT("spirv --input shader.spv --header header.bin --code code.bin --metadata bindings.adk --stage %s --target %s --entry main --omit-implicit-primitive-id true"), stageName(stage), targetName(target));
         if (stage == SF_Vertex) arguments += TEXT(" --dynamic-vertex-input");
+        if (stage == SF_Pixel)
+        {
+            const auto colorExportFormat = getColorExportFormat(normalized);
+            if (colorExportFormat != 0) arguments += FString::Printf(TEXT(" --color-format %u"), colorExportFormat);
+        }
         const std::array inputs{ShaderInput{TEXT("shader.spv"), normalized}};
         const std::array outputs{ShaderOutput{TEXT("header.bin"), TEXT("code.bin"), TEXT("bindings.adk")}};
         auto results = runCompiler(arguments, inputs, outputs, descriptors, executable, workingRoot);
