@@ -84,10 +84,18 @@ namespace UnrealProspero::Shader
         const auto descriptorStride = hasVertexBuffers ? (result.dynamicVertexInput ? 32u : 16u) : 0u;
         if (fields.Get("vertex_buffer_descriptor_stride") != descriptorStride) throw std::invalid_argument("Invalid vertex buffer descriptor stride");
         if (result.count > 16) throw std::invalid_argument("AGC user data exceeds register capacity");
-        if (fields.Flag("scratch_valid") || fields.Flag("streamout_valid")) throw std::invalid_argument("AGC scratch and streamout bindings are not supported");
-        for (const auto* name : {"scratch_bytes_per_wave", "scratch_size_per_thread", "scratch_buffer_table_user_data_dword", "streamout_buffer_table_user_data_dword", "streamout_enabled_stream_buffers_mask", "streamout_config_sgpr", "streamout_write_index_sgpr"})
+        const auto hasScratch = fields.Flag("scratch_valid");
+        result.scratchBytesPerWave = fields.Get("scratch_bytes_per_wave");
+        const auto scratchSizePerThread = fields.Get("scratch_size_per_thread");
+        if (hasScratch)
         {
-            if (fields.Get(name) != 0) throw std::invalid_argument("Unexpected AGC scratch or streamout state");
+            if (stage != ShaderStage::Compute || result.scratchBytesPerWave == 0 || result.scratchBytesPerWave % 128 || scratchSizePerThread > result.scratchBytesPerWave / 32) throw std::invalid_argument("Invalid AGC compute scratch extent");
+        }
+        else if (result.scratchBytesPerWave || scratchSizePerThread) throw std::invalid_argument("Unexpected AGC scratch extent");
+        if (fields.Flag("streamout_valid")) throw std::invalid_argument("AGC streamout bindings are not supported");
+        for (const auto* name : {"streamout_buffer_table_user_data_dword", "streamout_enabled_stream_buffers_mask", "streamout_config_sgpr", "streamout_write_index_sgpr"})
+        {
+            if (fields.Get(name) != 0) throw std::invalid_argument("Unexpected AGC streamout state");
         }
         for (unsigned index = 0; index < 4; ++index)
         {
@@ -102,7 +110,7 @@ namespace UnrealProspero::Shader
                 if (slot != 0) throw std::invalid_argument("AGC slot supplied for an absent resource");
                 return;
             }
-            const std::uint32_t width = kind == Input::RingTable ? 2 : 1;
+            const std::uint32_t width = kind == Input::RingTable || kind == Input::ScratchAddress ? 2 : 1;
             if (slot >= result.count || width > result.count - slot) throw std::invalid_argument("AGC user data slot exceeds its register window");
             for (std::uint32_t index = slot; index < slot + width; ++index)
             {
@@ -122,6 +130,7 @@ namespace UnrealProspero::Shader
         field(Input::DrawId, "draw_id");
         field(Input::ViewIndex, "view_index");
         field(Input::RingTable, "ps5_ring_table");
+        add(Input::ScratchAddress, hasScratch, fields.Get("scratch_buffer_table_user_data_dword"), 0);
         field(Input::Constant, "ngg_lds_layout", fields.Get("ngg_lds_layout"));
         for (std::uint32_t index = 0; index < 4; ++index)
         {
@@ -150,6 +159,12 @@ namespace UnrealProspero::Shader
                 case Input::VertexBuffers: address = inputs.VertexBuffers; break;
                 case Input::PushConstants: address = inputs.PushConstants; break;
                 case Input::RingTable: address = inputs.RingTable; break;
+                case Input::ScratchAddress:
+                    address = inputs.ScratchAddress;
+                    if (address == 0 || address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::invalid_argument("Invalid AGC compute scratch address");
+                    result[binding.Slot] = static_cast<std::uint32_t>(address);
+                    result[binding.Slot + 1] = static_cast<std::uint32_t>(address >> 32) | 0x80000000u;
+                    continue;
             }
             const auto alignment = binding.Kind == Input::PushConstants ? 4u : 16u;
             if (address == 0 || address % alignment != 0) throw std::invalid_argument("Missing or unaligned AGC resource address");
@@ -163,6 +178,7 @@ namespace UnrealProspero::Shader
     std::uint32_t UserDataLayout::GetCount() const { return count; }
     std::uint32_t UserDataLayout::GetAddressHigh() const { return addressHigh; }
     std::uint32_t UserDataLayout::GetPushConstantSize() const { return pushConstantSize; }
+    std::uint32_t UserDataLayout::GetScratchBytesPerWave() const { return scratchBytesPerWave; }
     ShaderStage UserDataLayout::GetStage() const { return stage; }
     std::uint32_t UserDataLayout::GetVertexBufferUsageMask() const { return vertexBufferUsageMask; }
     bool UserDataLayout::UsesVertexBuffersPerAttribute() const { return vertexBuffersPerAttribute; }

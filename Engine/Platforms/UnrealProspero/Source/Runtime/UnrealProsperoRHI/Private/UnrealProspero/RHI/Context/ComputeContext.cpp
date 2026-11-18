@@ -7,6 +7,7 @@
 #include "UnrealProspero/RHI/Texture/TextureClearValue.h"
 #include "UnrealProspero/RHI/Texture/TextureView.h"
 #include "UnrealProspero/RHI/Command/BufferCopy.h"
+#include "UnrealProspero/RHI/Command/ComputeDispatch.h"
 #include "UnrealProspero/RHI/Command/MemoryAcquire.h"
 #include "UnrealProspero/RHI/Command/GpuFence.h"
 #include "prx/libSceAgc/DcbState/include/ContextState.hpp"
@@ -266,9 +267,19 @@ namespace UnrealProspero::RHI
     {
         auto dispatchParameters = *parameters;
         ApplyStaticUniformBuffers(dispatchParameters);
-        auto bindings = dispatchParameters.CreateBindings();
-        bindings->Finalize();
-        return bindings;
+        return dispatchParameters.CreateBindings();
+    }
+
+    const BufferAllocation* ComputeContext::getComputeScratch()
+    {
+        const auto size = GetComputeScratchAllocationSize(pipeline->GetShader().GetCode().GetUserData());
+        if (size == 0) return nullptr;
+        for (const auto& allocation : scratchAllocations)
+        {
+            if (allocation->Size() == size) return allocation.get();
+        }
+        scratchAllocations.push_back(std::make_unique<BufferAllocation>(size, addressHigh));
+        return scratchAllocations.back().get();
     }
 
     void ComputeContext::RHIDispatchIndirectComputeShader(FRHIBuffer* argumentBuffer, uint32 argumentOffset)
@@ -284,7 +295,7 @@ namespace UnrealProspero::RHI
             auto bindings = createDispatchBindings();
             dispatches.push_back({pipeline, std::move(bindings), std::move(arguments)});
             const auto& dispatch = dispatches.back();
-            pipeline->RecordIndirectDispatch(commands, *dispatch.bindings, *dispatch.arguments, argumentOffset);
+            pipeline->RecordIndirectDispatch(commands, *dispatch.bindings, getComputeScratch(), *dispatch.arguments, argumentOffset);
         }
         catch (...)
         {
@@ -301,7 +312,7 @@ namespace UnrealProspero::RHI
         {
             auto bindings = createDispatchBindings();
             dispatches.push_back({pipeline, std::move(bindings), {}});
-            pipeline->RecordDispatch(commands, *dispatches.back().bindings, groupX, groupY, groupZ);
+            pipeline->RecordDispatch(commands, *dispatches.back().bindings, getComputeScratch(), groupX, groupY, groupZ);
         }
         catch (...)
         {
