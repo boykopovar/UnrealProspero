@@ -49,6 +49,17 @@ def prepare(source):
         b"int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))\n{\n    if (pthread_once(once, init) != 0)",
         b"extern int UnrealProsperoOpenSslRunOnce(CRYPTO_ONCE *once, void (*init)(void));\n\nint CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))\n{\n    if (UnrealProsperoOpenSslRunOnce(once, init) != 0)",
     )
+    for name, calls in {
+        "crypto/conf/conf_mod.c": (b"isspace((unsigned char)*lstart)", b"isspace((unsigned char)*tmpend)"),
+        "crypto/encode_decode/encoder_lib.c": (b"tolower((unsigned char)p[0])", b"tolower((unsigned char)p[1])"),
+        "providers/implementations/storemgmt/file_store.c": (b"tolower((unsigned char)p[1])",),
+    }.items():
+        for call in calls:
+            function, arguments = call.split(b"(", 1)
+            replace_once(source / name, call, b"(" + function + b")(" + arguments)
+    file_store = source / "providers/implementations/storemgmt/file_store.c"
+    for condition in (b"if (!isdigit((unsigned char)*p))", b"while (isdigit((unsigned char)*p))"):
+        replace_once(file_store, condition, condition.replace(b"isdigit(", b"(isdigit)("))
 
 
 if __name__ == "__main__":
