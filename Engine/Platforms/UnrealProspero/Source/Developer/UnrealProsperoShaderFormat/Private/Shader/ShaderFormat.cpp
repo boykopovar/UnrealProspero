@@ -51,7 +51,7 @@ namespace UnrealProspero::Shader
         if (FPaths::IsRelative(executable) || FPaths::IsRelative(workingRoot)) throw std::invalid_argument("Shader compiler paths must be absolute");
         if (!IFileManager::Get().MakeDirectory(*workingRoot, true)) throw std::runtime_error("Cannot create shader compiler working directory");
         compilerHash = hashExecutable(executable);
-        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 5u));
+        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 6u));
     }
 
     const IShaderPipelineCompiler* ShaderFormat::GetPipelineCompiler() const
@@ -99,6 +99,13 @@ namespace UnrealProspero::Shader
     const TCHAR* ShaderFormat::GetPlatformIncludeDirectory() const
     {
         return TEXT("UnrealProspero");
+    }
+
+    void ShaderFormat::ModifyShaderCompilerInput(FShaderCompilerInput& input) const
+    {
+        input.Environment.SetDefine(TEXT("COMPILER_HLSL"), true);
+        input.Environment.SetDefine(TEXT("COMPILER_DXC"), true);
+        input.Environment.SetDefine(TEXT("SM5_PROFILE"), true);
     }
 
     void ShaderFormat::AppendToKeyString(FString& key) const

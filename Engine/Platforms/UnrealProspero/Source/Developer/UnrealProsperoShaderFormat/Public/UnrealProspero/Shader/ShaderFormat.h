@@ -15,6 +15,7 @@ namespace UnrealProspero::Shader
         uint32 GetVersion(FName format) const override;
         void GetSupportedFormats(TArray<FName>& formats) const override;
         const TCHAR* GetPlatformIncludeDirectory() const override;
+        void ModifyShaderCompilerInput(FShaderCompilerInput& input) const override;
         void AppendToKeyString(FString& key) const override;
         void CompilePreprocessedShader(const FShaderCompilerInput& input, const FShaderPreprocessOutput& preprocessed, FShaderCompilerOutput& output) const override;
 
