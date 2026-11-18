@@ -56,6 +56,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     {
         AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (moduleName == "Engine" && !rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoPlatformFeatures")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoPlatformFeatures");
+        if (target == Target.Ps5 && moduleName == "Engine") rules.DynamicallyLoadedModuleNames.Add("AudioMixerUnrealProspero");
         if (moduleName == "RHI")
         {
             if (!rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoRHI")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoRHI");
