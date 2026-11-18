@@ -190,6 +190,18 @@ def apply_global_geometry(runtime, changes):
     }
 """)
 
+    shader_compiler = "Engine/Private/ShaderCompiler/ShaderCompilerEditor.cpp"
+    section = "FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindOrAddSection(ShaderType);"
+    edit(shader_compiler, section, """const FShaderType* sectionType = ShaderType;
+        if (ShaderPipelineType && ShaderPipelineType->HasGeometry() &&
+            ShaderPipelineType->ShouldOptimizeUnusedOutputs(Platform) &&
+            FStringView(ShaderPipelineType->GetName()).StartsWith(TEXTVIEW("UnrealProsperoGlobalGeometry")))
+        {
+            sectionType = ShaderPipelineType->GetShader(SF_Vertex);
+            check(sectionType);
+        }
+        FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindOrAddSection(sectionType);""")
+
     volume_header = "Renderer/Public/VolumeRendering.h"
     edit(volume_header, '#include "GlobalShader.h"', '#include "GlobalShader.h"\n#include "DataDrivenShaderPlatformInfo.h"')
     volume_anchor = "extern ENGINE_API void RasterizeToVolumeTexture(FRHICommandList& RHICmdList, FVolumeBounds VolumeBounds);"
