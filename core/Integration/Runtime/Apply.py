@@ -1,4 +1,5 @@
 import argparse
+import re
 from pathlib import Path
 
 
@@ -91,6 +92,59 @@ def apply(engine):
         if data.count(old_launch) != 1:
             raise RuntimeError(f"Unexpected generic launch condition in {path}")
         changes[path] = data.replace(old_launch, new_launch)
+
+
+    sockets = runtime / "Sockets/Private/BSDSockets"
+    socket_calls = {
+        "SocketsBSD.cpp": {
+            "shutdown": "Shutdown", "bind": "Bind", "connect": "Connect", "listen": "Listen",
+            "accept": "Accept", "sendto": "SendTo", "send": "Send", "recvfrom": "ReceiveFrom",
+            "recv": "Receive", "getsockname": "GetSocketName", "getpeername": "GetPeerName",
+            "setsockopt": "SetSocketOption", "getsockopt": "GetSocketOption", "ioctlsocket": "SocketIoctl",
+            "poll": "Poll",
+        },
+        "SocketSubsystemBSD.cpp": {
+            "socket": "OpenSocket", "getaddrinfo": "ResolveAddress", "freeaddrinfo": "FreeAddresses",
+            "getnameinfo": "ResolveName", "inet_pton": "ParseInternetAddress", "poll": "Poll",
+            "gethostname": "ReadHostName",
+        },
+        "IPAddressBSD.cpp": {"getnameinfo": "ResolveName"},
+    }
+    for name, calls in socket_calls.items():
+        path = sockets / name
+        original = path.read_bytes()
+        marker = b'#include "UnrealProspero/SocketApi.h"'
+        if marker in original:
+            continue
+        newline = b"\r\n" if b"\r\n" in original else b"\n"
+        data = original.replace(b"\r\n", b"\n")
+        include = b'\n#if PLATFORM_HAS_BSD_SOCKETS || PLATFORM_HAS_BSD_IPV6_SOCKETS\n'
+        if data.count(include) != 1:
+            raise RuntimeError(f"Unexpected BSD socket guard in {path}")
+        mappings = b"\n".join(b"#define PROSPERO_SOCKET_" + source.encode() + b" UnrealProspero::Network::" + target.encode() for source, target in calls.items())
+        defaults = b"\n".join(b"#define PROSPERO_SOCKET_" + source.encode() + b" " + source.encode() for source in calls)
+        undefs = b"\n".join(b"#undef PROSPERO_SOCKET_" + source.encode() for source in calls)
+        for source in calls:
+            pattern = rb"(?m)^([ \t]*(?!//)[^\n\"]*?)\b" + source.encode() + rb"\("
+            data, count = re.subn(pattern, lambda match: match[1] + b"PROSPERO_SOCKET_" + source.encode() + b"(", data)
+            if count == 0:
+                raise RuntimeError(f"Missing BSD socket call {source} in {path}")
+        after_includes = {
+            "SocketsBSD.cpp": b'#include "BSDSockets/SocketSubsystemBSD.h"\n',
+            "SocketSubsystemBSD.cpp": b"#include <errno.h>\n",
+            "IPAddressBSD.cpp": include,
+        }[name]
+        binding = b"\n#if UNREALPROSPERO_TARGET_PS5\n" + marker + b"\n" + mappings + b"\n#else\n" + defaults + b"\n#endif\n"
+        if data.count(after_includes) != 1:
+            raise RuntimeError(f"Unexpected BSD socket includes in {path}")
+        data = data.replace(after_includes, after_includes + binding)
+        data += b"\n" + undefs + b"\n"
+        data = data.replace(b"PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL", b"((PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL) || UNREALPROSPERO_TARGET_PS5)")
+        if name == "SocketsBSD.cpp":
+            data = data.replace(b"#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);", b"#elif UNREALPROSPERO_TARGET_PS5\n\tint Value = bIsNonBlocking;\n\treturn PROSPERO_SOCKET_ioctlsocket(Socket, FIONBIO, &Value) == 0;\n#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);")
+            data = data.replace(b"#ifdef IP_PKTINFO", b"#if defined(IP_PKTINFO) && !UNREALPROSPERO_TARGET_PS5")
+            data = data.replace(b"IPPROTO_IPV6, IP_MULTICAST_LOOP,", b"IPPROTO_IPV6, IPV6_MULTICAST_LOOP,")
+        changes[path] = data.replace(b"\n", newline)
 
     for path, data in changes.items():
         path.write_bytes(data)

@@ -1,6 +1,7 @@
 #include "UnrealProspero/SocketResolver.h"
 #include "UnrealProspero/SocketAddress.h"
 #include "prx/libScePosixForWebKit/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 #include <cerrno>
 #include <cstring>
 #include <memory>
@@ -43,6 +44,11 @@ namespace UnrealProspero::Network
             sockaddr_storage storage{};
             std::unique_ptr<char[]> name;
         };
+    }
+
+    int ReadHostName(char* name, std::size_t length)
+    {
+        return gethostname_nid_postfix(name, length);
     }
 
     void FreeAddresses(addrinfo* addresses)
