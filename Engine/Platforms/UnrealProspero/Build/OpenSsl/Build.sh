@@ -37,18 +37,21 @@ CC=clang AR=llvm-ar RANLIB=llvm-ranlib perl "$source_directory/Configure" linux-
     --with-rand-seed=getrandom "${target_flags[@]}"
 make -j "$jobs" build_libs
 
-for bridge in Entropy Environment FileStatus Once; do
+for bridge in Directory Entropy Environment FileStatus Once; do
     clang++ "${target_flags[@]}" -nostdinc++ -isystem "$anycxx/include/c++/v1" \
         -isystem "$anycxx/include/anyps5" -isystem "$headers" -std=c++20 \
         -Wall -Wextra -Wpedantic -Werror -c "$script_directory/src/$bridge.cpp" -o "$bridge.o"
 done
 llvm-objcopy --redefine-sym=__isoc99_sscanf=sscanf \
     --redefine-sym=__xpg_strerror_r=strerror_r_nid_postfix \
-    --redefine-sym=stat=UnrealProsperoOpenSslStat --redefine-sym=lstat=UnrealProsperoOpenSslLstat libcrypto.a libcrypto-ps5.a
-llvm-ar rcs libcrypto-ps5.a Entropy.o Environment.o FileStatus.o Once.o
+    --redefine-sym=stat=UnrealProsperoOpenSslStat --redefine-sym=lstat=UnrealProsperoOpenSslLstat \
+    --redefine-sym=opendir=UnrealProsperoOpenSslOpenDirectory --redefine-sym=readdir=UnrealProsperoOpenSslReadDirectory \
+    --redefine-sym=closedir=UnrealProsperoOpenSslCloseDirectory libcrypto.a libcrypto-ps5.a
+llvm-ar rcs libcrypto-ps5.a Directory.o Entropy.o Environment.o FileStatus.o Once.o
+llvm-objcopy --redefine-sym=stat=UnrealProsperoOpenSslStat libssl.a libssl-ps5.a
 
 mkdir -p "$installation/lib" "$installation/include/openssl"
-cp libssl.a "$installation/lib/libssl.a"
+cp libssl-ps5.a "$installation/lib/libssl.a"
 cp libcrypto-ps5.a "$installation/lib/libcrypto.a"
 cp "$source_directory/include/openssl/"*.h "$installation/include/openssl/"
 cp include/openssl/*.h "$installation/include/openssl/"
