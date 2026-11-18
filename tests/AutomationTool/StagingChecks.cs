@@ -68,6 +68,11 @@ internal sealed class StagingChecks : BuildCommand
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                 File.Copy(file.Value.FullName, destination);
             }
+            if (platformType == UnrealTargetPlatform.AnyPS5)
+            {
+                string commandLine = Path.Combine(context.StageDirectory.FullName, "UECommandLine.txt");
+                File.WriteAllText(commandLine, context.ProjectArgForCommandLines);
+            }
             platform.Package(parameters, context, 0);
             platform.GetFilesToArchive(parameters, context);
             if (platformType == UnrealTargetPlatform.AnyPS5)
