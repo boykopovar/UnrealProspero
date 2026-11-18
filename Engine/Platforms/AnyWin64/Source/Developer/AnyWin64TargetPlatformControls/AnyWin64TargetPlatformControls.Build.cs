@@ -6,6 +6,6 @@ public class AnyWin64TargetPlatformControls : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
-        PrivateDependencyModuleNames.AddRange(new[] { "Core", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyWin64TargetPlatformSettings" });
+        PrivateDependencyModuleNames.AddRange(new[] { "Core", "DesktopPlatform", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyWin64TargetPlatformSettings" });
     }
 }

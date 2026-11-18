@@ -6,6 +6,6 @@ public class AnyPS5TargetPlatformControls : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
-        PrivateDependencyModuleNames.AddRange(new[] { "Core", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyPS5TargetPlatformSettings" });
+        PrivateDependencyModuleNames.AddRange(new[] { "Core", "DesktopPlatform", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyPS5TargetPlatformSettings" });
     }
 }

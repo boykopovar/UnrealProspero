@@ -6,6 +6,6 @@ public class AnyLinuxTargetPlatformControls : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
-        PrivateDependencyModuleNames.AddRange(new[] { "Core", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyLinuxTargetPlatformSettings" });
+        PrivateDependencyModuleNames.AddRange(new[] { "Core", "DesktopPlatform", "TargetPlatform", "UnrealProsperoTargetPlatformCommon", "AnyLinuxTargetPlatformSettings" });
     }
 }
