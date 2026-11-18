@@ -155,8 +155,88 @@ def apply(engine):
             raise RuntimeError(f"Unexpected shader print resource selection in {path}")
         changes[path] = data.replace(old_shader_print, new_shader_print)
 
+    apply_global_geometry(runtime, changes)
+
     for path, data in changes.items():
         path.write_bytes(data)
+
+
+def apply_global_geometry(runtime, changes):
+    def edit(name, before, after, count=1):
+        path = runtime / name
+        text = changes.get(path, path.read_bytes())
+        newline = b"\r\n" if b"\r\n" in text else b"\n"
+        before, after = (value.encode().replace(b"\n", newline) for value in (before, after))
+        if text.count(after) == count:
+            return
+        if text.count(before) != count:
+            raise RuntimeError(f"Unexpected global geometry shader source in {path}")
+        changes[path] = text.replace(before, after)
+
+    shader_map = "RenderCore/Private/GlobalShader.cpp"
+    compile_pipeline = "bool FGlobalShaderType::ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, EShaderPermutationFlags Flags)\n{"
+    edit(shader_map, compile_pipeline, compile_pipeline + """
+    if (FStringView(ShaderPipelineType->GetName()).StartsWith(TEXTVIEW("UnrealProsperoGlobalGeometry")) &&
+        FDataDrivenShaderPlatformInfo::GetShaderFormat(Platform) != FName(TEXT("SF_AGC_ANYPS5"))) return false;""")
+    permutations = "bool FGlobalShaderType::ForEachCompiledPermutation(EShaderPlatform Platform, EShaderPermutationFlags PermutationFlags, TFunction<bool(int32)> Function)\n{"
+    edit(shader_map, permutations, permutations + """
+    if (GetFrequency() == SF_Geometry && GetPermutationCount() == 1 && FDataDrivenShaderPlatformInfo::GetShaderFormat(Platform) == FName(TEXT("SF_AGC_ANYPS5")))
+    {
+        for (TLinkedList<FShaderPipelineType*>::TIterator pipeline(FShaderPipelineType::GetTypeList()); pipeline; pipeline.Next())
+        {
+            if ((*pipeline)->IsGlobalTypePipeline() && (*pipeline)->ShouldOptimizeUnusedOutputs(Platform) &&
+                (*pipeline)->GetStages().Contains(this) && ShouldCompilePipeline(*pipeline, Platform, PermutationFlags)) return true;
+        }
+    }
+""")
+
+    volume_header = "Renderer/Public/VolumeRendering.h"
+    edit(volume_header, '#include "GlobalShader.h"', '#include "GlobalShader.h"\n#include "DataDrivenShaderPlatformInfo.h"')
+    volume_anchor = "extern ENGINE_API void RasterizeToVolumeTexture(FRHICommandList& RHICmdList, FVolumeBounds VolumeBounds);"
+    edit(volume_header, volume_anchor, volume_anchor + """
+
+ENGINE_API const FShaderPipelineType* GetUnrealProsperoVolumeGeometryPipeline();
+
+template<typename TVertex, typename TGeometry>
+TPair<TShaderRef<TVertex>, TShaderRef<TGeometry>> GetUnrealProsperoGeometryShaders(const FGlobalShaderMap* shaderMap, const FShaderPipelineType* pipeline)
+{
+    if (FDataDrivenShaderPlatformInfo::GetShaderFormat(shaderMap->GetPlatform()) == FName(TEXT("SF_AGC_ANYPS5")))
+    {
+        const auto shaders = shaderMap->GetShaderPipeline(pipeline);
+        check(shaders.IsValid());
+        return {shaders.GetShader<TVertex>(), shaders.GetShader<TGeometry>()};
+    }
+    return {shaderMap->GetShader<TVertex>(), TOptionalShaderMapRef<TGeometry>(shaderMap)};
+}
+""")
+    volume_shader = 'IMPLEMENT_SHADER_TYPE(, FWriteToSliceGS, TEXT("/Engine/Private/TranslucentLightingShaders.usf"), TEXT("WriteToSliceMainGS"), SF_Geometry);'
+    edit("Engine/Private/VolumeRendering.cpp", volume_shader, volume_shader + """
+IMPLEMENT_SHADERPIPELINE_TYPE_VSGS(UnrealProsperoGlobalGeometryVolume, FWriteToSliceVS, FWriteToSliceGS, true)
+
+const FShaderPipelineType* GetUnrealProsperoVolumeGeometryPipeline()
+{
+    return &UnrealProsperoGlobalGeometryVolume;
+}
+""")
+    fog = "Renderer/Private/VolumetricFog.cpp"
+    fog_vertex = 'IMPLEMENT_GLOBAL_SHADER(FWriteToBoundingSphereVS, "/Engine/Private/VolumetricFog.usf", "WriteToBoundingSphereVS", SF_Vertex);'
+    edit(fog, fog_vertex, fog_vertex + "\nIMPLEMENT_SHADERPIPELINE_TYPE_VSGS(UnrealProsperoGlobalGeometryFog, FWriteToBoundingSphereVS, FWriteToSliceGS, true)")
+    for shader_map_name, indent in (("View.ShaderMap", "\t\t\t\t"), ("GlobalShaderMap", "\t\t")):
+        edit(fog, f"auto VertexShader = {shader_map_name}->GetShader< FWriteToBoundingSphereVS >();\n{indent}TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader({shader_map_name});",
+             f"auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<FWriteToBoundingSphereVS, FWriteToSliceGS>({shader_map_name}, &UnrealProsperoGlobalGeometryFog);")
+    lighting = "Renderer/Private/TranslucentLighting.cpp"
+    for shader_map_name, indent in (("View.ShaderMap", "\t\t\t\t\t"), ("View.ShaderMap", "\t\t\t\t"), ("View.ShaderMap", "\t\t\t\t\t\t"), ("GlobalShaderMap", "\t")):
+        edit(lighting, f"\n{indent}TShaderMapRef<FWriteToSliceVS> VertexShader({shader_map_name});\n{indent}TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader({shader_map_name});",
+             f"\n{indent}auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<FWriteToSliceVS, FWriteToSliceGS>({shader_map_name}, GetUnrealProsperoVolumeGeometryPipeline());")
+    edit(lighting, "TShaderMapRef<FWriteToSliceVS> VertexShader,\n\tTOptionalShaderMapRef<FWriteToSliceGS> GeometryShader,",
+         "TShaderRef<FWriteToSliceVS> VertexShader,\n\tTShaderRef<FWriteToSliceGS> GeometryShader,", 2)
+    shadows = "Renderer/Private/ShadowDepthRendering.cpp"
+    cube_shader = 'IMPLEMENT_GLOBAL_SHADER(FCopyShadowMapsCubeGS, "/Engine/Private/CopyShadowMaps.usf", "CopyCubeDepthGS", SF_Geometry);'
+    edit(shadows, cube_shader, cube_shader + "\nIMPLEMENT_SHADERPIPELINE_TYPE_VSGS(UnrealProsperoGlobalGeometryCube, TScreenVSForGS<false>, FCopyShadowMapsCubeGS, true)")
+    include = '#include "ScreenRendering.h"'
+    edit(shadows, include, include + '\n#include "VolumeRendering.h"')
+    edit(shadows, "TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);\n\t\t\t\t\tTShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);",
+         "auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<TScreenVSForGS<false>, FCopyShadowMapsCubeGS>(View.ShaderMap, &UnrealProsperoGlobalGeometryCube);")
 
 
 if __name__ == "__main__":
