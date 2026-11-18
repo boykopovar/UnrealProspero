@@ -5,6 +5,9 @@
 
 const TCHAR* FUnrealProsperoPlatformProcess::BaseDir()
 {
+#if UNREALPROSPERO_TARGET_PS5
+    return TEXT("/app0/Engine/Binaries/AnyPS5/");
+#else
     static const auto directory = []
     {
         auto value = UnrealProspero::Process::ExecutablePath();
@@ -14,4 +17,5 @@ const TCHAR* FUnrealProsperoPlatformProcess::BaseDir()
         return UnrealProspero::Text::DecodeUtf8(value);
     }();
     return directory.c_str();
+#endif
 }

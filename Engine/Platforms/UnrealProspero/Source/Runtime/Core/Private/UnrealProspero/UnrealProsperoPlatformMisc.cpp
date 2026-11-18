@@ -65,7 +65,7 @@ int32 FUnrealProsperoPlatformMisc::NumberOfCoresIncludingHyperthreads()
 #if UNREALPROSPERO_TARGET_PS5
 const TCHAR* FUnrealProsperoPlatformMisc::RootDir()
 {
-    return FUnrealProsperoPlatformProcess::BaseDir();
+    return TEXT("/app0/");
 }
 
 const TCHAR* FUnrealProsperoPlatformMisc::EngineDir()
