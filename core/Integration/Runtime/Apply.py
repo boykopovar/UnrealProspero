@@ -263,6 +263,52 @@ static FDelayedAutoRegisterHelper Register{name}(EDelayedRegisterRunPhase::PreRH
     edit(shadows, "TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);\n\t\t\t\t\tTShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);",
          "auto [VertexShader, GeometryShader] = GetUnrealProsperoGeometryShaders<TScreenVSForGS<false>, FCopyShadowMapsCubeGS>(View.ShaderMap, GetUnrealProsperoGlobalGeometryCube());")
 
+    voxelization = "Renderer/Private/VolumetricFogVoxelization.cpp"
+    edit(voxelization, '#include "VolumetricFog.h"', '#include "VolumetricFog.h"\n#include "DataDrivenShaderPlatformInfo.h"')
+    pixel_shader = 'IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TVoxelizeVolumePS<VMode_Object_Box>,TEXT("/Engine/Private/VolumetricFogVoxelization.usf"),TEXT("VoxelizePS"),SF_Pixel);'
+    edit(voxelization, pixel_shader, pixel_shader + """
+
+IMPLEMENT_SHADERPIPELINE_TYPE_VSGSPS(UnrealProsperoVoxelizeSphere, TVoxelizeVolumeVS<VMode_Primitive_Sphere>, TVoxelizeVolumeGS<VMode_Primitive_Sphere>, TVoxelizeVolumePS<VMode_Primitive_Sphere>, true)
+IMPLEMENT_SHADERPIPELINE_TYPE_VSGSPS(UnrealProsperoVoxelizeBox, TVoxelizeVolumeVS<VMode_Object_Box>, TVoxelizeVolumeGS<VMode_Object_Box>, TVoxelizeVolumePS<VMode_Object_Box>, true)
+""")
+    material_shaders = "FMaterialShaders Shaders;\n\tif (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))"
+    edit(voxelization, material_shaders, """if (FDataDrivenShaderPlatformInfo::GetShaderFormat(GShaderPlatformForFeatureLevel[FeatureLevel]) == FName(TEXT("SF_AGC_ANYPS5")))
+    {
+        ShaderTypes.PipelineType = bUsePrimitiveSphere ? &UnrealProsperoVoxelizeSphere : &UnrealProsperoVoxelizeBox;
+    }
+    """ + material_shaders)
+
+    material_shader = "Engine/Private/Materials/MaterialShader.cpp"
+    pipeline_filter = """\t\tif (ExcludeNonPipelinedShaderTypes(ShaderPlatform))
+\t\t{
+\t\t\tfor (FShaderPipelineType* Pipeline : Pipelines)
+\t\t\t{
+\t\t\t\tif (Pipeline->ShouldOptimizeUnusedOutputs(ShaderPlatform))
+\t\t\t\t{
+\t\t\t\t\tPipelinedShaderTypes.Append(Pipeline->GetStages());
+\t\t\t\t}
+\t\t\t}
+
+\t\t\tbAnyTypesExcluded = PipelinedShaderTypes.Num() != 0;
+\t\t}"""
+    edit(material_shader, pipeline_filter, """        const bool excludePipelinedTypes = ExcludeNonPipelinedShaderTypes(ShaderPlatform);
+        const bool isProspero = FDataDrivenShaderPlatformInfo::GetShaderFormat(ShaderPlatform) == FName(TEXT("SF_AGC_ANYPS5"));
+        for (FShaderPipelineType* pipeline : Pipelines)
+        {
+            const bool isProsperoVoxelization = isProspero && FStringView(pipeline->GetName()).StartsWith(TEXTVIEW("UnrealProsperoVoxelize"));
+            if ((excludePipelinedTypes || isProsperoVoxelization) && pipeline->ShouldOptimizeUnusedOutputs(ShaderPlatform))
+            {
+                PipelinedShaderTypes.Append(pipeline->GetStages());
+            }
+        }
+        bAnyTypesExcluded = PipelinedShaderTypes.Num() != 0;""")
+    mesh_shader = "Engine/Private/Materials/MeshMaterialShader.cpp"
+    edit(mesh_shader, '#include "MeshMaterialShader.h"', '#include "MeshMaterialShader.h"\n#include "DataDrivenShaderPlatformInfo.h"')
+    pipeline = "bool FMeshMaterialShaderType::ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, const FVertexFactoryType* VertexFactoryType, EShaderPermutationFlags Flags)\n{"
+    edit(mesh_shader, pipeline, pipeline + """
+    if (FStringView(ShaderPipelineType->GetName()).StartsWith(TEXTVIEW("UnrealProsperoVoxelize")) &&
+        FDataDrivenShaderPlatformInfo::GetShaderFormat(Platform) != FName(TEXT("SF_AGC_ANYPS5"))) return false;""")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
