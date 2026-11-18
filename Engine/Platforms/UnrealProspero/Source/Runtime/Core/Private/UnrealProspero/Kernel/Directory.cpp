@@ -16,7 +16,8 @@ namespace UnrealProspero::Kernel
         {
             if (offset == available)
             {
-                const int count = sceKernelGetdirentries(descriptor.Get(), buffer.data(), static_cast<int>(buffer.size()), nullptr);
+                std::int64_t position = 0;
+                const int count = sceKernelGetdirentries(descriptor.Get(), buffer.data(), static_cast<int>(buffer.size()), &position);
                 if (count == SCE_KERNEL_ERROR_EINTR) continue;
                 if (count < 0) throw Error(count, "sceKernelGetdirentries");
                 if (static_cast<std::size_t>(count) > buffer.size()) throw std::runtime_error("Directory read exceeded its buffer");
