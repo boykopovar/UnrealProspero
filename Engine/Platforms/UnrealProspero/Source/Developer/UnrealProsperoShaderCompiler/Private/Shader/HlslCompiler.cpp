@@ -2,6 +2,7 @@
 #include "ShaderConductorContext.h"
 #include <limits>
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::Shader
 {
@@ -12,7 +13,8 @@ namespace UnrealProspero::Shader
         CrossCompiler::FShaderConductorContext context;
         TArray<FString> arguments;
         arguments.Add(TEXT("-fspv-use-legacy-buffer-matrix-order"));
-        const FAnsiStringView sourceView(source.data(), static_cast<int32>(source.size()));
+        const std::string terminatedSource(source);
+        const FAnsiStringView sourceView(terminatedSource.c_str(), static_cast<int32>(terminatedSource.size()));
         if (!context.LoadSource(sourceView, input.VirtualSourceFilePath, input.EntryPointName, input.Target.GetFrequency(), nullptr, &arguments))
         {
             context.FlushErrors(output.Errors);
