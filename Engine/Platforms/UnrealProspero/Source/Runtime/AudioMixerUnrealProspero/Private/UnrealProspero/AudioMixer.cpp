@@ -6,6 +6,7 @@
 #include <atomic>
 #include <exception>
 #include <memory>
+#include <stdexcept>
 
 namespace
 {
@@ -83,13 +84,14 @@ namespace
             if (AudioStreamInfo.StreamState == EAudioOutputStreamState::Running && !StopAudioStream()) return false;
             port->Close();
             port.reset();
+            restartOnResume = false;
             AudioStreamInfo.Reset();
             return true;
         }
 
         bool StartAudioStream() override
         {
-            if (!port || (AudioStreamInfo.StreamState != EAudioOutputStreamState::Open && AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped)) return false;
+            if (restartOnResume || !port || (AudioStreamInfo.StreamState != EAudioOutputStreamState::Open && AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped)) return false;
             primed.store(false, std::memory_order_relaxed);
             running.store(true, std::memory_order_release);
             BeginGeneratingAudio();
@@ -102,6 +104,7 @@ namespace
 
         bool StopAudioStream() override
         {
+            restartOnResume = false;
             if (AudioStreamInfo.StreamState == EAudioOutputStreamState::Stopped) return true;
             if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running || !thread) return false;
             running.store(false, std::memory_order_release);
@@ -109,6 +112,20 @@ namespace
             thread.Reset();
             StopGeneratingAudio();
             return true;
+        }
+
+        void SuspendContext() override
+        {
+            if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running) return;
+            if (!StopAudioStream()) throw std::runtime_error("Cannot suspend PS5 audio output");
+            restartOnResume = true;
+        }
+
+        void ResumeContext() override
+        {
+            if (!restartOnResume) return;
+            restartOnResume = false;
+            if (!StartAudioStream()) throw std::runtime_error("Cannot resume PS5 audio output");
         }
 
         void SubmitBuffer(const uint8* buffer) override
@@ -149,6 +166,7 @@ namespace
         std::unique_ptr<OutputPort> port;
         std::atomic<bool> running{false};
         std::atomic<bool> primed{false};
+        bool restartOnResume = false;
         FPump pump;
         TUniquePtr<FRunnableThread> thread;
     };
