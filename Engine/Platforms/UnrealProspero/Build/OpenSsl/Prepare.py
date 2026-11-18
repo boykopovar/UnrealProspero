@@ -53,6 +53,7 @@ def prepare(source):
     for pointer in (b"lstart", b"tmpend"):
         arguments = b"((unsigned char)*" + pointer + b")"
         replace_once(conf, b"isspace" + arguments, b"(isspace)" + arguments)
+    replace_once(source / "ssl/t1_lib.c", b"isspace((unsigned char)*str)", b"(isspace)((unsigned char)*str)")
     encoder = source / "crypto/encode_decode/encoder_lib.c"
     replace_once(encoder, b"#include <ctype.h>", b"#include <ctype.h>\n\nextern int UnrealProsperoOpenSslToLower(int character);")
     for index in (b"0", b"1"):
