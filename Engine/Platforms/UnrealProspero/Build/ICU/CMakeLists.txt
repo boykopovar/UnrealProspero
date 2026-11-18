@@ -14,7 +14,7 @@ target_compile_definitions(UnrealProsperoICU PRIVATE U_STATIC_IMPLEMENTATION U_C
 if(ADK_TARGET STREQUAL "ps5")
     target_compile_definitions(UnrealProsperoICU PRIVATE LC_MESSAGES=32)
     set_source_files_properties("${ICU_SOURCE_DIRECTORY}/common/putil.cpp" PROPERTIES COMPILE_DEFINITIONS "U_HAVE_TIMEZONE=0;U_HAVE_TZNAME=0;DEBUG_SKIP_LOCALTIME_LINK")
-    set_source_files_properties("${ICU_SOURCE_DIRECTORY}/common/umapfile.cpp" PROPERTIES COMPILE_DEFINITIONS U_HAVE_MMAP=0)
+    set_source_files_properties("${ICU_SOURCE_DIRECTORY}/common/umapfile.cpp" PROPERTIES COMPILE_DEFINITIONS UCONFIG_NO_FILE_IO=1)
 endif()
 target_compile_options(UnrealProsperoICU PRIVATE -fno-builtin -fno-stack-protector)
 install(TARGETS UnrealProsperoICU ARCHIVE DESTINATION lib)
