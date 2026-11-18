@@ -134,15 +134,15 @@ def apply(engine):
             "SocketSubsystemBSD.cpp": b"#include <errno.h>\n",
             "IPAddressBSD.cpp": include,
         }[name]
-        binding = b"\n#if UNREALPROSPERO_TARGET_PS5\n" + marker + b"\n" + mappings + b"\n#else\n" + defaults + b"\n#endif\n"
+        binding = b"\n#if defined(UNREALPROSPERO_TARGET_PS5) && UNREALPROSPERO_TARGET_PS5\n" + marker + b"\n" + mappings + b"\n#else\n" + defaults + b"\n#endif\n"
         if data.count(after_includes) != 1:
             raise RuntimeError(f"Unexpected BSD socket includes in {path}")
         data = data.replace(after_includes, after_includes + binding)
         data += b"\n" + undefs + b"\n"
-        data = data.replace(b"PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL", b"((PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL) || UNREALPROSPERO_TARGET_PS5)")
+        data = data.replace(b"PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL", b"((PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL && USE_SOCKET_FEATURE_POLL) || (defined(UNREALPROSPERO_TARGET_PS5) && UNREALPROSPERO_TARGET_PS5))")
         if name == "SocketsBSD.cpp":
-            data = data.replace(b"#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);", b"#elif UNREALPROSPERO_TARGET_PS5\n\tint Value = bIsNonBlocking;\n\treturn PROSPERO_SOCKET_ioctlsocket(Socket, FIONBIO, &Value) == 0;\n#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);")
-            data = data.replace(b"#ifdef IP_PKTINFO", b"#if defined(IP_PKTINFO) && !UNREALPROSPERO_TARGET_PS5")
+            data = data.replace(b"#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);", b"#elif defined(UNREALPROSPERO_TARGET_PS5) && UNREALPROSPERO_TARGET_PS5\n\tint Value = bIsNonBlocking;\n\treturn PROSPERO_SOCKET_ioctlsocket(Socket, FIONBIO, &Value) == 0;\n#else\n\tint Flags = fcntl(Socket, F_GETFL, 0);")
+            data = data.replace(b"#ifdef IP_PKTINFO", b"#if defined(IP_PKTINFO) && !(defined(UNREALPROSPERO_TARGET_PS5) && UNREALPROSPERO_TARGET_PS5)")
             data = data.replace(b"IPPROTO_IPV6, IP_MULTICAST_LOOP,", b"IPPROTO_IPV6, IPV6_MULTICAST_LOOP,")
         changes[path] = data.replace(b"\n", newline)
 
