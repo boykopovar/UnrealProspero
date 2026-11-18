@@ -3,6 +3,7 @@
 
 namespace UnrealProspero::Kernel
 {
+    bool IsDebuggerAttached();
     void DebugBreak();
 }
 

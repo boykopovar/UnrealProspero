@@ -10,7 +10,11 @@
 
 bool FUnrealProsperoPlatformMisc::IsDebuggerPresent()
 {
+#if UNREALPROSPERO_TARGET_PS5
+    return UnrealProspero::Kernel::IsDebuggerAttached();
+#else
     throw std::runtime_error("Debugger detection is not implemented for UnrealProspero");
+#endif
 }
 
 void FUnrealProsperoPlatformMisc::DebugBreak()
