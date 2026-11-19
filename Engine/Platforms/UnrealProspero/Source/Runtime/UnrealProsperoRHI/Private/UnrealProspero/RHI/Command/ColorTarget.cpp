@@ -60,7 +60,7 @@ namespace UnrealProspero::RHI
             ShaderRegister{0x390 + index, static_cast<std::uint32_t>(address >> 40)},
             ShaderRegister{0x398 + index, 0}, ShaderRegister{0x3a0 + index, 0}, ShaderRegister{0x3a8 + index, 0},
             ShaderRegister{0x3b0 + index, (mip.Height - 1) | (static_cast<std::uint32_t>(pitch - 1) << 14)},
-            ShaderRegister{0x3b8 + index, 0x09000000}
+            ShaderRegister{0x3b8 + index, 0x09000000u | ((texture.GetLayout() == Texture2DLayout::RenderTarget64K ? 27u : 0u) << 14)}
         };
         for (const auto value : registers) sceAgcDcbSetCxRegisterDirect(&commands, value);
     }

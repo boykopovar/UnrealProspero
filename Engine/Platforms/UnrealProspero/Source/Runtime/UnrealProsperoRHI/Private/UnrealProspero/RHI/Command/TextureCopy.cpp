@@ -70,6 +70,7 @@ namespace UnrealProspero::RHI
 
     void ValidateTextureCopy(const Texture2D& destination, const Texture2D& source, const TextureCopyRegion& region)
     {
+        if (destination.GetLayout() != Texture2DLayout::Linear || source.GetLayout() != Texture2DLayout::Linear) throw std::runtime_error("GPU copies of tiled color textures are not implemented");
         if (region.SourceLayer >= source.GetArrayLayers() || region.DestinationLayer >= destination.GetArrayLayers()) throw std::out_of_range("Texture copy selects an unavailable array layer");
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);

@@ -12,6 +12,7 @@ namespace UnrealProspero::RHI
     {
         void validate(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
         {
+            if (texture.GetLayout() != Texture2DLayout::Linear) throw std::runtime_error("Tiled surface readback is not implemented");
             if (flags.GetGPUIndex() != 0 || (flags.GetArrayIndex() < 0 || static_cast<std::uint32_t>(flags.GetArrayIndex()) >= texture.GetArrayLayers()) || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
             if (flags.GetCompressionMode() < RCM_UNorm || flags.GetCompressionMode() > RCM_MinMax) throw std::invalid_argument("Invalid surface range compression mode");
             const auto& mip = texture.GetMipLayout(flags.GetMip());

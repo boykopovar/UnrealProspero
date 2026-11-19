@@ -22,9 +22,18 @@ namespace UnrealProspero::RHI
         }
     }
 
-    std::vector<Texture2D::MipLayout> Texture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
+    std::vector<Texture2D::MipLayout> Texture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, Texture2DLayout layout)
     {
         const auto info = DescribeTextureFormat(format);
+        if (layout == Texture2DLayout::RenderTarget64K)
+        {
+            dimension(width);
+            dimension(height);
+            if (mipCount != 1 || info.BlockBytes != 4 || info.BlockWidth != 1 || info.BlockHeight != 1) throw std::invalid_argument("Tiled display storage requires one mip of 32-bit pixels");
+            const auto size = static_cast<std::size_t>((width + 127) / 128) * ((height + 127) / 128) * 65536;
+            return {{width, height, 1, static_cast<std::size_t>(width) * 4, CalculateRowPitch(width, format, layout), 0, size, height}};
+        }
+        if (layout != Texture2DLayout::Linear) throw std::invalid_argument("Unknown 2D texture layout");
         return CalculateLinearMipLayout(width, height, 1, info.BlockBytes, mipCount, info.BlockWidth, info.BlockHeight);
     }
 
@@ -34,25 +43,33 @@ namespace UnrealProspero::RHI
         return ((dimension(width) + info.BlockWidth - 1) / info.BlockWidth) * info.BlockBytes;
     }
 
-    std::size_t Texture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format)
+    std::size_t Texture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format, Texture2DLayout layout)
     {
+        if (layout == Texture2DLayout::RenderTarget64K)
+        {
+            const auto info = DescribeTextureFormat(format);
+            if (info.BlockBytes != 4 || info.BlockWidth != 1 || info.BlockHeight != 1) throw std::invalid_argument("Tiled display storage requires 32-bit pixels");
+            return static_cast<std::size_t>((dimension(width) + 127) / 128) * 512;
+        }
+        if (layout != Texture2DLayout::Linear) throw std::invalid_argument("Unknown 2D texture layout");
         return (CalculateRowBytes(width, format) + 255) & ~std::size_t{255};
     }
 
-    std::size_t Texture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
+    std::size_t Texture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip, Texture2DLayout layout)
     {
-        const auto levels = CalculateMipLayout(width, height, format, mipCount);
+        const auto levels = CalculateMipLayout(width, height, format, mipCount, layout);
         if (firstMip >= levels.size()) throw std::out_of_range("Texture size selects an unavailable mip");
         return levels[firstMip].Offset + levels[firstMip].Size;
     }
 
-    Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage, std::uint32_t arrayLayers) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), arrayLayers(layerCount(arrayLayers)), layerPitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(layerPitch * this->arrayLayers, addressHigh, alignment, usage)
+    Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage, std::uint32_t arrayLayers, Texture2DLayout layout) : width(dimension(width)), height(dimension(height)), format(format), layout(layout), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format, layout)), mipLayouts(CalculateMipLayout(width, height, format, mipCount, layout)), arrayLayers(layerCount(arrayLayers)), layerPitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(layerPitch * this->arrayLayers, addressHigh, alignment, usage)
     {
         if (usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Texture requires texture allocation usage");
-        descriptor = arrayLayers == 1 ? CreateDescriptor(width, height, format, storage.Data(), false, mipCount) : CreateArrayViewDescriptor(false, 0, arrayLayers);
+        if (layout == Texture2DLayout::RenderTarget64K && (alignment < 65536 || arrayLayers != 1)) throw std::invalid_argument("Tiled display storage requires a single 64 KiB aligned layer");
+        descriptor = arrayLayers == 1 ? CreateDescriptor(width, height, format, storage.Data(), false, mipCount, layout) : CreateArrayViewDescriptor(false, 0, arrayLayers);
     }
 
-    std::array<std::uint32_t, 8> Texture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb, std::uint32_t mipCount)
+    std::array<std::uint32_t, 8> Texture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb, std::uint32_t mipCount, Texture2DLayout layout)
     {
         dimension(width);
         dimension(height);
@@ -60,11 +77,17 @@ namespace UnrealProspero::RHI
         const auto address = reinterpret_cast<std::uintptr_t>(data);
         if (address == 0 || address % 256 != 0 || address >= (std::uint64_t{1} << 48)) throw std::runtime_error("Texture storage address cannot be encoded");
         const auto info = DescribeTextureFormat(format, disableSrgb);
+        if (layout == Texture2DLayout::RenderTarget64K)
+        {
+            static_cast<void>(CalculateMipLayout(width, height, format, mipCount, layout));
+            if (address % 65536 != 0) throw std::invalid_argument("Tiled texture requires 64 KiB alignment");
+        }
+        else if (layout != Texture2DLayout::Linear) throw std::invalid_argument("Unknown 2D texture layout");
         return {
             static_cast<std::uint32_t>(address >> 8),
             static_cast<std::uint32_t>(address >> 40) | (info.Code << 20) | (((width - 1) & 3) << 30),
             ((width - 1) >> 2) | ((height - 1) << 14),
-            info.Swizzle | ((mipCount - 1) << 16) | (9u << 28),
+            info.Swizzle | ((mipCount - 1) << 16) | ((layout == Texture2DLayout::RenderTarget64K ? 27u : 0u) << 20) | (9u << 28),
             0, (mipCount - 1) << 4, 0, 0
         };
     }
@@ -74,7 +97,13 @@ namespace UnrealProspero::RHI
         const auto& mip = GetMipLayout(mipLevel);
         GetMipRange(mipLevel, arrayLayer);
         if (!source.data() || sourcePitch < mip.RowBytes || source.size() < mip.RowBytes || (mip.RowCount - 1) > (source.size() - mip.RowBytes) / sourcePitch) throw std::invalid_argument("Texture upload does not contain all source rows");
-        for (std::size_t row = 0; row < mip.RowCount; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
+        if (layout == Texture2DLayout::RenderTarget64K)
+        {
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                    storage.Upload(tiledTexelOffset(x, y), source.subspan(y * sourcePitch + x * 4, 4));
+        }
+        else for (std::size_t row = 0; row < mip.RowCount; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
     }
 
     void Texture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel, std::uint32_t arrayLayer) const
@@ -86,7 +115,13 @@ namespace UnrealProspero::RHI
         const auto destinationAddress = reinterpret_cast<std::uintptr_t>(destination.data());
         if ((destinationAddress >= sourceAddress && destinationAddress - sourceAddress < storage.Size()) || (sourceAddress >= destinationAddress && sourceAddress - destinationAddress < destination.size())) throw std::invalid_argument("Texture read destination overlaps its storage");
         const auto* source = range.data();
-        for (std::size_t row = 0; row < mip.RowCount; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
+        if (layout == Texture2DLayout::RenderTarget64K)
+        {
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                    std::memcpy(destination.data() + y * destinationPitch + x * 4, source + tiledTexelOffset(x, y), 4);
+        }
+        else for (std::size_t row = 0; row < mip.RowCount; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
     }
 
     const Texture2D::MipLayout& Texture2D::GetMipLayout(std::uint32_t mipLevel) const
@@ -111,7 +146,7 @@ namespace UnrealProspero::RHI
         if (mipCount == 0) mipCount = GetMipCount() - firstMip;
         if (mipCount > GetMipCount() - firstMip) throw std::out_of_range("Texture view exceeds the mip chain");
         if (arrayLayer >= arrayLayers) throw std::out_of_range("Texture view layer exceeds its allocation");
-        auto result = CreateDescriptor(width, height, format, storage.GetRange(arrayLayer * layerPitch, layerPitch).data(), disableSrgb, GetMipCount());
+        auto result = CreateDescriptor(width, height, format, storage.GetRange(arrayLayer * layerPitch, layerPitch).data(), disableSrgb, GetMipCount(), layout);
         result[3] = (result[3] & ~0xff000u) | (firstMip << 12) | ((firstMip + mipCount - 1) << 16);
         return result;
     }
@@ -144,4 +179,14 @@ namespace UnrealProspero::RHI
     std::uint32_t Texture2D::GetWidth() const { return width; }
     std::uint32_t Texture2D::GetHeight() const { return height; }
     TextureFormat Texture2D::GetFormat() const { return format; }
+    Texture2DLayout Texture2D::GetLayout() const { return layout; }
+
+    std::size_t Texture2D::tiledTexelOffset(std::uint32_t x, std::uint32_t y) const
+    {
+        constexpr std::array<std::uint32_t, 16> equation{0, 0, 1, 2, 0x1000, 0x2000, 4, 0x4000, 0x8008008, 0x4010010, 0x2020040, 0x1040020, 0x8000, 0x10, 0x40000, 0x40};
+        const auto coordinates = (x & 127u) | ((y & 127u) << 12);
+        std::size_t offset = (static_cast<std::size_t>(y / 128) * ((width + 127) / 128) + x / 128) * 65536;
+        for (std::size_t bit = 2; bit < equation.size(); ++bit) offset |= static_cast<std::size_t>(std::popcount(coordinates & equation[bit]) & 1) << bit;
+        return offset;
+    }
 }

@@ -54,7 +54,7 @@ namespace UnrealProspero::RHI
         auto& buffer = backBuffers[chain->GetBufferIndex()];
         if (!buffer)
         {
-            const auto description = FRHITextureCreateDesc::Create2D(TEXT("UnrealProsperoBackBuffer"), static_cast<int32>(storage->GetWidth()), static_cast<int32>(storage->GetHeight()), format).SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::Presentable | ETextureCreateFlags::NoTiling).SetInitialState(ERHIAccess::Present);
+            const auto description = FRHITextureCreateDesc::Create2D(TEXT("UnrealProsperoBackBuffer"), static_cast<int32>(storage->GetWidth()), static_cast<int32>(storage->GetHeight()), format).SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::Presentable).SetInitialState(ERHIAccess::Present);
             buffer = new TextureResource(description, storage);
         }
         return buffer.GetReference();
