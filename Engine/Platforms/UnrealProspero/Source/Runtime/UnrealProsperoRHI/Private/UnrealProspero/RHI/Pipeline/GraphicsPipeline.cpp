@@ -121,7 +121,7 @@ namespace UnrealProspero::RHI
         if (hasDepth) WriteDepthBias(commands, raster.DepthBias, raster.SlopeScaleDepthBias);
         WriteRasterizationRegisters(commands, *rasterizer, 0x240, 0x1080000, depthBias);
         const std::array registers{
-            ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0010u : 0u},
+            ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0011u : 1u},
             ShaderRegister{0x206, 0x43f}, ShaderRegister{0x292, 0x22}, ShaderRegister{0x2f9, 0x2d},
             ShaderRegister{0x2fa, 0x3f800000}, ShaderRegister{0x2fb, 0x3f800000},
             ShaderRegister{0x2fc, 0x3f800000}, ShaderRegister{0x2fd, 0x3f800000}
