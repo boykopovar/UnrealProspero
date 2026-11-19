@@ -9,6 +9,29 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
+        std::uint32_t packedFloat(float value, std::uint32_t fractionBits)
+        {
+            const auto bits = std::bit_cast<std::uint32_t>(value);
+            const auto exponent = (bits >> 23) & 255u;
+            const auto fraction = bits & 0x7fffffu;
+            if (exponent == 255 && fraction != 0) return (31u << fractionBits) | (1u << (fractionBits - 1));
+            if ((bits >> 31) != 0) return 0;
+            if (exponent >= 143) return 31u << fractionBits;
+            if (exponent < 112 - fractionBits) return 0;
+            if (exponent < 113)
+            {
+                const auto significand = fraction | 0x800000u;
+                const auto shift = 136 - fractionBits - exponent;
+                const auto result = significand >> shift;
+                const auto remainder = significand & ((1u << shift) - 1);
+                const auto halfway = 1u << (shift - 1);
+                return result + (remainder > halfway || (remainder == halfway && (result & 1)));
+            }
+            const auto shift = 23 - fractionBits;
+            const auto rounded = fraction + (1u << (shift - 1)) - 1 + ((fraction >> shift) & 1);
+            return ((exponent - 112) << fractionBits) + (rounded >> shift);
+        }
+
         std::uint32_t normalized(float value, bool srgb, std::uint32_t maximum = 255)
         {
             if (std::isnan(value)) throw std::invalid_argument("Normalized color clear cannot encode NaN");
@@ -26,6 +49,11 @@ namespace UnrealProspero::RHI
         if (format == TextureFormat::Rgb10A2Unorm)
         {
             result.fill(normalized(color[0], false, 1023) | (normalized(color[1], false, 1023) << 10) | (normalized(color[2], false, 1023) << 20) | (normalized(color[3], false, 3) << 30));
+            return result;
+        }
+        if (format == TextureFormat::R11G11B10Float)
+        {
+            result.fill(packedFloat(color[0], 6) | (packedFloat(color[1], 6) << 11) | (packedFloat(color[2], 5) << 22));
             return result;
         }
         if (format == TextureFormat::Rgba32Float)
@@ -86,6 +114,11 @@ namespace UnrealProspero::RHI
         if (format == TextureFormat::Rgb10A2Unorm)
         {
             result.fill((values[0] & 1023u) | ((values[1] & 1023u) << 10) | ((values[2] & 1023u) << 20) | ((values[3] & 3u) << 30));
+            return result;
+        }
+        if (format == TextureFormat::R11G11B10Float)
+        {
+            result.fill((values[0] & 2047u) | ((values[1] & 2047u) << 11) | ((values[2] & 1023u) << 22));
             return result;
         }
         if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
