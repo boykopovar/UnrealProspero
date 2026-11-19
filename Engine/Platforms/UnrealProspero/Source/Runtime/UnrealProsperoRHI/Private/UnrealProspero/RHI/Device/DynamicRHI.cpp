@@ -29,6 +29,7 @@
 #include "RHICommandList.h"
 #include "RHIResourceReplace.h"
 #include "RHIStats.h"
+#include "RenderResource.h"
 #include <stdexcept>
 #include <set>
 #include <limits>
@@ -123,12 +124,16 @@ namespace UnrealProspero::RHI
         ConfigureDeviceLimits();
         ConfigureTransitionStorage();
         initialized = true;
+        FRenderResource::InitPreRHIResources();
+        GIsRHIInitialized = true;
     }
 
     void DynamicRHI::Shutdown()
     {
         if (!initialized || shutDown) throw std::runtime_error("RHI shutdown requires an initialized device");
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        GIsRHIInitialized = false;
+        FRenderResource::ReleaseRHIForAllResources();
         if (defaultContext)
         {
             auto commands = std::make_unique<CommandList>(std::move(defaultContext));
