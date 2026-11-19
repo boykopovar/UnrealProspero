@@ -27,6 +27,7 @@ namespace UnrealProspero::RHI
         case TextureFormat::Bgra8Srgb: return {130, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
         case TextureFormat::R16Float: return {13, 2, 4 | (1 << 9)};
         case TextureFormat::Rg16Float: return {29, 4, 4 | (5 << 3) | (1 << 9)};
+        case TextureFormat::Rg16Uint: return {27, 4, 4 | (5 << 3) | (1 << 9), 1, 1, true};
         case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9), 1, 1, true};
         case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9), 1, 1, true};
         case TextureFormat::R11G11B10Float: return {36, 4, 0x3ac};
