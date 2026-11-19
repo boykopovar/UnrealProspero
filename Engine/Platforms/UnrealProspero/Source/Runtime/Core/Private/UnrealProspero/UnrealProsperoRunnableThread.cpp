@@ -41,7 +41,14 @@ bool FUnrealProsperoRunnableThread::CreateInternal(FRunnable* runnable, const TC
     if (stackSize != 0) attributes.SetStackSize(stackSize);
     const auto mask = affinityMask == FPlatformAffinity::GetNoAffinityMask() ? UnrealProspero::Kernel::Affinity::Available() : affinityMask;
     attributes.SetAffinity(mask);
-    const auto kernelName = UnrealProspero::Text::EncodeUtf8(name);
+    auto kernelName = UnrealProspero::Text::EncodeUtf8(name);
+    constexpr std::size_t maxKernelNameBytes = 31;
+    if (kernelName.size() > maxKernelNameBytes)
+    {
+        auto end = maxKernelNameBytes;
+        while ((static_cast<unsigned char>(kernelName[end]) & 0xc0) == 0x80) --end;
+        kernelName.resize(end);
+    }
     Runnable = runnable;
     ThreadName = name;
     ThreadPriority = priority;
