@@ -11,7 +11,7 @@ namespace UnrealProspero::RHI
     class UNREALPROSPERORHI_API GraphicsShaders final
     {
     public:
-        GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType);
+        GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, std::uint32_t pixelColorFormat);
         VertexShader& GetVertexShader() const;
         PixelShader* GetPixelShader() const;
         GeometryShader* GetGeometryShader() const;
@@ -22,6 +22,7 @@ namespace UnrealProspero::RHI
         TRefCountPtr<VertexShader> vertex;
         TRefCountPtr<PixelShader> pixel;
         TRefCountPtr<GeometryShader> geometry;
+        const AgcShader* pixelNative;
         GraphicsShaderLink link;
     };
 }

@@ -1,10 +1,12 @@
 #include "UnrealProspero/RHI/Pipeline/GraphicsPipeline.h"
+#include "UnrealProspero/RHI/Pipeline/ColorExportFormat.h"
 #include "UnrealProspero/RHI/Command/ColorBlend.h"
 #include "UnrealProspero/RHI/Command/DepthStencil.h"
 #include "UnrealProspero/RHI/Command/DepthBias.h"
 #include "UnrealProspero/RHI/Command/Rasterization.h"
 #include "UnrealProspero/RHI/Command/SampleCoverage.h"
 #include "prx/libSceAgc/DcbState/include/Registers.hpp"
+#include <array>
 #include <bit>
 #include <cmath>
 #include <limits>
@@ -50,7 +52,11 @@ namespace UnrealProspero::RHI
         depthStencil = static_cast<DepthStencilState*>(initializer.DepthStencilState);
         rasterizer = static_cast<RasterizerState*>(initializer.RasterizerState);
         auto& vertex = *static_cast<VertexShader*>(stages.VertexShaderRHI);
-        shaders = std::make_unique<GraphicsShaders>(vertex, static_cast<PixelShader*>(stages.PixelShaderRHI), static_cast<GeometryShader*>(stages.GetGeometryShader()), primitiveType);
+        auto* pixel = static_cast<PixelShader*>(stages.PixelShaderRHI);
+        std::array<EPixelFormat, MaxSimultaneousRenderTargets> targetFormats;
+        for (uint32 index = 0; index < description.RenderTargetsEnabled; ++index) targetFormats[index] = static_cast<EPixelFormat>(description.RenderTargetFormats[index]);
+        const auto colorExportFormat = pixel ? ResolveColorExportFormat(pixel->GetCode().GetBinary().ColorExportFormat, std::span(targetFormats.data(), description.RenderTargetsEnabled)) : 0;
+        shaders = std::make_unique<GraphicsShaders>(vertex, pixel, static_cast<GeometryShader*>(stages.GetGeometryShader()), primitiveType, colorExportFormat);
         if (!declaration && shaders->GetVertexInputLayout().GetVertexBufferUsageMask() != 0) throw std::invalid_argument("Vertex inputs require a vertex declaration");
     }
 

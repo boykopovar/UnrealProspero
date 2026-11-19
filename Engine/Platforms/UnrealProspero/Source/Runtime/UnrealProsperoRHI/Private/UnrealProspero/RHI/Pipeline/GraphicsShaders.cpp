@@ -7,7 +7,7 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        GraphicsShaderLink createLink(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType)
+        GraphicsShaderLink createLink(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, const AgcShader* pixelNative)
         {
             if (pixel && vertex.GetCode().GetBinary().Target != pixel->GetCode().GetBinary().Target) throw std::invalid_argument("Graphics shaders require matching target platforms");
             if (pixel && vertex.GetCode().GetUserData().GetAddressHigh() != pixel->GetCode().GetUserData().GetAddressHigh()) throw std::invalid_argument("Graphics shaders require matching address apertures");
@@ -16,11 +16,11 @@ namespace UnrealProspero::RHI
                 geometry->GetCode().ValidateVertex(vertex.GetCode());
                 if (geometry->GetCode().GetUserData().GetAddressHigh() != vertex.GetCode().GetUserData().GetAddressHigh()) throw std::invalid_argument("Merged graphics shaders require matching address apertures");
             }
-            return GraphicsShaderLink(geometry ? geometry->GetNativeShader() : vertex.GetNativeShader(), pixel ? &pixel->GetNativeShader() : nullptr, primitiveType);
+            return GraphicsShaderLink(geometry ? geometry->GetNativeShader() : vertex.GetNativeShader(), pixelNative, primitiveType);
         }
     }
 
-    GraphicsShaders::GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType) : vertex(&vertex), pixel(pixel), geometry(geometry), link(createLink(vertex, pixel, geometry, primitiveType)) {}
+    GraphicsShaders::GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, std::uint32_t pixelColorFormat) : vertex(&vertex), pixel(pixel), geometry(geometry), pixelNative(pixel ? &pixel->GetNativeShader(pixelColorFormat) : nullptr), link(createLink(vertex, pixel, geometry, primitiveType, pixelNative)) {}
 
     VertexShader& GraphicsShaders::GetVertexShader() const { return *vertex; }
     PixelShader* GraphicsShaders::GetPixelShader() const { return pixel.GetReference(); }
@@ -65,7 +65,6 @@ namespace UnrealProspero::RHI
             ranges.insert(ranges.end(), mergedRanges.begin(), mergedRanges.end());
         }
         const auto& vertexNative = geometry ? geometry->GetNativeShader() : vertex->GetNativeShader();
-        const auto* pixelNative = pixel ? &pixel->GetNativeShader() : nullptr;
         ranges.push_back({vertexNative.Get().code, vertexNative.Get().shader_size});
         if (pixelNative) ranges.push_back({pixelNative->Get().code, pixelNative->Get().shader_size});
         WriteMemoryAcquire(commands, ranges);
