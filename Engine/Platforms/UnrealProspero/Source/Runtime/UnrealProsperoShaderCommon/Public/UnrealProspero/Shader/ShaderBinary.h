@@ -48,6 +48,14 @@ namespace UnrealProspero::Shader
 
     using ShaderIdentity = std::array<std::uint8_t, 20>;
 
+    struct ColorExportVariantView
+    {
+        std::uint32_t Format;
+        std::span<const std::uint8_t> Header;
+        std::span<const std::uint8_t> Code;
+        std::span<const std::uint8_t> Metadata;
+    };
+
     struct ShaderBinaryView
     {
         ShaderStage Stage;
@@ -58,6 +66,8 @@ namespace UnrealProspero::Shader
         std::span<const std::uint8_t> ResourceTable;
         std::vector<RuntimeBinding> Bindings;
         ShaderIdentity VertexIdentity{};
+        std::uint32_t ColorExportFormat = 0;
+        std::vector<ColorExportVariantView> ColorExports;
     };
 
     UNREALPROSPEROSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);

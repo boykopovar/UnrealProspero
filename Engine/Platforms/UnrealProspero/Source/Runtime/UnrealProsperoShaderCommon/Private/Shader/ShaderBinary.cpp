@@ -12,7 +12,7 @@ namespace UnrealProspero::Shader
     namespace
     {
         constexpr std::uint32_t magic = 0x53475541;
-        constexpr std::uint32_t version = 2;
+        constexpr std::uint32_t version = 3;
 
         std::uint32_t narrow(std::size_t size)
         {
@@ -58,6 +58,14 @@ namespace UnrealProspero::Shader
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
             const bool hasVertexIdentity = std::ranges::any_of(shader.VertexIdentity, [](auto value) { return value != 0; });
             if ((shader.Stage == ShaderStage::Geometry) != hasVertexIdentity) throw std::invalid_argument("Shader has an invalid linked vertex identity");
+            if (shader.Stage != ShaderStage::Pixel && (shader.ColorExportFormat != 0 || !shader.ColorExports.empty())) throw std::invalid_argument("Color export variants require a pixel shader");
+            if (shader.ColorExports.size() > 255) throw std::invalid_argument("Too many pixel shader export variants");
+            for (std::size_t index = 0; index < shader.ColorExports.size(); ++index)
+            {
+                const auto& variant = shader.ColorExports[index];
+                if (variant.Header.empty() || variant.Code.empty() || variant.Metadata.empty() || variant.Format == shader.ColorExportFormat) throw std::invalid_argument("Invalid pixel shader export variant");
+                for (std::size_t previous = 0; previous < index; ++previous) if (shader.ColorExports[previous].Format == variant.Format) throw std::invalid_argument("Duplicate pixel shader export variant");
+            }
             ValidateRuntimeBindings(shader.Bindings);
         }
     }
@@ -112,12 +120,21 @@ namespace UnrealProspero::Shader
         for (auto value : {magic, version, static_cast<std::uint32_t>(shader.Stage), static_cast<std::uint32_t>(shader.Target), narrow(shader.Bindings.size())}) append(result, value);
         for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.ResourceTable}) append(result, narrow(section.size()));
         result.insert(result.end(), shader.VertexIdentity.begin(), shader.VertexIdentity.end());
+        append(result, shader.ColorExportFormat);
+        append(result, narrow(shader.ColorExports.size()));
         for (const auto& binding : shader.Bindings)
         {
             for (auto value : {static_cast<std::uint32_t>(binding.Kind), binding.ParameterIndex, binding.Set, binding.Binding, binding.Count, binding.Offset, binding.Stride, binding.BlockSize, narrow(binding.Type.size())}) append(result, value);
             result.insert(result.end(), binding.Type.begin(), binding.Type.end());
         }
-        for (auto section : {shader.Header, shader.Code, shader.Metadata, shader.ResourceTable}) result.insert(result.end(), section.begin(), section.end());
+        for (const auto& variant : shader.ColorExports)
+        {
+            append(result, variant.Format);
+            for (auto section : {variant.Header, variant.Code, variant.Metadata}) append(result, narrow(section.size()));
+        }
+        for (auto section : {shader.Header, shader.Code, shader.Metadata}) result.insert(result.end(), section.begin(), section.end());
+        for (const auto& variant : shader.ColorExports) for (auto section : {variant.Header, variant.Code, variant.Metadata}) result.insert(result.end(), section.begin(), section.end());
+        result.insert(result.end(), shader.ResourceTable.begin(), shader.ResourceTable.end());
         narrow(result.size());
         return result;
     }
@@ -137,7 +154,10 @@ namespace UnrealProspero::Shader
         const auto resourceSize = reader.Read();
         const auto vertexIdentity = reader.Take(result.VertexIdentity.size());
         std::copy(vertexIdentity.begin(), vertexIdentity.end(), result.VertexIdentity.begin());
-        const auto payloadSize = static_cast<std::uint64_t>(headerSize) + codeSize + metadataSize + resourceSize;
+        result.ColorExportFormat = reader.Read();
+        const auto variantCount = reader.Read();
+        if (variantCount > 255 || variantCount > reader.Size() / 16) throw std::invalid_argument("Invalid color export variant count");
+        const auto payloadSize = static_cast<std::uint64_t>(headerSize) + codeSize + metadataSize + resourceSize + static_cast<std::uint64_t>(variantCount) * 16;
         if (payloadSize > reader.Size() || count > (reader.Size() - payloadSize) / 37) throw std::invalid_argument("Invalid shader binary section sizes");
         result.Bindings.reserve(count);
         for (std::uint32_t index = 0; index < count; ++index)
@@ -155,9 +175,28 @@ namespace UnrealProspero::Shader
             binding.Type.assign(type.begin(), type.end());
             result.Bindings.push_back(std::move(binding));
         }
+        std::vector<std::array<std::uint32_t, 4>> variants;
+        variants.reserve(variantCount);
+        std::uint64_t variantBytes = 0;
+        for (std::uint32_t index = 0; index < variantCount; ++index)
+        {
+            std::array<std::uint32_t, 4> entry;
+            for (auto& value : entry) value = reader.Read();
+            variantBytes += static_cast<std::uint64_t>(entry[1]) + entry[2] + entry[3];
+            variants.push_back(entry);
+        }
+        if (variantBytes + headerSize + codeSize + metadataSize + resourceSize > reader.Size()) throw std::invalid_argument("Truncated color export variant payload");
         result.Header = reader.Take(headerSize);
         result.Code = reader.Take(codeSize);
         result.Metadata = reader.Take(metadataSize);
+        result.ColorExports.reserve(variantCount);
+        for (const auto& entry : variants)
+        {
+            const auto header = reader.Take(entry[1]);
+            const auto code = reader.Take(entry[2]);
+            const auto metadata = reader.Take(entry[3]);
+            result.ColorExports.push_back({entry[0], header, code, metadata});
+        }
         result.ResourceTable = reader.Take(resourceSize);
         if (reader.Size() != 0) throw std::invalid_argument("Trailing shader binary data");
         validate(result);

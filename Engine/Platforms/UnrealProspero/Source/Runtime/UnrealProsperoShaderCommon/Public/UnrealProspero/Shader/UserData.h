@@ -28,6 +28,7 @@ namespace UnrealProspero::Shader
     public:
         static UserDataLayout Read(std::span<const std::uint8_t> metadata, ShaderStage stage);
         std::array<std::uint32_t, 16> Build(const UserDataInputs& inputs) const;
+        bool operator==(const UserDataLayout&) const = default;
         std::uint32_t GetCount() const;
         std::uint32_t GetAddressHigh() const;
         std::uint32_t GetPushConstantSize() const;
@@ -41,7 +42,7 @@ namespace UnrealProspero::Shader
 
     private:
         enum class Input { DescriptorSet, VertexBuffers, PushConstants, RingTable, ScratchAddress, BaseVertex, StartInstance, DrawId, ViewIndex, Constant };
-        struct Binding { Input Kind; std::uint32_t Slot; std::uint32_t Value; };
+        struct Binding { Input Kind; std::uint32_t Slot; std::uint32_t Value; bool operator==(const Binding&) const = default; };
         UserDataLayout() = default;
         std::vector<Binding> bindings;
         std::uint32_t count = 0;
