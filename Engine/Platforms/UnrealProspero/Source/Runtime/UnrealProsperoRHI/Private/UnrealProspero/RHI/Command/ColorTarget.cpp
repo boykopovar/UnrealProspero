@@ -83,7 +83,7 @@ namespace UnrealProspero::RHI
         const auto& mip = texture.GetMipLayout(mipLevel);
         const auto address = reinterpret_cast<std::uintptr_t>(texture.GetMipRange(mipLevel, arrayLayer).data());
         const auto pitch = static_cast<std::uint32_t>(mip.RowPitch / (mip.RowBytes / mip.Width));
-        const auto attributes = 0x09000000u | ((texture.GetLayout() == Texture2DLayout::RenderTarget64K ? 27u : 0u) << 14);
+        const auto attributes = 0x09000000u | (texture.GetLayout() == Texture2DLayout::RenderTarget64K ? 27u << 14 : 1u << 13);
         writeTarget(commands, index, {address, texture.GetFormat(), mip.Height, pitch, 0, attributes});
     }
 
@@ -96,7 +96,7 @@ namespace UnrealProspero::RHI
         const auto address = reinterpret_cast<std::uintptr_t>(texture.GetStorage().Data());
         const auto pitch = static_cast<std::uint32_t>(texture.GetRowPitch() / DescribeTextureFormat(texture.GetFormat()).BlockBytes);
         const auto view = firstSlice | ((firstSlice + sliceCount - 1) << 13) | (mipLevel << 26);
-        const auto attributes = 0x0a000000u | (texture.GetDepth() - 1);
+        const auto attributes = 0x0a000000u | (1u << 13) | (texture.GetDepth() - 1);
         writeTarget(commands, index, {address, texture.GetFormat(), texture.GetHeight(), pitch, view, attributes, texture.GetMipCount() - 1});
     }
 }
