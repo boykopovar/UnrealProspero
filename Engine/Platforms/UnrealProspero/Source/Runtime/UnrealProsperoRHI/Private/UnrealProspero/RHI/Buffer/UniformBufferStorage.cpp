@@ -10,7 +10,7 @@ namespace UnrealProspero::RHI
         if (validation != EUniformBufferValidation::None && validation != EUniformBufferValidation::ValidateResources) throw std::invalid_argument("Invalid uniform buffer validation mode");
         if (layout.ConstantBufferSize == 0 && layout.Resources.IsEmpty()) throw std::invalid_argument("Uniform buffer layout is empty");
         if (layout.ConstantBufferSize % 4 != 0) throw std::invalid_argument("Uniform buffer constant size is not word aligned");
-        if (EnumHasAnyFlags(layout.Flags, ERHIUniformBufferFlags::UniformView | ERHIUniformBufferFlags::BindlessAccessible)) throw std::runtime_error("Uniform buffer views and bindless buffers are not implemented");
+        if (EnumHasAnyFlags(layout.Flags, ERHIUniformBufferFlags::UniformView)) throw std::runtime_error("Uniform buffer views are not implemented");
         if (contents && reinterpret_cast<std::uintptr_t>(contents) % alignof(void*) != 0 && !layout.Resources.IsEmpty()) throw std::invalid_argument("Uniform buffer resource pointers are unaligned");
         resources.Reserve(layout.Resources.Num());
         for (const auto& member : layout.Resources)
