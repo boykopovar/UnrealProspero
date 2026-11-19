@@ -9,7 +9,7 @@ namespace UnrealProspero::RHI
         const int32 dispatchLimit = GMaxComputeDispatchDimension;
         if (dispatchLimit <= 0) throw std::runtime_error("RHI compute dispatch limit must be positive");
         GRHISupportsAsyncTextureCreation = true;
-        GSupportsVolumeTextureRendering = false;
+        GSupportsVolumeTextureRendering = true;
         GMaxTextureDimensions = DeviceLimits::Texture2D;
         GMaxShadowDepthBufferSizeX = DeviceLimits::Texture2D;
         GMaxShadowDepthBufferSizeY = DeviceLimits::Texture2D;

@@ -69,11 +69,15 @@ namespace UnrealProspero::RHI
             auto& texture = ResolveTextureResource(entry.RenderTarget);
             const auto& description = texture.GetDesc();
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
-            targets[index] = texture.Capture();
-            const auto& mip = targets[index]->GetMipLayout(entry.MipIndex);
-            if (entry.ArraySlice < -1 || (entry.ArraySlice >= 0 && static_cast<std::uint32_t>(entry.ArraySlice) >= targets[index]->GetArrayLayers())) throw std::out_of_range("Color render pass array layer does not exist");
-            if (entry.ArraySlice == -1 && targets[index]->GetArrayLayers() > 1) throw std::runtime_error("Layered rendering to multiple array slices is not implemented");
+            const bool volume = description.Dimension == ETextureDimension::Texture3D;
+            if (volume) volumes[index] = texture.CaptureVolume();
+            else targets[index] = texture.Capture();
+            const auto& mip = volume ? volumes[index]->GetMipLayout(entry.MipIndex) : targets[index]->GetMipLayout(entry.MipIndex);
+            const auto availableLayers = volume ? mip.Depth : targets[index]->GetArrayLayers();
+            if (entry.ArraySlice < -1 || (entry.ArraySlice >= 0 && static_cast<std::uint32_t>(entry.ArraySlice) >= availableLayers)) throw std::out_of_range("Color render pass array layer does not exist");
+            if (!volume && entry.ArraySlice == -1 && availableLayers > 1) throw std::runtime_error("Layered rendering to multiple array slices is not implemented");
             layers[index] = entry.ArraySlice == -1 ? 0u : static_cast<std::uint32_t>(entry.ArraySlice);
+            layerCounts[index] = volume && entry.ArraySlice == -1 ? availableLayers : 1u;
             mips[index] = entry.MipIndex;
             if (GetLoadAction(entry.Action) == ERenderTargetLoadAction::EClear)
             {
@@ -83,7 +87,8 @@ namespace UnrealProspero::RHI
             }
             for (uint32 previous = 0; previous < index; ++previous)
             {
-                if (targets[previous] == targets[index] && mips[previous] == mips[index] && layers[previous] == layers[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
+                const bool sameResource = (targets[index] && targets[previous] == targets[index]) || (volumes[index] && volumes[previous] == volumes[index]);
+                if (sameResource && mips[previous] == mips[index] && layers[previous] < layers[index] + layerCounts[index] && layers[index] < layers[previous] + layerCounts[previous]) throw std::invalid_argument("Render pass binds overlapping color subresources");
             }
             formats[index] = description.Format;
             srgb[index] = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB);
@@ -101,6 +106,12 @@ namespace UnrealProspero::RHI
         {
             if (!target) continue;
             const auto& storage = target->GetStorage();
+            result.push_back({storage.Data(), storage.Size()});
+        }
+        for (const auto& volume : volumes)
+        {
+            if (!volume) continue;
+            const auto& storage = volume->GetStorage();
             result.push_back({storage.Data(), storage.Size()});
         }
         if (depthTarget)
@@ -122,6 +133,11 @@ namespace UnrealProspero::RHI
             {
                 if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index], mips[index], layers[index]);
                 WriteColorTarget(commands, index, *targets[index], mips[index], layers[index]);
+            }
+            else if (volumes[index])
+            {
+                if (clearColors[index]) WriteColorClear(commands, *volumes[index], *clearColors[index], mips[index], layers[index], layerCounts[index]);
+                WriteColorTarget(commands, index, *volumes[index], mips[index], layers[index], layerCounts[index]);
             }
             else DisableColorTarget(commands, index);
         }
@@ -152,7 +168,7 @@ namespace UnrealProspero::RHI
         for (uint32 index = 0; index < targetCount; ++index)
         {
             if (pipeline.RenderTargetFormats[index] != formats[index]) throw std::invalid_argument("Graphics pipeline color format does not match the render pass");
-            if (targets[index] && EnumHasAnyFlags(pipeline.RenderTargetFlags[index], ETextureCreateFlags::SRGB) != srgb[index]) throw std::invalid_argument("Graphics pipeline color encoding does not match the render pass");
+            if ((targets[index] || volumes[index]) && EnumHasAnyFlags(pipeline.RenderTargetFlags[index], ETextureCreateFlags::SRGB) != srgb[index]) throw std::invalid_argument("Graphics pipeline color encoding does not match the render pass");
         }
     }
 }

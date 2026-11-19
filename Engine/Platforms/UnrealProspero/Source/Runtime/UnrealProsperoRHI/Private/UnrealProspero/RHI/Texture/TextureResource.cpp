@@ -38,7 +38,7 @@ namespace UnrealProspero::RHI
             else if (volume) LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
             else Texture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
             if ((array || cube) && EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Array depth and presentable targets are not implemented");
-            if (volume && EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Volume render targets are not implemented");
+            if (volume && EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Volume depth and presentable targets are not implemented");
             if (isDepthTarget(description))
             {
                 constexpr auto depthFlags = Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
