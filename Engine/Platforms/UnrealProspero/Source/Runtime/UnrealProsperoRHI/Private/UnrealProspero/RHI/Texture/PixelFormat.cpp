@@ -86,6 +86,7 @@ namespace UnrealProspero::RHI
             }
             format.Capabilities = info.Integer ? colorCaps & ~(Caps::TextureCube | Caps::RenderTarget | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable) : colorCaps;
         }
+        for (const auto pixel : {PF_R32_UINT, PF_R32_SINT}) GPixelFormats[pixel].Capabilities |= Caps::TextureAtomics;
         auto& depth = GPixelFormats[PF_ShadowDepth];
         depth.Supported = true;
         depth.BlockBytes = 4;
