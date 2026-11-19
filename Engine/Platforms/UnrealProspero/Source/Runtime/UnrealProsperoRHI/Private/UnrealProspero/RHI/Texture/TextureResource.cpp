@@ -148,10 +148,10 @@ namespace UnrealProspero::RHI
         const auto texture = Capture();
         const auto& mip = texture->GetMipLayout(mipLevel);
         const auto range = texture->GetMipRange(mipLevel, arrayLayer);
-        LockedData next{mode, mipLevel, arrayLayer, mip.RowPitch, std::vector<std::byte>(mip.Size)};
+        LockedData next{mode, mipLevel, arrayLayer, mip.RowPitch, std::vector<std::byte>(range.size())};
         if (mode == RLM_ReadOnly)
         {
-            std::copy(range.begin(), range.end(), next.Data.begin());
+            texture->CopyRowsTo(next.Data, mip.RowPitch, mipLevel, arrayLayer);
         }
         auto& entry = lockedMips.emplace(std::pair{arrayLayer, mipLevel}, std::move(next)).first->second;
         size = entry.Data.size();
@@ -186,12 +186,11 @@ namespace UnrealProspero::RHI
         mappedData.reset();
     }
 
-    TextureResource::LockedData TextureResource::Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    TextureResource::LockedData TextureResource::Unlock(std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         FScopeLock lock(&lockMutex);
         const auto found = lockedMips.find({arrayLayer, mipLevel});
         if (found == lockedMips.end()) throw std::runtime_error("Texture mip is not locked");
-        if (found->second.Mode != mode) throw std::invalid_argument("Texture unlock does not match its lock mode");
         auto result = std::move(found->second);
         lockedMips.erase(found);
         return result;

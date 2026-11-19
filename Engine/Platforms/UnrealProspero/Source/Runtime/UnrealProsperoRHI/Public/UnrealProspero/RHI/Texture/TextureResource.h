@@ -32,7 +32,7 @@ namespace UnrealProspero::RHI
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, std::span<void* const> initialMipData);
         TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<Texture2D> externalStorage);
         void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch, std::uint32_t arrayLayer = 0);
-        LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer = 0);
+        LockedData Unlock(std::uint32_t mipLevel, std::uint32_t arrayLayer = 0);
         std::uint32_t GetArrayLayer(std::uint32_t arrayIndex, std::uint32_t faceIndex) const;
         void* MapReadback();
         void UnmapReadback();

@@ -269,7 +269,7 @@ namespace UnrealProspero::RHI
     {
         if (commandList.IsExecuting()) throw std::runtime_error("Texture unlock requires a non-executing immediate command list");
         auto& texture = ResolveTextureResource(arguments.Texture);
-        auto locked = texture.Unlock(arguments.LockMode, arguments.MipIndex, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
+        auto locked = texture.Unlock(arguments.MipIndex, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
         if (locked.Mode == RLM_ReadOnly) return;
         const auto storage = texture.Capture();
         const auto& mip = storage->GetMipLayout(locked.MipLevel);
