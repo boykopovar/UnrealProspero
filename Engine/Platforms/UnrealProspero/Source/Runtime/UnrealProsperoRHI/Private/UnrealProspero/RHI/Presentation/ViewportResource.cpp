@@ -2,6 +2,7 @@
 #include "Misc/ScopeLock.h"
 #include "UnrealProspero/Windowing/Window.h"
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace UnrealProspero::RHI
@@ -12,7 +13,7 @@ namespace UnrealProspero::RHI
         {
             if (format == PF_B8G8R8A8) return TextureFormat::Bgra8Unorm;
             if (format == PF_R8G8B8A8) return TextureFormat::Rgba8Unorm;
-            throw std::invalid_argument("Viewport requires a supported display pixel format");
+            throw std::invalid_argument("Viewport display pixel format is not implemented: " + std::to_string(static_cast<int>(format)));
         }
     }
 
