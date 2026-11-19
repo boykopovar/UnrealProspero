@@ -123,7 +123,7 @@ namespace UnrealProspero::RHI
         }
         if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
         if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
-        else if (format == TextureFormat::Rg16Uint || format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm || format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
+        else if (format == TextureFormat::R16Uint || format == TextureFormat::R16Sint || format == TextureFormat::Rg16Uint || format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm || format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
         {
             const auto channels = pixelBytes / 2;
             for (std::size_t channel = 0; channel < 8; ++channel) result[channel / 2] |= (values[channel % channels] & 65535u) << ((channel % 2) * 16);

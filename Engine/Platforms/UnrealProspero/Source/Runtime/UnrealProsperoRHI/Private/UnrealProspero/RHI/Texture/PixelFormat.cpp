@@ -36,6 +36,8 @@ namespace UnrealProspero::RHI
             FormatMapping{PF_R16F_FILTER, TextureFormat::R16Float, std::nullopt},
             FormatMapping{PF_G16R16F, TextureFormat::Rg16Float, std::nullopt},
             FormatMapping{PF_G16R16F_FILTER, TextureFormat::Rg16Float, std::nullopt},
+            FormatMapping{PF_R16_UINT, TextureFormat::R16Uint, std::nullopt},
+            FormatMapping{PF_R16_SINT, TextureFormat::R16Sint, std::nullopt},
             FormatMapping{PF_R16G16_UINT, TextureFormat::Rg16Uint, std::nullopt},
             FormatMapping{PF_R32_UINT, TextureFormat::R32Uint, std::nullopt},
             FormatMapping{PF_R32_SINT, TextureFormat::R32Sint, std::nullopt},

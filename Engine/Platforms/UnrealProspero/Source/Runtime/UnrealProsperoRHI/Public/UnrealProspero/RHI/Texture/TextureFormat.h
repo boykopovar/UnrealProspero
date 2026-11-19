@@ -43,7 +43,9 @@ namespace UnrealProspero::RHI
         R16Unorm,
         Rg16Unorm,
         R11G11B10Float,
-        Rg16Uint
+        Rg16Uint,
+        R16Uint,
+        R16Sint
     };
 
     struct TextureFormatInfo
