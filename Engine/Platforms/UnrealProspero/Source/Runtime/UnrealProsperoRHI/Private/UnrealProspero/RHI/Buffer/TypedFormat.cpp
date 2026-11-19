@@ -61,6 +61,9 @@ namespace UnrealProspero::RHI
     {
         using Caps = EPixelFormatCapabilities;
         for (const auto& mapping : mappings)
+        {
+            GPixelFormats[mapping.Pixel].Supported = true;
             GPixelFormats[mapping.Pixel].Capabilities |= Caps::Buffer | Caps::BufferLoad | Caps::BufferStore | Caps::UAV | Caps::TypedUAVLoad | Caps::TypedUAVStore;
+        }
     }
 }

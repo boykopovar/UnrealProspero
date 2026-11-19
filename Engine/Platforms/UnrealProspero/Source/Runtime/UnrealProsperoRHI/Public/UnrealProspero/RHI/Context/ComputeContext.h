@@ -83,6 +83,7 @@ namespace UnrealProspero::RHI
         std::vector<std::unique_ptr<BufferAllocation>> scratchAllocations;
         StaticUniformBuffers staticUniforms;
         std::vector<std::shared_ptr<const BufferAllocation>> clearedResources;
+        std::unique_ptr<BufferAllocation> clearPattern;
         std::vector<std::shared_ptr<ResourceTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         std::vector<std::shared_ptr<Completion>> fenceMarkers;

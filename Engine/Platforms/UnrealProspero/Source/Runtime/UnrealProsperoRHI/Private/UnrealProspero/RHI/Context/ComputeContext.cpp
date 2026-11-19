@@ -98,14 +98,14 @@ namespace UnrealProspero::RHI
         std::shared_ptr<const BufferAllocation> storage;
         std::vector<std::span<std::byte>> ranges;
         std::array<std::uint32_t, 4> pattern;
-        std::size_t words;
+        std::size_t patternBytes;
         if (view->IsBuffer())
         {
             const auto snapshot = static_cast<BufferUnorderedAccessView*>(view)->Capture();
             storage = snapshot.CaptureStorage();
             ranges.push_back(snapshot.GetRange());
             pattern = EncodeBufferClear(snapshot.GetFormat(), values);
-            words = snapshot.GetFormat() == BufferFormat::Untyped ? 1u : GetBufferElementSize(snapshot.GetFormat()) / 4;
+            patternBytes = snapshot.GetFormat() == BufferFormat::Untyped ? 4u : GetBufferElementSize(snapshot.GetFormat());
         }
         else
         {
@@ -115,14 +115,23 @@ namespace UnrealProspero::RHI
             const auto textureRanges = texture.GetRanges();
             ranges.assign(textureRanges.begin(), textureRanges.end());
             pattern = EncodeTextureClear(texture.GetFormat(), values);
-            words = pattern.size();
+            patternBytes = std::span(pattern).size_bytes();
         }
         if (ranges.empty()) throw std::invalid_argument("UAV clear requires a nonempty view");
         for (const auto range : ranges) if (range.empty()) throw std::invalid_argument("UAV clear contains an empty range");
         try
         {
             clearedResources.push_back(std::move(storage));
-            for (const auto range : ranges) WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(words));
+            for (const auto range : ranges)
+            {
+                if (patternBytes == 2)
+                {
+                    if (!clearPattern) clearPattern = std::make_unique<BufferAllocation>(sizeof(std::uint32_t), addressHigh);
+                    WritePatternFill(commands, clearPattern->Data(), sizeof(std::uint32_t), std::span(pattern).first(1));
+                    WritePatternCopy(commands, range.data(), range.size(), clearPattern->Data(), patternBytes);
+                }
+                else WritePatternFill(commands, range.data(), range.size(), std::span(pattern).first(patternBytes / sizeof(std::uint32_t)));
+            }
         }
         catch (...)
         {

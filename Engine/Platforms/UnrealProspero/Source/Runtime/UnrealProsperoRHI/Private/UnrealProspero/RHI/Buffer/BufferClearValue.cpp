@@ -37,6 +37,9 @@ namespace UnrealProspero::RHI
         case BufferFormat::Short4Sint:
         case BufferFormat::Short2Snorm:
         case BufferFormat::Short4Snorm:
+        case BufferFormat::Half1:
+        case BufferFormat::Short1Uint:
+        case BufferFormat::Short1Sint:
         case BufferFormat::Half2:
         case BufferFormat::Half4:
         case BufferFormat::Short2Uint:
@@ -59,7 +62,7 @@ namespace UnrealProspero::RHI
             for (std::size_t channel = 0; channel < 4; ++channel) encoded[channel] = std::bit_cast<std::uint32_t>(values[channel]);
             return EncodeBufferClear(format, encoded);
         }
-        if (format == BufferFormat::Half2 || format == BufferFormat::Half4)
+        if (format == BufferFormat::Half1 || format == BufferFormat::Half2 || format == BufferFormat::Half4)
         {
             for (std::size_t channel = 0; channel < GetBufferElementSize(format) / 2; ++channel) encoded[channel] = EncodeHalfFloat(values[channel]);
             return EncodeBufferClear(format, encoded);
