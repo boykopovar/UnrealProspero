@@ -2,6 +2,7 @@
 #include "UnrealProspero/RHI/State/VertexDeclaration.h"
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace UnrealProspero::RHI
@@ -44,7 +45,12 @@ namespace UnrealProspero::RHI
                 selected = &element;
                 break;
             }
-            if (!selected) throw std::invalid_argument("Vertex declaration does not provide a shader descriptor");
+            if (!selected)
+            {
+                std::string available;
+                for (const auto& element : declaration.GetElements()) available += " " + std::to_string(element.AttributeIndex) + ":" + std::to_string(element.StreamIndex);
+                throw std::invalid_argument("Vertex declaration does not provide shader descriptor " + std::to_string(index) + ", per-attribute=" + std::to_string(layout.UsesVertexBuffersPerAttribute()) + ", mask=" + std::to_string(mask) + ", attributes:streams=" + available);
+            }
             auto snapshot = Capture(selected->StreamIndex);
             if (layout.UsesDynamicVertexInput())
             {
