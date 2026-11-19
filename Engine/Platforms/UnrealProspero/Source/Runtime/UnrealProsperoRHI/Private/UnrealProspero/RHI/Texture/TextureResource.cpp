@@ -51,13 +51,13 @@ namespace UnrealProspero::RHI
             if (isDepthTarget(description))
             {
                 if (description.Dimension != ETextureDimension::Texture2D) throw std::runtime_error("Tiled depth storage requires a 2D texture");
-                constexpr auto depthFlags = Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
-                if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior");
+                constexpr auto depthFlags = Flags::TargetArraySlicesIndependently | Flags::ForceIntoNonStreamingMemoryTracking | Flags::NoFastClearFinalize | Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
+                if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior: " + std::to_string(static_cast<std::uint64_t>(description.Flags & ~depthFlags)));
                 return;
             }
             const auto formatInfo = DescribeTextureFormat(ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)));
             if (formatInfo.BlockWidth > 1 && EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable | Flags::Presentable)) throw std::invalid_argument("Compressed textures do not support render target or unordered access usage");
-            constexpr auto supported = Flags::TargetArraySlicesIndependently | Flags::OfflineProcessed | Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
+            constexpr auto supported = Flags::NoFastClearFinalize | Flags::TargetArraySlicesIndependently | Flags::OfflineProcessed | Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
             if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8 && description.Format != PF_A2B10G10R10) throw std::invalid_argument("Presentable texture format is not supported");
             if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior: " + std::to_string(static_cast<std::uint64_t>(description.Flags & ~supported)));
         }
