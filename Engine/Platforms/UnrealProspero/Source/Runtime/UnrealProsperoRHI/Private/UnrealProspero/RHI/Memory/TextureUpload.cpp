@@ -8,7 +8,7 @@ namespace UnrealProspero::RHI
         storage.Upload(source, sourcePitch);
     }
 
-    void TextureUpload::Record(CommandBuffer& commands, const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    void TextureUpload::Record(CommandBuffer& commands, const Texture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         if (recorded) throw std::runtime_error("Texture upload has already been recorded");
         if (destination.GetFormat() != storage.GetFormat()) throw std::invalid_argument("Texture upload formats do not match");

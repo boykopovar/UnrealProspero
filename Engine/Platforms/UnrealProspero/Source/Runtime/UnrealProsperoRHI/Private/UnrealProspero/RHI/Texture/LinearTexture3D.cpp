@@ -74,7 +74,7 @@ namespace UnrealProspero::RHI
         if (firstMip >= mipLayouts.size()) throw std::out_of_range("Volume view selects an unavailable mip");
         if (mipCount == 0) mipCount = GetMipCount() - firstMip;
         if (mipCount > GetMipCount() - firstMip) throw std::out_of_range("Volume view exceeds its mip chain");
-        auto result = LinearTexture2D::CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
+        auto result = Texture2D::CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
         result[3] = (result[3] & 0x0fffffffu) | (10u << 28);
         result[3] |= (firstMip << 12) | ((firstMip + mipCount - 1) << 16);
         result[4] = depth - 1;

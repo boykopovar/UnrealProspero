@@ -17,7 +17,7 @@ namespace UnrealProspero::RHI
 
     private:
         std::vector<GpuMemoryRange> getMemoryRanges() const;
-        std::array<std::shared_ptr<const LinearTexture2D>, MaxSimultaneousRenderTargets> targets{};
+        std::array<std::shared_ptr<const Texture2D>, MaxSimultaneousRenderTargets> targets{};
         std::array<EPixelFormat, MaxSimultaneousRenderTargets> formats{};
         std::array<bool, MaxSimultaneousRenderTargets> srgb{};
         std::array<std::uint32_t, MaxSimultaneousRenderTargets> mips{};

@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_TEXTURE_RESOURCE_H
 #define UNREALPROSPERO_RHI_TEXTURE_RESOURCE_H
 
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 #include "UnrealProspero/RHI/Texture/LinearTexture3D.h"
 #include "UnrealProspero/RHI/Texture/DepthTexture2D.h"
 #include "RHITextureInitializer.h"
@@ -30,13 +30,13 @@ namespace UnrealProspero::RHI
         static std::size_t CalculateAllocationSize(const FRHITextureDesc& description, std::uint32_t firstMip = 0);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh);
         TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh, std::span<void* const> initialMipData);
-        TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage);
+        TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<Texture2D> externalStorage);
         void* Lock(EResourceLockMode mode, std::uint32_t mipLevel, std::size_t& size, std::size_t& pitch, std::uint32_t arrayLayer = 0);
         LockedData Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer = 0);
         std::uint32_t GetArrayLayer(std::uint32_t arrayIndex, std::uint32_t faceIndex) const;
         void* MapReadback();
         void UnmapReadback();
-        std::shared_ptr<const LinearTexture2D> Capture() const;
+        std::shared_ptr<const Texture2D> Capture() const;
         std::shared_ptr<const DepthTexture2D> CaptureDepth() const;
         std::shared_ptr<const LinearTexture3D> CaptureVolume() const;
         std::shared_ptr<const BufferAllocation> CaptureStorage() const;
@@ -53,7 +53,7 @@ namespace UnrealProspero::RHI
         std::size_t getRowPitch() const;
         void uploadInitialData(std::span<const std::byte> data);
         FRHITextureSubresourceInitializer getSubresource(FRHITextureInitializer::FSubresourceIndex index);
-        std::shared_ptr<LinearTexture2D> storage;
+        std::shared_ptr<Texture2D> storage;
         std::shared_ptr<DepthTexture2D> depthStorage;
         std::shared_ptr<LinearTexture3D> volumeStorage;
         bool initialized;

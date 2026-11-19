@@ -39,7 +39,7 @@ namespace UnrealProspero::RHI
         sceAgcDcbSetCxRegisterDirect(&commands, {0x31c + index * 15, 0});
     }
 
-    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const LinearTexture2D& texture, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    void WriteColorTarget(CommandBuffer& commands, std::uint32_t index, const Texture2D& texture, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         checkIndex(index);
         const auto& mip = texture.GetMipLayout(mipLevel);

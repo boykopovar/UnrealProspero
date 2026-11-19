@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_LINEAR_TEXTURE_3D_H
 #define UNREALPROSPERO_RHI_LINEAR_TEXTURE_3D_H
 
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 
 namespace UnrealProspero::RHI
 {

@@ -10,7 +10,7 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        void validate(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
+        void validate(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
         {
             if (flags.GetGPUIndex() != 0 || (flags.GetArrayIndex() < 0 || static_cast<std::uint32_t>(flags.GetArrayIndex()) >= texture.GetArrayLayers()) || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
             if (flags.GetCompressionMode() < RCM_UNorm || flags.GetCompressionMode() > RCM_MinMax) throw std::invalid_argument("Invalid surface range compression mode");
@@ -18,21 +18,21 @@ namespace UnrealProspero::RHI
             if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > mip.Width || static_cast<uint32>(rectangle.Max.Y) > mip.Height) throw std::out_of_range("Surface read rectangle exceeds its texture");
         }
 
-        uint8* source(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+        uint8* source(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * (texture.GetMipLayout(mipLevel).RowBytes / texture.GetMipLayout(mipLevel).Width);
             return reinterpret_cast<uint8*>(texture.GetMipRange(mipLevel, arrayLayer).data()) + offset;
         }
 
-        std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+        std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
-            const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
+            const auto pixelBytes = Texture2D::CalculateRowBytes(1, texture.GetFormat());
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * pixelBytes;
             const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Width() * pixelBytes;
             return ExpandHalfPixels(texture.GetMipRange(mipLevel, arrayLayer).subspan(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetMipLayout(mipLevel).RowPitch, texture.GetFormat());
         }
 
-        std::vector<float> readFloats(const LinearTexture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+        std::vector<float> readFloats(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
             const auto width = static_cast<std::size_t>(rectangle.Width());
             const auto height = static_cast<std::size_t>(rectangle.Height());
@@ -43,7 +43,7 @@ namespace UnrealProspero::RHI
             return values;
         }
 
-        void readBytes(const LinearTexture2D& texture, FIntRect rectangle, FColor* output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+        void readBytes(const Texture2D& texture, FIntRect rectangle, FColor* output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
             auto* input = source(texture, rectangle, mipLevel, arrayLayer);
             const auto width = static_cast<uint32>(rectangle.Width());
@@ -74,7 +74,7 @@ namespace UnrealProspero::RHI
         result.SetNumUninitialized(static_cast<int32>(pixels));
         if (pixels != 0)
         {
-            const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, texture.GetFormat());
+            const auto pixelBytes = Texture2D::CalculateRowBytes(1, texture.GetFormat());
             const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetRowPitch() + static_cast<std::size_t>(rectangle.Min.X) * pixelBytes;
             const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetRowPitch() + rectangle.Width() * pixelBytes;
             for (int32 z = zRange.X; z < zRange.Y; ++z)
@@ -86,7 +86,7 @@ namespace UnrealProspero::RHI
         output = MoveTemp(result);
     }
 
-    void ReadSurfaceHalfColors(const LinearTexture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    void ReadSurfaceHalfColors(const Texture2D& texture, FIntRect rectangle, TArray<FFloat16Color>& output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         if (mipLevel >= texture.GetMipCount()) throw std::out_of_range("Surface mip does not exist");
         FReadSurfaceDataFlags flags;
@@ -105,7 +105,7 @@ namespace UnrealProspero::RHI
         output = MoveTemp(result);
     }
 
-    void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FColor>& output)
+    void ReadSurfaceColors(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FColor>& output)
     {
         validate(texture, rectangle, flags);
         TArray<FColor> result;
@@ -132,7 +132,7 @@ namespace UnrealProspero::RHI
         output = MoveTemp(result);
     }
 
-    void ReadSurfaceColors(const LinearTexture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FLinearColor>& output)
+    void ReadSurfaceColors(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, TArray<FLinearColor>& output)
     {
         validate(texture, rectangle, flags);
         TArray<FLinearColor> result;

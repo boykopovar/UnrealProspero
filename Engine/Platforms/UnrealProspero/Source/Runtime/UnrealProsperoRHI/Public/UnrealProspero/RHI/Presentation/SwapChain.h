@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_SWAP_CHAIN_H
 #define UNREALPROSPERO_RHI_SWAP_CHAIN_H
 
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 #include "UnrealProspero/Video/Output.h"
 #include <memory>
 
@@ -15,7 +15,7 @@ namespace UnrealProspero::RHI
         ~SwapChain() noexcept(false);
         SwapChain(const SwapChain&) = delete;
         SwapChain& operator=(const SwapChain&) = delete;
-        std::shared_ptr<LinearTexture2D> Acquire();
+        std::shared_ptr<Texture2D> Acquire();
         void Present(int mode);
         void Discard();
         void Resize(std::uint32_t width, std::uint32_t height, TextureFormat format);
@@ -24,7 +24,7 @@ namespace UnrealProspero::RHI
         std::uint32_t GetBufferIndex() const;
 
     private:
-        using Buffers = std::array<std::shared_ptr<LinearTexture2D>, 3>;
+        using Buffers = std::array<std::shared_ptr<Texture2D>, 3>;
         static Buffers createBuffers(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         void registerBuffers();
         void drain();

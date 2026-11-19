@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_TEXTURE_HALF_PIXELS_H
 #define UNREALPROSPERO_RHI_TEXTURE_HALF_PIXELS_H
 
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 #include <vector>
 
 namespace UnrealProspero::RHI

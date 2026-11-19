@@ -100,11 +100,11 @@ int main()
         caseName += " depth mode " + std::to_string(depthMode) + " barrier " + std::to_string(UNREALPROSPERO_TEST_DEPTH_BARRIER);
 #endif
         const auto arrayLayer = mipLevel == 0 ? 0u : 2u;
-        LinearTexture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, UnrealProspero::Kernel::DirectAllocation::PageSize, mipLevel + 2, AllocationUsage::Texture, 3);
+        Texture2D targetTexture(width << mipLevel, height << mipLevel, format, aperture, UnrealProspero::Kernel::DirectAllocation::PageSize, mipLevel + 2, AllocationUsage::Texture, 3);
         const auto& targetMip = targetTexture.GetMipLayout(mipLevel);
         const auto targetOffset = arrayLayer * targetTexture.GetLayerPitch() + targetMip.Offset;
 #if UNREALPROSPERO_TEST_DEPTH
-        LinearTexture2D secondTarget(width, height, format, aperture);
+        Texture2D secondTarget(width, height, format, aperture);
 #endif
         const auto& output = targetTexture.GetStorage();
         std::fill_n(static_cast<std::byte*>(output.Data()), output.Size(), std::byte{0xa5});

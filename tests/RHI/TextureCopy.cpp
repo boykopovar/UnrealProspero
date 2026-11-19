@@ -19,7 +19,7 @@ void CheckArrayMipData()
     using namespace UnrealProspero::RHI;
     for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float, TextureFormat::Bc1Unorm, TextureFormat::Bc2Srgb, TextureFormat::Bc3Unorm, TextureFormat::Bc4Snorm, TextureFormat::Bc5Unorm, TextureFormat::Bc6Ufloat, TextureFormat::Bc7Srgb})
     {
-        LinearTexture2D texture(13, 7, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
+        Texture2D texture(13, 7, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 3);
         const auto bytes = texture.GetStorage().GetRange(0, texture.GetStorage().Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xcd});
         std::vector expected(bytes.begin(), bytes.end());
@@ -154,7 +154,7 @@ void CheckVolumeCopies()
         const std::vector original(sourceBytes.begin(), sourceBytes.end());
         std::vector expected(targetBytes.begin(), targetBytes.end());
         const auto region = mode == 0 ? VolumeCopyRegion{{0, 0, 0}, {0, 0, 0}, {13, 7, 5}, mipLevel, destinationMip} : VolumeCopyRegion{{1, 1, 0}, {3, 2, 3}, {5, 3, 2}, mipLevel, destinationMip};
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto pixelBytes = Texture2D::CalculateRowBytes(1, format);
         for (std::size_t z = 0; z < region.Extent[2]; ++z)
         for (std::size_t y = 0; y < region.Extent[1]; ++y)
         {
@@ -269,8 +269,8 @@ void CheckMipCopies()
     for (const auto mode : {0u, 1u, 2u, 3u, 4u})
     {
         if (mode == 4 && !array) continue;
-        LinearTexture2D source(67, 19, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::Texture, array ? 3u : 1u);
-        LinearTexture2D other(91, 37, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 7, AllocationUsage::Texture, array ? 4u : 1u);
+        Texture2D source(67, 19, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::Texture, array ? 3u : 1u);
+        Texture2D other(91, 37, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 7, AllocationUsage::Texture, array ? 4u : 1u);
         const auto& destination = mode == 1 || mode == 4 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
@@ -304,7 +304,7 @@ void CheckMipCopies()
             regions = BuildTextureCopyRegions(destination, source, {0, 0, 0, 0, firstMip.Width, firstMip.Height, 2, 1, array ? 1u : 0u, array ? 2u : 0u}, 4, array ? 2u : 1u);
             if (regions.size() != (array ? 8u : 4u)) throw std::runtime_error("Texture copy plan omitted subresources");
         }
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto pixelBytes = Texture2D::CalculateRowBytes(1, format);
         for (const auto& region : regions)
         {
             const auto& from = source.GetMipLayout(region.SourceMip);
@@ -357,8 +357,8 @@ void CheckCompressedCopies()
     {
         const auto format = formats[formatIndex];
         const std::size_t blockBytes = formatIndex < 2 || formatIndex == 6 || formatIndex == 7 ? 8 : 16;
-        LinearTexture2D source(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
-        LinearTexture2D destination(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
+        Texture2D source(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
+        Texture2D destination(13, 10, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 4, AllocationUsage::Texture, 2);
         const auto descriptor = source.GetDescriptor();
         if (((descriptor[1] >> 20) & 511) != 169 + formatIndex) throw std::runtime_error("Compressed descriptor has an incorrect format code");
         auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
@@ -455,11 +455,11 @@ int main()
         for (std::size_t level = 0; level < volumeLevels.size(); ++level) if (volumeLevels[level].Offset != volumeOffsets[level] || volumeLevels[level].Depth != volumeDepths[level]) throw std::runtime_error("Volume mip slice layout is incorrect");
         const auto deepLevels = CalculateLinearMipLayout(1, 1, 8, 4, 4);
         if (deepLevels.front().Offset + deepLevels.front().Size != 1024 || deepLevels.back().Depth != 1) throw std::runtime_error("Depth-dominant mip layout is incorrect");
-        const auto levels = LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, 3);
+        const auto levels = Texture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, 3);
         const std::size_t tailSizes[]{2560, 1280, 512};
-        for (std::uint32_t firstMip = 0; firstMip < 3; ++firstMip) if (LinearTexture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, firstMip) != tailSizes[firstMip]) throw std::runtime_error("Texture mip tail size is incorrect");
+        for (std::uint32_t firstMip = 0; firstMip < 3; ++firstMip) if (Texture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, firstMip) != tailSizes[firstMip]) throw std::runtime_error("Texture mip tail size is incorrect");
         bool invalidTailRejected = false;
-        try { LinearTexture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, 3); }
+        try { Texture2D::CalculateDataSize(7, 5, TextureFormat::Rgba8Unorm, 3, 3); }
         catch (const std::out_of_range&) { invalidTailRejected = true; }
         if (!invalidTailRejected) throw std::runtime_error("Texture size accepted an unavailable mip");
         const std::array<std::size_t, 3> offsets{1280, 512, 0};
@@ -472,13 +472,13 @@ int main()
         for (std::uint32_t width : {1u, 2u, 255u, 256u, 16384u})
         for (const auto format : {TextureFormat::R8Unorm, TextureFormat::Rg8Unorm, TextureFormat::Rgba8Unorm, TextureFormat::Rgba16Float, TextureFormat::Rgba32Float})
         {
-            const auto single = LinearTexture2D::CalculateMipLayout(width, 3, format, 1).front();
-            if (single.Offset != 0 || single.Size != LinearTexture2D::CalculateDataSize(width, 3, format) || single.RowPitch != LinearTexture2D::CalculateRowPitch(width, format)) throw std::runtime_error("Single mip layout changed existing texture geometry");
+            const auto single = Texture2D::CalculateMipLayout(width, 3, format, 1).front();
+            if (single.Offset != 0 || single.Size != Texture2D::CalculateDataSize(width, 3, format) || single.RowPitch != Texture2D::CalculateRowPitch(width, format)) throw std::runtime_error("Single mip layout changed existing texture geometry");
         }
         for (std::uint32_t count : {0u, 4u, 32u, 0xffffffffu})
         {
             bool rejected = false;
-            try { LinearTexture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, count); }
+            try { Texture2D::CalculateMipLayout(7, 5, TextureFormat::Rgba8Unorm, count); }
             catch (const std::invalid_argument&) { rejected = true; }
             if (!rejected) throw std::runtime_error("Invalid mip count was accepted");
         }
@@ -489,9 +489,9 @@ int main()
     const auto initialTextureBytes = BufferAllocation::GetTextureAllocationBytes();
     const auto initialNonStreamingBytes = BufferAllocation::GetNonStreamingTextureAllocationBytes();
     {
-        LinearTexture2D streaming(67, 19, TextureFormat::Rgba8Unorm, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::StreamingTexture);
+        Texture2D streaming(67, 19, TextureFormat::Rgba8Unorm, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, 6, AllocationUsage::StreamingTexture);
         if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Streaming texture allocation entered the non-streaming budget");
-        LinearTexture2D regular(7, 5, TextureFormat::Rgba8Unorm, 2);
+        Texture2D regular(7, 5, TextureFormat::Rgba8Unorm, 2);
         if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes + streaming.GetStorage().AllocationSize() + regular.GetStorage().AllocationSize() || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes + regular.GetStorage().AllocationSize()) throw std::runtime_error("Non-streaming texture allocation budget is incorrect");
     }
     if (BufferAllocation::GetTextureAllocationBytes() != initialTextureBytes || BufferAllocation::GetNonStreamingTextureAllocationBytes() != initialNonStreamingBytes) throw std::runtime_error("Released textures remain in the allocation budget");
@@ -506,11 +506,11 @@ int main()
     for (const auto mipCount : {1u, 3u})
     for (const unsigned mode : {0u, 1u, 2u, 3u, 4u, 5u, 6u})
     {
-        LinearTexture2D source(67, 9, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount);
+        Texture2D source(67, 9, format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount);
         auto destinationFormat = format;
         if (mode == 4 && format == TextureFormat::Rgba8Srgb) destinationFormat = TextureFormat::Rgba8Unorm;
         if (mode == 4 && format == TextureFormat::Bgra8Srgb) destinationFormat = TextureFormat::Bgra8Unorm;
-        LinearTexture2D other(91, 13, destinationFormat, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount == 1 ? 1u : 4u);
+        Texture2D other(91, 13, destinationFormat, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount == 1 ? 1u : 4u);
         const auto& destination = mode == 2 ? source : other;
         const auto sourceBytes = source.GetStorage().GetRange(0, source.GetStorage().Size());
         const auto destinationBytes = destination.GetStorage().GetRange(0, destination.GetStorage().Size());
@@ -567,11 +567,11 @@ int main()
             }
         }
     }
-    LinearTexture2D texture(17, 7, TextureFormat::Rgba8Unorm, 2);
-    LinearTexture2D incompatible(17, 7, TextureFormat::R32Float, 2);
+    Texture2D texture(17, 7, TextureFormat::Rgba8Unorm, 2);
+    Texture2D incompatible(17, 7, TextureFormat::R32Float, 2);
     CommandStorage storage(4096, 2);
     auto& commands = storage.Get();
-    const auto reject = [&](const LinearTexture2D& destination, const TextureCopyRegion& region)
+    const auto reject = [&](const Texture2D& destination, const TextureCopyRegion& region)
     {
         const auto before = commands.cursor_up;
         bool rejected = false;
@@ -600,7 +600,7 @@ int main()
     rejectSource(uploadBytes, 11);
     rejectSource(std::span{uploadBytes}.first(23), 12);
     TextureUpload upload(3, 2, TextureFormat::Rgba8Unorm, uploadBytes, 12, 2);
-    const auto rejectUpload = [&](const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel = 0)
+    const auto rejectUpload = [&](const Texture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel = 0)
     {
         const auto before = commands.cursor_up;
         bool rejected = false;

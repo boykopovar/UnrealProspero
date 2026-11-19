@@ -118,7 +118,7 @@ namespace UnrealProspero::RHI
         });
     }
 
-    void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer)
+    void GraphicsContext::UploadTexture(std::shared_ptr<const Texture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer)
     {
         RecordCommands([&](CommandBuffer& commands)
         {

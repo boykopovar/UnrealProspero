@@ -27,7 +27,7 @@ namespace UnrealProspero::RHI
     {
         static_cast<void>(pixelFormat(format));
         Buffers result;
-        for (auto& buffer : result) buffer = std::make_shared<LinearTexture2D>(width, height, format, addressHigh, 65536);
+        for (auto& buffer : result) buffer = std::make_shared<Texture2D>(width, height, format, addressHigh, 65536);
         return result;
     }
 
@@ -58,7 +58,7 @@ namespace UnrealProspero::RHI
         if (closed || failed || !registered) throw std::runtime_error("Swap chain is closed or failed");
     }
 
-    std::shared_ptr<LinearTexture2D> SwapChain::Acquire()
+    std::shared_ptr<Texture2D> SwapChain::Acquire()
     {
         requireOpen();
         if (!acquired)

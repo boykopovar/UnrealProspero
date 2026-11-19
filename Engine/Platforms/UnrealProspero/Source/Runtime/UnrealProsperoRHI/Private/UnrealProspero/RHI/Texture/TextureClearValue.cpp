@@ -76,7 +76,7 @@ namespace UnrealProspero::RHI
     std::array<std::uint32_t, 4> EncodeTextureClear(TextureFormat format, const std::array<std::uint32_t, 4>& values)
     {
         std::array<std::uint32_t, 4> result{};
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto pixelBytes = Texture2D::CalculateRowBytes(1, format);
         if (format == TextureFormat::Rgb10A2Unorm)
         {
             result.fill((values[0] & 1023u) | ((values[1] & 1023u) << 10) | ((values[2] & 1023u) << 20) | ((values[3] & 3u) << 30));

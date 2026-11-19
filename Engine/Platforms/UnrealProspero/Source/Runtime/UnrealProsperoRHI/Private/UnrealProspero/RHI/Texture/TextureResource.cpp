@@ -36,7 +36,7 @@ namespace UnrealProspero::RHI
                 if (description.NumMips != 1) throw std::runtime_error("Depth and presentable mip chains are not implemented");
             }
             else if (volume) LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
-            else LinearTexture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
+            else Texture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
             if ((array || cube) && EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Array depth and presentable targets are not implemented");
             if (volume && EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Volume render targets are not implemented");
             if (isDepthTarget(description))
@@ -93,14 +93,14 @@ namespace UnrealProspero::RHI
         if (firstMip >= description.NumMips) throw std::out_of_range("Texture size selects an unavailable mip");
         if (isDepthTarget(description)) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y);
         if (description.Dimension == ETextureDimension::Texture3D) return BufferAllocation::CalculateAllocationSize(LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip));
-        return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip) * description.ArraySize * (description.IsTextureCube() ? 6 : 1));
+        return BufferAllocation::CalculateAllocationSize(Texture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip) * description.ArraySize * (description.IsTextureCube() ? 6 : 1));
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
         if (isDepthTarget(description)) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh);
         else if (description.Dimension == ETextureDimension::Texture3D) volumeStorage = std::make_shared<LinearTexture3D>(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, description.NumMips);
-        else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description), description.NumMips, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Streamable) && !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking) ? AllocationUsage::StreamingTexture : AllocationUsage::Texture, description.ArraySize * (description.IsTextureCube() ? 6 : 1));
+        else storage = std::make_shared<Texture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description), description.NumMips, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Streamable) && !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking) ? AllocationUsage::StreamingTexture : AllocationUsage::Texture, description.ArraySize * (description.IsTextureCube() ? 6 : 1));
         if (volumeStorage && description.InitAction == ERHITextureInitAction::Initializer)
         {
             std::size_t size = 0;
@@ -132,7 +132,7 @@ namespace UnrealProspero::RHI
         }
     }
 
-    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<Texture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
     {
         if (description.Dimension != ETextureDimension::Texture2D) throw std::invalid_argument("External 2D storage requires a 2D texture description");
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
@@ -342,7 +342,7 @@ namespace UnrealProspero::RHI
         return depthStorage;
     }
 
-    std::shared_ptr<const LinearTexture2D> TextureResource::Capture() const
+    std::shared_ptr<const Texture2D> TextureResource::Capture() const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
         if (!storage) throw std::runtime_error("This operation requires a linear color texture");

@@ -212,7 +212,7 @@ namespace UnrealProspero::RHI
         const auto info = DescribeTextureFormat(destination->GetFormat());
         if (region.SrcX % info.BlockWidth != 0 || region.SrcY % info.BlockHeight != 0 || region.DestX % info.BlockWidth != 0 || region.DestY % info.BlockHeight != 0) throw std::invalid_argument("Volume update origin is not block aligned");
         if ((region.Width % info.BlockWidth != 0 && region.Width != mip.Width - region.DestX) || (region.Height % info.BlockHeight != 0 && region.Height != mip.Height - region.DestY)) throw std::invalid_argument("Volume update splits a compressed block");
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, destination->GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Width, destination->GetFormat());
         const auto blockRows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const auto column = static_cast<std::size_t>(region.SrcX) / info.BlockWidth * info.BlockBytes;
         if (column > sourceRowPitch || rowBytes > sourceRowPitch - column) throw std::invalid_argument("Volume update source row pitch is too small");
@@ -238,7 +238,7 @@ namespace UnrealProspero::RHI
         const auto info = DescribeTextureFormat(destination->GetFormat());
         if (region.SrcX % info.BlockWidth != 0 || region.SrcY % info.BlockHeight != 0 || region.DestX % info.BlockWidth != 0 || region.DestY % info.BlockHeight != 0) throw std::invalid_argument("Texture update origin is not block aligned");
         if ((region.Width % info.BlockWidth != 0 && region.Width != mip.Width - region.DestX) || (region.Height % info.BlockHeight != 0 && region.Height != mip.Height - region.DestY)) throw std::invalid_argument("Texture update splits a compressed block");
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, destination->GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Width, destination->GetFormat());
         const auto rows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const auto columnOffset = static_cast<std::size_t>(region.SrcX) / info.BlockWidth * info.BlockBytes;
         if (columnOffset > sourcePitch || rowBytes > sourcePitch - columnOffset) throw std::invalid_argument("Texture update source pitch is too small");

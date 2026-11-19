@@ -1,5 +1,5 @@
-#ifndef UNREALPROSPERO_RHI_LINEAR_TEXTURE_2D_H
-#define UNREALPROSPERO_RHI_LINEAR_TEXTURE_2D_H
+#ifndef UNREALPROSPERO_RHI_TEXTURE_2D_H
+#define UNREALPROSPERO_RHI_TEXTURE_2D_H
 
 #include "UnrealProspero/RHI/Memory/BufferAllocation.h"
 #include <array>
@@ -9,7 +9,7 @@
 
 namespace UnrealProspero::RHI
 {
-    class UNREALPROSPERORHI_API LinearTexture2D final
+    class UNREALPROSPERORHI_API Texture2D final
     {
     public:
         using MipLayout = LinearMipLayout;
@@ -19,7 +19,7 @@ namespace UnrealProspero::RHI
         static std::array<std::uint32_t, 8> CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb = false, std::uint32_t mipCount = 1);
         static std::size_t CalculateRowPitch(std::uint32_t width, TextureFormat format);
         static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount = 1, std::uint32_t firstMip = 0);
-        LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, std::uint32_t mipCount = 1, AllocationUsage usage = AllocationUsage::Texture, std::uint32_t arrayLayers = 1);
+        Texture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, std::uint32_t mipCount = 1, AllocationUsage usage = AllocationUsage::Texture, std::uint32_t arrayLayers = 1);
         void Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel = 0, std::uint32_t arrayLayer = 0);
         void CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel = 0, std::uint32_t arrayLayer = 0) const;
         const std::array<std::uint32_t, 8>& GetDescriptor() const;

@@ -1,4 +1,4 @@
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 #include "UnrealProspero/RHI/Device/DeviceLimits.h"
 #include <stdexcept>
 #include <algorithm>
@@ -22,37 +22,37 @@ namespace UnrealProspero::RHI
         }
     }
 
-    std::vector<LinearTexture2D::MipLayout> LinearTexture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
+    std::vector<Texture2D::MipLayout> Texture2D::CalculateMipLayout(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount)
     {
         const auto info = DescribeTextureFormat(format);
         return CalculateLinearMipLayout(width, height, 1, info.BlockBytes, mipCount, info.BlockWidth, info.BlockHeight);
     }
 
-    std::size_t LinearTexture2D::CalculateRowBytes(std::uint32_t width, TextureFormat format)
+    std::size_t Texture2D::CalculateRowBytes(std::uint32_t width, TextureFormat format)
     {
         const auto info = DescribeTextureFormat(format);
         return ((dimension(width) + info.BlockWidth - 1) / info.BlockWidth) * info.BlockBytes;
     }
 
-    std::size_t LinearTexture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format)
+    std::size_t Texture2D::CalculateRowPitch(std::uint32_t width, TextureFormat format)
     {
         return (CalculateRowBytes(width, format) + 255) & ~std::size_t{255};
     }
 
-    std::size_t LinearTexture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
+    std::size_t Texture2D::CalculateDataSize(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t mipCount, std::uint32_t firstMip)
     {
         const auto levels = CalculateMipLayout(width, height, format, mipCount);
         if (firstMip >= levels.size()) throw std::out_of_range("Texture size selects an unavailable mip");
         return levels[firstMip].Offset + levels[firstMip].Size;
     }
 
-    LinearTexture2D::LinearTexture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage, std::uint32_t arrayLayers) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), arrayLayers(layerCount(arrayLayers)), layerPitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(layerPitch * this->arrayLayers, addressHigh, alignment, usage)
+    Texture2D::Texture2D(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh, std::size_t alignment, std::uint32_t mipCount, AllocationUsage usage, std::uint32_t arrayLayers) : width(dimension(width)), height(dimension(height)), format(format), rowBytes(CalculateRowBytes(width, format)), rowPitch(CalculateRowPitch(width, format)), mipLayouts(CalculateMipLayout(width, height, format, mipCount)), arrayLayers(layerCount(arrayLayers)), layerPitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(layerPitch * this->arrayLayers, addressHigh, alignment, usage)
     {
         if (usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Texture requires texture allocation usage");
         descriptor = arrayLayers == 1 ? CreateDescriptor(width, height, format, storage.Data(), false, mipCount) : CreateArrayViewDescriptor(false, 0, arrayLayers);
     }
 
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb, std::uint32_t mipCount)
+    std::array<std::uint32_t, 8> Texture2D::CreateDescriptor(std::uint32_t width, std::uint32_t height, TextureFormat format, const void* data, bool disableSrgb, std::uint32_t mipCount)
     {
         dimension(width);
         dimension(height);
@@ -69,7 +69,7 @@ namespace UnrealProspero::RHI
         };
     }
 
-    void LinearTexture2D::Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    void Texture2D::Upload(std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         const auto& mip = GetMipLayout(mipLevel);
         GetMipRange(mipLevel, arrayLayer);
@@ -77,7 +77,7 @@ namespace UnrealProspero::RHI
         for (std::size_t row = 0; row < mip.RowCount; ++row) storage.Upload(arrayLayer * layerPitch + mip.Offset + row * mip.RowPitch, source.subspan(row * sourcePitch, mip.RowBytes));
     }
 
-    void LinearTexture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel, std::uint32_t arrayLayer) const
+    void Texture2D::CopyRowsTo(std::span<std::byte> destination, std::size_t destinationPitch, std::uint32_t mipLevel, std::uint32_t arrayLayer) const
     {
         const auto& mip = GetMipLayout(mipLevel);
         const auto range = GetMipRange(mipLevel, arrayLayer);
@@ -89,23 +89,23 @@ namespace UnrealProspero::RHI
         for (std::size_t row = 0; row < mip.RowCount; ++row) std::memcpy(destination.data() + row * destinationPitch, source + row * mip.RowPitch, mip.RowBytes);
     }
 
-    const LinearTexture2D::MipLayout& LinearTexture2D::GetMipLayout(std::uint32_t mipLevel) const
+    const Texture2D::MipLayout& Texture2D::GetMipLayout(std::uint32_t mipLevel) const
     {
         if (mipLevel >= mipLayouts.size()) throw std::out_of_range("Texture mip level exceeds its allocation");
         return mipLayouts[mipLevel];
     }
 
-    std::uint32_t LinearTexture2D::GetMipCount() const { return static_cast<std::uint32_t>(mipLayouts.size()); }
+    std::uint32_t Texture2D::GetMipCount() const { return static_cast<std::uint32_t>(mipLayouts.size()); }
 
-    std::span<std::byte> LinearTexture2D::GetMipRange(std::uint32_t mipLevel, std::uint32_t arrayLayer) const
+    std::span<std::byte> Texture2D::GetMipRange(std::uint32_t mipLevel, std::uint32_t arrayLayer) const
     {
         const auto& mip = GetMipLayout(mipLevel);
         if (arrayLayer >= arrayLayers) throw std::out_of_range("Texture array layer exceeds its allocation");
         return storage.GetRange(arrayLayer * layerPitch + mip.Offset, mip.Size);
     }
 
-    const std::array<std::uint32_t, 8>& LinearTexture2D::GetDescriptor() const { return descriptor; }
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t arrayLayer) const
+    const std::array<std::uint32_t, 8>& Texture2D::GetDescriptor() const { return descriptor; }
+    std::array<std::uint32_t, 8> Texture2D::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t arrayLayer) const
     {
         if (firstMip >= GetMipCount()) throw std::out_of_range("Texture view starts past the mip chain");
         if (mipCount == 0) mipCount = GetMipCount() - firstMip;
@@ -116,7 +116,7 @@ namespace UnrealProspero::RHI
         return result;
     }
 
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateArrayViewDescriptor(bool disableSrgb, std::uint32_t firstLayer, std::uint32_t count, std::uint32_t firstMip, std::uint32_t mipCount) const
+    std::array<std::uint32_t, 8> Texture2D::CreateArrayViewDescriptor(bool disableSrgb, std::uint32_t firstLayer, std::uint32_t count, std::uint32_t firstMip, std::uint32_t mipCount) const
     {
         if (firstLayer >= arrayLayers || count == 0 || count > arrayLayers - firstLayer) throw std::out_of_range("Texture array view exceeds its layers");
         auto result = CreateViewDescriptor(disableSrgb, firstMip, mipCount);
@@ -125,7 +125,7 @@ namespace UnrealProspero::RHI
         return result;
     }
 
-    std::array<std::uint32_t, 8> LinearTexture2D::CreateCubeViewDescriptor(bool disableSrgb, std::uint32_t firstCube, std::uint32_t cubeCount, std::uint32_t firstMip, std::uint32_t mipCount) const
+    std::array<std::uint32_t, 8> Texture2D::CreateCubeViewDescriptor(bool disableSrgb, std::uint32_t firstCube, std::uint32_t cubeCount, std::uint32_t firstMip, std::uint32_t mipCount) const
     {
         if (width != height || arrayLayers % 6 != 0) throw std::invalid_argument("Cube view requires square faces in groups of six");
         const auto cubes = arrayLayers / 6;
@@ -135,13 +135,13 @@ namespace UnrealProspero::RHI
         return result;
     }
 
-    std::uint32_t LinearTexture2D::GetArrayLayers() const { return arrayLayers; }
-    std::size_t LinearTexture2D::GetLayerPitch() const { return layerPitch; }
+    std::uint32_t Texture2D::GetArrayLayers() const { return arrayLayers; }
+    std::size_t Texture2D::GetLayerPitch() const { return layerPitch; }
 
-    const BufferAllocation& LinearTexture2D::GetStorage() const { return storage; }
-    std::size_t LinearTexture2D::GetRowPitch() const { return rowPitch; }
-    std::size_t LinearTexture2D::GetRowBytes() const { return rowBytes; }
-    std::uint32_t LinearTexture2D::GetWidth() const { return width; }
-    std::uint32_t LinearTexture2D::GetHeight() const { return height; }
-    TextureFormat LinearTexture2D::GetFormat() const { return format; }
+    const BufferAllocation& Texture2D::GetStorage() const { return storage; }
+    std::size_t Texture2D::GetRowPitch() const { return rowPitch; }
+    std::size_t Texture2D::GetRowBytes() const { return rowBytes; }
+    std::uint32_t Texture2D::GetWidth() const { return width; }
+    std::uint32_t Texture2D::GetHeight() const { return height; }
+    TextureFormat Texture2D::GetFormat() const { return format; }
 }

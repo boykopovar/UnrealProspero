@@ -88,11 +88,11 @@ int main()
     for (std::size_t colorIndex = 0; colorIndex < colors.size(); ++colorIndex)
     {
         if (mipCount > static_cast<std::uint32_t>(std::bit_width(std::max(dimensions[0], dimensions[1])))) continue;
-        LinearTexture2D texture(dimensions[0], dimensions[1], format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount);
+        Texture2D texture(dimensions[0], dimensions[1], format, 2, UnrealProspero::Kernel::DirectAllocation::PageSize, mipCount);
         const auto& allocation = texture.GetStorage();
         if (allocation.AllocationSize() < allocation.Size() || allocation.AllocationSize() % 16384 != 0 || allocation.AllocationSize() - allocation.Size() >= 16384) throw std::runtime_error("Texture allocation size does not match kernel pages");
-        const auto predictedSize = LinearTexture2D::CalculateDataSize(dimensions[0], dimensions[1], format, mipCount);
-        if (predictedSize != allocation.Size() || LinearTexture2D::CalculateRowPitch(dimensions[0], format) != texture.GetRowPitch() || BufferAllocation::CalculateAllocationSize(predictedSize) != allocation.AllocationSize()) throw std::runtime_error("Texture size query differs from its allocation");
+        const auto predictedSize = Texture2D::CalculateDataSize(dimensions[0], dimensions[1], format, mipCount);
+        if (predictedSize != allocation.Size() || Texture2D::CalculateRowPitch(dimensions[0], format) != texture.GetRowPitch() || BufferAllocation::CalculateAllocationSize(predictedSize) != allocation.AllocationSize()) throw std::runtime_error("Texture size query differs from its allocation");
         const auto bytes = allocation.GetRange(0, allocation.Size());
         std::fill(bytes.begin(), bytes.end(), std::byte{0xa5});
         std::array<std::byte, 16> pixel{};
@@ -128,7 +128,7 @@ int main()
     {
         LinearTexture3D texture(7, 3, 5, format, 2);
         const std::array<std::uint32_t, 4> values{0x76543210u, 0xfedcba98u, 0x13579bdfu, 0x2468ace0u};
-        const auto pixelSize = LinearTexture2D::CalculateRowBytes(1, format);
+        const auto pixelSize = Texture2D::CalculateRowBytes(1, format);
         const auto channelSize = format == TextureFormat::R32Float || format == TextureFormat::Rgba32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint ? 4u : IsHalfTextureFormat(format) ? 2u : 1u;
         std::array<std::byte, 16> pixel{};
         for (std::size_t byte = 0; byte < pixelSize; ++byte)
