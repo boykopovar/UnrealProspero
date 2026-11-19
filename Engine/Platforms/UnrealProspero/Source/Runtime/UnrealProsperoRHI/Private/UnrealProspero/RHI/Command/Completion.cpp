@@ -17,7 +17,7 @@ namespace UnrealProspero::RHI
     {
         if (written) throw std::runtime_error("GPU completion marker has already been recorded");
         written = true;
-        sceAgcCbReleaseMem(&commands, 0x2d, 0x70f, 0, 0, static_cast<Label*>(storage.Data()), 2, 1, 0, 0, 3, 0);
+        sceAgcCbReleaseMem(&commands, 0x14, 0x70f, 0, 0, static_cast<Label*>(storage.Data()), 2, 1, 0, 0, 3, 0);
     }
 
     bool Completion::IsComplete() const

@@ -16,7 +16,7 @@ namespace UnrealProspero::RHI
     {
         if (released) throw std::runtime_error("GPU memory barrier has already been released");
         released = true;
-        sceAgcCbReleaseMem(&commands, 0x2d, 0x70f, 0, 0, static_cast<Label*>(completion.Data()), 2, 1, 0, 0, 3, 0);
+        sceAgcCbReleaseMem(&commands, 0x14, 0x70f, 0, 0, static_cast<Label*>(completion.Data()), 2, 1, 0, 0, 3, 0);
     }
 
     void MemoryBarrier::Acquire(CommandBuffer& commands, std::span<const GpuMemoryRange> ranges)
