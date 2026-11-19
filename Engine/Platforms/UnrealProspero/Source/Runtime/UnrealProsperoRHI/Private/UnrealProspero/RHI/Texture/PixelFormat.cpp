@@ -29,9 +29,9 @@ namespace UnrealProspero::RHI
             FormatMapping{PF_BC5, TextureFormat::Bc5Unorm, std::nullopt},
             FormatMapping{PF_BC6H, TextureFormat::Bc6Ufloat, std::nullopt},
             FormatMapping{PF_BC7, TextureFormat::Bc7Unorm, TextureFormat::Bc7Srgb},
-            FormatMapping{PF_G8, TextureFormat::R8Unorm, std::nullopt},
-            FormatMapping{PF_R8, TextureFormat::R8Unorm, std::nullopt},
-            FormatMapping{PF_R8G8, TextureFormat::Rg8Unorm, std::nullopt},
+            FormatMapping{PF_G8, TextureFormat::R8Unorm, TextureFormat::R8Srgb},
+            FormatMapping{PF_R8, TextureFormat::R8Unorm, TextureFormat::R8Srgb},
+            FormatMapping{PF_R8G8, TextureFormat::Rg8Unorm, TextureFormat::Rg8Srgb},
             FormatMapping{PF_R16F, TextureFormat::R16Float, std::nullopt},
             FormatMapping{PF_R16F_FILTER, TextureFormat::R16Float, std::nullopt},
             FormatMapping{PF_G16R16F, TextureFormat::Rg16Float, std::nullopt},
@@ -51,7 +51,7 @@ namespace UnrealProspero::RHI
         {
             if (mapping.Pixel != format) continue;
             if (!srgb) return mapping.Linear;
-            if (!mapping.Srgb) throw std::runtime_error("sRGB is not implemented for this texture format");
+            if (!mapping.Srgb) throw std::runtime_error("sRGB is not implemented for texture pixel format: " + std::to_string(static_cast<int>(format)));
             return *mapping.Srgb;
         }
         throw std::runtime_error("Texture pixel format is not implemented: " + std::to_string(static_cast<int>(format)));

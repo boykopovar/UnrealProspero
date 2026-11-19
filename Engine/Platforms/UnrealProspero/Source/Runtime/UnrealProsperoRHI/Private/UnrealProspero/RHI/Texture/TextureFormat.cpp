@@ -5,6 +5,8 @@ namespace UnrealProspero::RHI
 {
     TextureFormatInfo DescribeTextureFormat(TextureFormat format, bool disableSrgb)
     {
+        if (disableSrgb && format == TextureFormat::R8Srgb) format = TextureFormat::R8Unorm;
+        if (disableSrgb && format == TextureFormat::Rg8Srgb) format = TextureFormat::Rg8Unorm;
         if (disableSrgb && format == TextureFormat::Rgba8Srgb) format = TextureFormat::Rgba8Unorm;
         if (disableSrgb && format == TextureFormat::Bgra8Srgb) format = TextureFormat::Bgra8Unorm;
         if (disableSrgb && format == TextureFormat::Bc1Srgb) format = TextureFormat::Bc1Unorm;
@@ -13,6 +15,8 @@ namespace UnrealProspero::RHI
         if (disableSrgb && format == TextureFormat::Bc7Srgb) format = TextureFormat::Bc7Unorm;
         switch (format)
         {
+        case TextureFormat::R8Srgb: return {128, 1, 4 | (1 << 9)};
+        case TextureFormat::Rg8Srgb: return {129, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::R8Unorm: return {1, 1, 4 | (1 << 9)};
         case TextureFormat::Rg8Unorm: return {14, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::Rgba8Unorm: return {56, 4, 0xfac};

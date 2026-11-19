@@ -47,13 +47,13 @@ namespace UnrealProspero::RHI
         else if (format == TextureFormat::R32Float) word = std::bit_cast<std::uint32_t>(color[0]);
         else
         {
-            const bool srgb = format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
+            const bool srgb = format == TextureFormat::R8Srgb || format == TextureFormat::Rg8Srgb || format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
             const auto red = normalized(color[0], srgb);
-            if (format == TextureFormat::R8Unorm) word = red * 0x01010101u;
+            if (format == TextureFormat::R8Unorm || format == TextureFormat::R8Srgb) word = red * 0x01010101u;
             else
             {
                 const auto green = normalized(color[1], srgb);
-                if (format == TextureFormat::Rg8Unorm) word = (red | (green << 8)) * 0x00010001u;
+                if (format == TextureFormat::Rg8Unorm || format == TextureFormat::Rg8Srgb) word = (red | (green << 8)) * 0x00010001u;
                 else
                 {
                     const auto blue = normalized(color[2], srgb);

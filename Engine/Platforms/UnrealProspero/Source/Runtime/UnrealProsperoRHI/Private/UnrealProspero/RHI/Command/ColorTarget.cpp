@@ -11,6 +11,8 @@ namespace UnrealProspero::RHI
         {
             switch (format)
             {
+            case TextureFormat::R8Srgb: return (1 << 2) | (6 << 8) | (1 << 15) | (1 << 17);
+            case TextureFormat::Rg8Srgb: return (3 << 2) | (6 << 8) | (1 << 15) | (1 << 17);
             case TextureFormat::R8Unorm: return (1 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rg8Unorm: return (3 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rgba8Unorm: return (10 << 2) | (1 << 15) | (1 << 17);
@@ -48,7 +50,7 @@ namespace UnrealProspero::RHI
             checkIndex(index);
             if (target.Pitch == 0 || target.Pitch > 16384 || target.Height == 0 || target.Height > 16384) throw std::out_of_range("Color target dimensions exceed the hardware limit");
             const auto format = target.Format;
-            const bool forceAlpha = format == TextureFormat::R8Unorm || format == TextureFormat::Rg8Unorm || format == TextureFormat::R32Float || format == TextureFormat::R16Float || format == TextureFormat::Rg16Float;
+            const bool forceAlpha = format == TextureFormat::R8Unorm || format == TextureFormat::R8Srgb || format == TextureFormat::Rg8Unorm || format == TextureFormat::Rg8Srgb || format == TextureFormat::R32Float || format == TextureFormat::R16Float || format == TextureFormat::Rg16Float;
             const auto base = index * 15;
             const std::array registers{
                 ShaderRegister{0x318 + base, static_cast<std::uint32_t>(target.Address >> 8)},
