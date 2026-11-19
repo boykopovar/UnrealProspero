@@ -7,6 +7,7 @@
 #include <atomic>
 #include <limits>
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::Video
 {
@@ -57,7 +58,12 @@ namespace UnrealProspero::Video
     void Output::RegisterBuffers(int setIndex, int firstBuffer, std::span<const VideoOutBuffers> buffers, const VideoOutBufferAttribute2& attribute, int category)
     {
         if (buffers.empty() || buffers.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) throw std::invalid_argument("Invalid video buffer count");
-        Kernel::CheckResult(sceVideoOutRegisterBuffers2(GetHandle(), setIndex, firstBuffer, buffers.data(), static_cast<int>(buffers.size()), &attribute, category, nullptr), "sceVideoOutRegisterBuffers2");
+        const int result = sceVideoOutRegisterBuffers2(GetHandle(), setIndex, firstBuffer, buffers.data(), static_cast<int>(buffers.size()), &attribute, category, nullptr);
+        if (result != 0)
+        {
+            const auto operation = "sceVideoOutRegisterBuffers2(width=" + std::to_string(attribute.width) + ", height=" + std::to_string(attribute.height) + ", pitch=" + std::to_string(attribute.pitch_in_pixel) + ", tiling=" + std::to_string(attribute.tiling_mode) + ", format=" + std::to_string(attribute.pixel_format) + ")";
+            throw Kernel::Error(result, operation.c_str());
+        }
     }
 
     void Output::UnregisterBuffers(int setIndex)
