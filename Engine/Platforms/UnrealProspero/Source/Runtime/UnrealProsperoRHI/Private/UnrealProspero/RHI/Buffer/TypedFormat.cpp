@@ -1,6 +1,7 @@
 #include "UnrealProspero/RHI/Buffer/TypedFormat.h"
 #include <array>
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::RHI
 {
@@ -17,6 +18,11 @@ namespace UnrealProspero::RHI
             Mapping{PF_G32R32F, BufferFormat::Float2},
             Mapping{PF_A32B32G32R32F, BufferFormat::Float4},
             Mapping{PF_R32_UINT, BufferFormat::Uint1},
+            Mapping{PF_R32G32_UINT, BufferFormat::Uint2},
+            Mapping{PF_R32G32B32_UINT, BufferFormat::Uint3},
+            Mapping{PF_R32G32B32A32_UINT, BufferFormat::Uint4},
+            Mapping{PF_R32_SINT, BufferFormat::Sint1},
+            Mapping{PF_R32G32B32_SINT, BufferFormat::Sint3},
             Mapping{PF_G16R16F, BufferFormat::Half2},
             Mapping{PF_G16R16F_FILTER, BufferFormat::Half2},
             Mapping{PF_FloatRGBA, BufferFormat::Half4},
@@ -41,7 +47,7 @@ namespace UnrealProspero::RHI
                 if (GPixelFormats[format].BlockBytes != static_cast<int32>(GetBufferElementSize(mapping.Buffer))) throw std::runtime_error("Typed buffer element size differs from Unreal format metadata");
                 return mapping.Buffer;
             }
-        throw std::runtime_error("Typed buffer pixel format is not implemented");
+        throw std::runtime_error("Typed buffer pixel format is not implemented: " + std::to_string(static_cast<int>(format)));
     }
 
     void ConfigureTypedBufferFormats()

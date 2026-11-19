@@ -38,6 +38,11 @@ namespace UnrealProspero::RHI
             case BufferFormat::Short4Unorm: return {65, 8, 0xfac};
             case BufferFormat::Rgb10A2Unorm: return {44, 4, 0xfac};
             case BufferFormat::Uint1: return {20, 4, 0x204};
+            case BufferFormat::Uint2: return {62, 8, 0x22c};
+            case BufferFormat::Uint3: return {72, 12, 0x3ac};
+            case BufferFormat::Uint4: return {75, 16, 0xfac};
+            case BufferFormat::Sint1: return {21, 4, 0x204};
+            case BufferFormat::Sint3: return {73, 12, 0x3ac};
             default: throw std::invalid_argument("Invalid typed buffer format");
             }
         }
