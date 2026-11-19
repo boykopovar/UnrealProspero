@@ -47,7 +47,6 @@ namespace UnrealProspero::RHI
         VideoOutBufferAttribute2 attribute{};
         const auto& first = *buffers[0];
         sceVideoOutSetBufferAttribute2(&attribute, pixelFormat(first.GetFormat()), 1, first.GetWidth(), first.GetHeight(), 0, 0, 0);
-        attribute.pitch_in_pixel = static_cast<std::uint32_t>(first.GetRowPitch() / 4);
         std::array<VideoOutBuffers, 3> addresses{};
         for (std::size_t index = 0; index < buffers.size(); ++index) addresses[index].data = buffers[index]->GetStorage().Data();
         output->RegisterBuffers(0, 0, addresses, attribute, 0);
