@@ -89,12 +89,18 @@ namespace UnrealProspero::Windowing
     EWindowMode::Type Window::GetWindowMode() const
     {
         requireInitialized();
-        return UNREALPROSPERO_TARGET_PS5 ? EWindowMode::Fullscreen : EWindowMode::Windowed;
+        return windowMode;
     }
 
     void Window::SetWindowMode(EWindowMode::Type mode)
     {
+#if UNREALPROSPERO_TARGET_PS5
+        requireInitialized();
+        if (mode != EWindowMode::Fullscreen && mode != EWindowMode::WindowedFullscreen) throw std::invalid_argument("PS5 requires a fullscreen window mode");
+        windowMode = mode;
+#else
         if (mode != GetWindowMode()) throw std::runtime_error("Changing the native game window mode is not implemented");
+#endif
     }
 
     bool Window::IsMaximized() const { return false; }

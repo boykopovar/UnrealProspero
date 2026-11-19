@@ -51,6 +51,7 @@ namespace UnrealProspero::Windowing
         void requireInitialized() const;
         std::shared_ptr<Video::Output> output;
         TWeakPtr<FGenericApplicationMessageHandler> messageHandler;
+        EWindowMode::Type windowMode = UNREALPROSPERO_TARGET_PS5 ? EWindowMode::Fullscreen : EWindowMode::Windowed;
         int32 width = 0;
         int32 height = 0;
         std::shared_ptr<std::atomic<bool>> visible = std::make_shared<std::atomic<bool>>(false);
