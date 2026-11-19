@@ -2,11 +2,15 @@
 #include "prx/libSceAgc/Cb/include/Sync.hpp"
 #include "prx/libSceAgc/DcbFlow/include/Sync.hpp"
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 namespace UnrealProspero::RHI
 {
-    MemoryBarrier::MemoryBarrier(std::uint32_t addressHigh) : completion(sizeof(std::uint64_t), addressHigh) {}
+    MemoryBarrier::MemoryBarrier(std::uint32_t addressHigh) : completion(sizeof(std::uint64_t), addressHigh)
+    {
+        std::construct_at(static_cast<std::uint64_t*>(completion.Data()), 0);
+    }
 
     void MemoryBarrier::Release(CommandBuffer& commands)
     {
