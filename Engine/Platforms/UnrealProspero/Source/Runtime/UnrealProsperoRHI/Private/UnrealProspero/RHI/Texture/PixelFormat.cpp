@@ -39,6 +39,7 @@ namespace UnrealProspero::RHI
             FormatMapping{PF_R32_UINT, TextureFormat::R32Uint, std::nullopt},
             FormatMapping{PF_R32_SINT, TextureFormat::R32Sint, std::nullopt},
             FormatMapping{PF_R32_FLOAT, TextureFormat::R32Float, std::nullopt},
+            FormatMapping{PF_A16B16G16R16, TextureFormat::Rgba16Unorm, std::nullopt},
             FormatMapping{PF_FloatRGBA, TextureFormat::Rgba16Float, std::nullopt},
             FormatMapping{PF_A32B32G32R32F, TextureFormat::Rgba32Float, std::nullopt}
         };

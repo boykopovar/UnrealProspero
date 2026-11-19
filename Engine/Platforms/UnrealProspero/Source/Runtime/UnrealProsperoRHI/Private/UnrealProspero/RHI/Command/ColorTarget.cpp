@@ -23,6 +23,7 @@ namespace UnrealProspero::RHI
             case TextureFormat::R16Float: return (2 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::Rg16Float: return (5 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::R32Float: return (4 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
+            case TextureFormat::Rgba16Unorm: return (12 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rgba16Float: return (12 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             case TextureFormat::Rgba32Float: return (14 << 2) | (7 << 8) | (1 << 17) | (1 << 18);
             default: throw std::invalid_argument("Unknown color target format");

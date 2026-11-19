@@ -120,6 +120,12 @@ namespace UnrealProspero::RHI
                 auto values = readHalfPixels(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
                 ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags.GetLinearToGamma());
             }
+            else if (texture.GetFormat() == TextureFormat::Rgba16Unorm)
+            {
+                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
+                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
+                ConvertRawR16G16B16A16DataToFColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData(), flags.GetLinearToGamma());
+            }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
                 auto values = readFloats(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
@@ -146,6 +152,12 @@ namespace UnrealProspero::RHI
             {
                 auto values = readHalfPixels(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
                 ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags);
+            }
+            else if (texture.GetFormat() == TextureFormat::Rgba16Unorm)
+            {
+                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
+                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
+                ConvertRawR16G16B16A16DataToFLinearColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
