@@ -2,6 +2,7 @@
 #include "Misc/ScopeLock.h"
 #include "UnrealProspero/Windowing/Window.h"
 #include <stdexcept>
+#include <utility>
 
 namespace UnrealProspero::RHI
 {
@@ -15,17 +16,22 @@ namespace UnrealProspero::RHI
         }
     }
 
-    ViewportResource::ViewportResource(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh) : windowHandle(windowHandle), target(target), format(format == PF_Unknown ? PF_B8G8R8A8 : format)
+    FViewportRHIRef ViewportResource::Create(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh)
     {
-        validateMode(fullscreen);
+        validateMode(fullscreen, target);
         if (!windowHandle) throw std::invalid_argument("Viewport requires an initialized game window");
         auto& window = *static_cast<Windowing::Window*>(windowHandle);
         auto output = window.GetOutput();
-        visible = window.CaptureVisibility();
-        chain = std::make_unique<SwapChain>(std::move(output), width, height, storageFormat(this->format), addressHigh);
+        auto visible = window.CaptureVisibility();
+        const auto chosenFormat = format == PF_Unknown ? PF_B8G8R8A8 : format;
+        auto mutex = std::make_unique<FCriticalSection>();
+        auto chain = std::make_unique<SwapChain>(std::move(output), width, height, storageFormat(chosenFormat), addressHigh);
+        return new ViewportResource(windowHandle, target, chosenFormat, std::move(visible), std::move(chain), std::move(mutex));
     }
 
-    void ViewportResource::validateMode(bool fullscreen) const
+    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)) {}
+
+    void ViewportResource::validateMode(bool fullscreen, Shader::AgcTarget target)
     {
         switch (target)
         {
@@ -54,14 +60,14 @@ namespace UnrealProspero::RHI
 
     FTextureRHIRef ViewportResource::GetBackBuffer()
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
         return acquireBackBuffer();
     }
 
     void ViewportResource::Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat nextFormat)
     {
-        FScopeLock lock(&mutex);
-        validateMode(fullscreen);
+        FScopeLock lock(mutex.get());
+        validateMode(fullscreen, target);
         const auto chosenFormat = nextFormat == PF_Unknown ? format : nextFormat;
         const auto nativeFormat = storageFormat(chosenFormat);
         chain->Discard();
@@ -72,7 +78,7 @@ namespace UnrealProspero::RHI
 
     void ViewportResource::EndFrame(const FRHIPresentArgs& arguments)
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
         if (!arguments.bPresent || !visible->load(std::memory_order_acquire))
         {
             chain->Discard();
@@ -89,7 +95,7 @@ namespace UnrealProspero::RHI
 
     void* ViewportResource::GetNativeBackBufferTexture() const
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
         return chain->Acquire().get();
     }
 

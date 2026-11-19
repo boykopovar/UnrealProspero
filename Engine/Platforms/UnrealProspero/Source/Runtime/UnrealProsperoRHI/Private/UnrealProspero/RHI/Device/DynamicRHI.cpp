@@ -363,7 +363,7 @@ namespace UnrealProspero::RHI
 
     FViewportRHIRef DynamicRHI::RHICreateViewport(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
     {
-        return new ViewportResource(windowHandle, width, height, fullscreen, format, target, addressHigh);
+        return ViewportResource::Create(windowHandle, width, height, fullscreen, format, target, addressHigh);
     }
 
     void DynamicRHI::RHIResizeViewport(FRHIViewport* viewport, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)

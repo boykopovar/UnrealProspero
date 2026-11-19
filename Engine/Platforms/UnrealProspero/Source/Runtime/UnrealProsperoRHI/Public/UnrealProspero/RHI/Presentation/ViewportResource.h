@@ -5,13 +5,14 @@
 #include "UnrealProspero/RHI/Texture/TextureResource.h"
 #include "UnrealProspero/Shader/ShaderBinary.h"
 #include <atomic>
+#include <memory>
 
 namespace UnrealProspero::RHI
 {
     class UNREALPROSPERORHI_API ViewportResource final : public FRHIViewport
     {
     public:
-        ViewportResource(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh);
+        static FViewportRHIRef Create(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh);
         FTextureRHIRef GetBackBuffer();
         void Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat format);
         void EndFrame(const FRHIPresentArgs& arguments);
@@ -21,7 +22,8 @@ namespace UnrealProspero::RHI
         void SetCustomPresent(FRHICustomPresent* present) override;
 
     private:
-        void validateMode(bool fullscreen) const;
+        ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex);
+        static void validateMode(bool fullscreen, Shader::AgcTarget target);
         FTextureRHIRef acquireBackBuffer();
         void* windowHandle;
         std::shared_ptr<const std::atomic<bool>> visible;
@@ -29,7 +31,7 @@ namespace UnrealProspero::RHI
         EPixelFormat format;
         std::unique_ptr<SwapChain> chain;
         std::array<TRefCountPtr<TextureResource>, 3> backBuffers;
-        mutable FCriticalSection mutex;
+        std::unique_ptr<FCriticalSection> mutex;
     };
 }
 
