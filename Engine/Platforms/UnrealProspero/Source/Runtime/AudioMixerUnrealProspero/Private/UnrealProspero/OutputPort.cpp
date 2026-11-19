@@ -9,7 +9,7 @@ namespace UnrealProspero::Audio
 {
     namespace
     {
-        constexpr int SystemUser = 0x10000000;
+        constexpr int SystemUser = 255;
         constexpr int MainPort = 0;
         constexpr std::uint32_t FloatStereo = 4;
         constexpr std::uint32_t AlreadyInitialized = 0x8026000e;
