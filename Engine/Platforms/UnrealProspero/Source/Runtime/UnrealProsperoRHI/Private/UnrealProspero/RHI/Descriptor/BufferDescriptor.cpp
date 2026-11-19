@@ -29,6 +29,9 @@ namespace UnrealProspero::RHI
             case BufferFormat::Short2Sint: return {28, 4, 0x22c};
             case BufferFormat::Short4Sint: return {70, 8, 0xfac};
             case BufferFormat::Short2Snorm: return {24, 4, 0x22c};
+            case BufferFormat::Half1: return {13, 2, 0x204};
+            case BufferFormat::Short1Uint: return {11, 2, 0x204};
+            case BufferFormat::Short1Sint: return {12, 2, 0x204};
             case BufferFormat::Half2: return {29, 4, 0x22c};
             case BufferFormat::Half4: return {71, 8, 0xfac};
             case BufferFormat::Short4Snorm: return {66, 8, 0xfac};
