@@ -17,12 +17,31 @@ namespace UnrealProspero::RHI
         {
             auto& texture = ResolveTextureResource(depth.DepthStencilTarget);
             const auto& description = texture.GetDesc();
-            if (description.Format != PF_ShadowDepth || !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::DepthStencilTargetable)) throw std::invalid_argument("Render pass requires a D32 depth target");
+            if ((description.Format != PF_ShadowDepth && description.Format != PF_DepthStencil) || !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::DepthStencilTargetable)) throw std::invalid_argument("Render pass requires a depth target");
+            depthFormat = description.Format;
             depthAccess = depth.ExclusiveDepthStencil;
-            if (depthAccess.IsUsingStencil()) throw std::invalid_argument("D32 render pass has no stencil plane");
+            if (depthAccess.IsUsingStencil() && description.Format != PF_DepthStencil) throw std::invalid_argument("D32 render pass has no stencil plane");
             const auto action = GetDepthActions(depth.Action);
             const auto stencilAction = GetStencilActions(depth.Action);
-            if (GetLoadAction(stencilAction) != ERenderTargetLoadAction::ENoAction || GetStoreAction(stencilAction) != ERenderTargetStoreAction::ENoAction) throw std::invalid_argument("D32 render pass cannot load or store stencil");
+            if (description.Format != PF_DepthStencil && (GetLoadAction(stencilAction) != ERenderTargetLoadAction::ENoAction || GetStoreAction(stencilAction) != ERenderTargetStoreAction::ENoAction)) throw std::invalid_argument("D32 render pass cannot load or store stencil");
+            switch (GetLoadAction(stencilAction))
+            {
+            case ERenderTargetLoadAction::ENoAction:
+            case ERenderTargetLoadAction::ELoad: break;
+            case ERenderTargetLoadAction::EClear:
+                if (!depthAccess.IsStencilWrite()) throw std::invalid_argument("Stencil clear requires writable stencil access");
+                if (description.ClearValue.ColorBinding != EClearBinding::EDepthStencilBound) throw std::invalid_argument("Stencil clear requires a depth stencil clear binding");
+                if (texture.GetStencilClearValue() > 255) throw std::out_of_range("Stencil clear exceeds eight bits");
+                clearStencil = static_cast<std::uint8_t>(texture.GetStencilClearValue());
+                break;
+            default: throw std::invalid_argument("Invalid stencil load action");
+            }
+            switch (GetStoreAction(stencilAction))
+            {
+            case ERenderTargetStoreAction::ENoAction:
+            case ERenderTargetStoreAction::EStore: break;
+            default: throw std::runtime_error("Stencil store action is not implemented");
+            }
             switch (GetLoadAction(action))
             {
             case ERenderTargetLoadAction::ENoAction:
@@ -145,6 +164,7 @@ namespace UnrealProspero::RHI
         {
             WriteDepthTarget(commands, *depthTarget);
             if (clearDepth) WriteDepthClear(commands, *depthTarget, *clearDepth);
+            if (clearStencil) WriteStencilClear(commands, *depthTarget, *clearStencil);
         }
         else DisableDepthTarget(commands);
         sceAgcDcbSetCxRegisterDirect(&commands, {0xc, 0});
@@ -163,7 +183,7 @@ namespace UnrealProspero::RHI
     void RenderPass::ValidatePipeline(const FGraphicsPipelineStateInitializer& pipeline) const
     {
         if (!begun || ended) throw std::runtime_error("Draw requires an active render pass");
-        if (pipeline.RenderTargetsEnabled != targetCount || pipeline.NumSamples != 1 || pipeline.DepthStencilTargetFormat != (depthTarget ? PF_ShadowDepth : PF_Unknown)) throw std::invalid_argument("Graphics pipeline attachments do not match the render pass");
+        if (pipeline.RenderTargetsEnabled != targetCount || pipeline.NumSamples != 1 || pipeline.DepthStencilTargetFormat != depthFormat) throw std::invalid_argument("Graphics pipeline attachments do not match the render pass");
         if (depthTarget && pipeline.DepthStencilAccess != depthAccess) throw std::invalid_argument("Pipeline depth access does not match the render pass");
         for (uint32 index = 0; index < targetCount; ++index)
         {

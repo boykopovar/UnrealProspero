@@ -20,9 +20,10 @@ namespace UnrealProspero::RHI
             const bool cubeResource = resource.IsTextureCube();
             if (unorderedAccess && cubeView) throw std::invalid_argument("Cube UAV requires a 2D array view");
             if (cubeResource ? (!cubeView && view.Dimension != FRHIViewDesc::EDimension::Texture2DArray && view.Dimension != FRHIViewDesc::EDimension::Texture2D) : view.Dimension != expectedDimension && !(resource.Dimension == ETextureDimension::Texture2DArray && view.Dimension == FRHIViewDesc::EDimension::Texture2D)) throw std::invalid_argument("Texture view dimension does not match its resource");
-            const bool depth = resource.Format == PF_ShadowDepth;
-            if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed && !(depth && view.Plane == ERHITexturePlane::Depth)) throw std::runtime_error("Texture view plane is not implemented");
-            if (view.Format != PF_Unknown && view.Format != resource.Format && !(depth && view.Format == PF_R32_FLOAT)) throw std::runtime_error("Texture view format reinterpretation is not implemented");
+            const bool depth = resource.Format == PF_ShadowDepth || resource.Format == PF_DepthStencil;
+            const bool stencil = resource.Format == PF_DepthStencil && (view.Plane == ERHITexturePlane::Stencil || view.Format == PF_X24_G8);
+            if (view.Plane != ERHITexturePlane::Primary && view.Plane != ERHITexturePlane::PrimaryCompressed && !(depth && view.Plane == ERHITexturePlane::Depth) && !(stencil && view.Plane == ERHITexturePlane::Stencil)) throw std::runtime_error("Texture view plane is not implemented");
+            if (view.Format != PF_Unknown && view.Format != resource.Format && !(depth && view.Format == PF_R32_FLOAT) && !(stencil && view.Format == PF_X24_G8)) throw std::runtime_error("Texture view format reinterpretation is not implemented");
             const auto availableLayers = cubeResource && !cubeView ? resource.ArraySize * 6 : resource.ArraySize;
             if (view.Dimension == FRHIViewDesc::EDimension::Texture2D && (view.ArrayRange.Num == 0 ? resource.ArraySize : view.ArrayRange.Num) != 1) throw std::invalid_argument("2D view must select exactly one layer");
             if (view.Dimension == FRHIViewDesc::EDimension::TextureCube && (view.ArrayRange.Num == 0 ? availableLayers : view.ArrayRange.Num) != 1) throw std::invalid_argument("Cube view must select exactly one cube");
@@ -31,7 +32,7 @@ namespace UnrealProspero::RHI
         }
     }
 
-    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(description.Texture.SRV.bDisableSRGB, description.Texture.SRV.MipRange.First, description.Texture.SRV.MipRange.Num, description.Texture.SRV.ArrayRange.First, description.Texture.SRV.ArrayRange.Num, description.Texture.SRV.Dimension))
+    TextureShaderResourceView::TextureShaderResourceView(TextureResource& texture, const FRHIViewDesc& description) : FRHIShaderResourceView(&texture, checkDescription(texture, description, false)), storage(texture.CaptureStorage()), descriptor(texture.CreateViewDescriptor(description.Texture.SRV.bDisableSRGB, description.Texture.SRV.MipRange.First, description.Texture.SRV.MipRange.Num, description.Texture.SRV.ArrayRange.First, description.Texture.SRV.ArrayRange.Num, description.Texture.SRV.Dimension, description.Texture.SRV.Format == PF_X24_G8 ? ERHITexturePlane::Stencil : description.Texture.SRV.Plane))
     {
         description.Texture.SRV.GetViewInfo(&texture);
     }

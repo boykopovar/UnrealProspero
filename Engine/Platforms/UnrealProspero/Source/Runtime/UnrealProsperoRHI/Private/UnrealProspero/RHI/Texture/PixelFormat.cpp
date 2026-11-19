@@ -86,6 +86,17 @@ namespace UnrealProspero::RHI
         depth.NumComponents = 1;
         depth.bIs24BitUnormDepthStencil = false;
         depth.Capabilities = Caps::Texture2D | Caps::DepthStencil | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
+        auto& depthStencil = GPixelFormats[PF_DepthStencil];
+        depthStencil.Supported = true;
+        depthStencil.BlockBytes = 8;
+        depthStencil.NumComponents = 2;
+        depthStencil.bIs24BitUnormDepthStencil = false;
+        depthStencil.Capabilities = depth.Capabilities;
+        auto& stencil = GPixelFormats[PF_X24_G8];
+        stencil.Supported = true;
+        stencil.BlockBytes = 1;
+        stencil.NumComponents = 1;
+        stencil.Capabilities = Caps::Texture2D | Caps::TextureLoad | Caps::TextureSample;
         for (auto pixel : {PF_R16_UINT, PF_R32_UINT})
         {
             auto& format = GPixelFormats[pixel];

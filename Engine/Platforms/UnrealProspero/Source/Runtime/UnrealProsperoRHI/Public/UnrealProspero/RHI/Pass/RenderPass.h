@@ -27,6 +27,8 @@ namespace UnrealProspero::RHI
         std::array<std::optional<std::array<float, 4>>, MaxSimultaneousRenderTargets> clearColors{};
         std::shared_ptr<const DepthTexture2D> depthTarget;
         std::optional<float> clearDepth;
+        std::optional<std::uint8_t> clearStencil;
+        EPixelFormat depthFormat = PF_Unknown;
         FExclusiveDepthStencil depthAccess;
         MemoryBarrier barrier;
         uint32 targetCount = 0;
