@@ -10,7 +10,7 @@ namespace UnrealProspero::RHI
         std::array<ShaderRegister, MaxSimultaneousRenderTargets * 2 + 1> registers;
         for (uint32 index = 0; index < MaxSimultaneousRenderTargets; ++index)
         {
-            registers[index] = {0x1d8u + index, 0};
+            registers[index] = {0x1d8u + index, 0x00770077};
             registers[MaxSimultaneousRenderTargets + index] = {0x1e0u + index, index < targetCount ? state.GetControl(index) : 0};
         }
         registers.back() = {0x8e, mask};
