@@ -3,6 +3,7 @@
 #include "UnrealProspero/RHI/Command/DepthStencil.h"
 #include "UnrealProspero/RHI/Command/DepthBias.h"
 #include "UnrealProspero/RHI/Command/Rasterization.h"
+#include "UnrealProspero/RHI/Command/SampleCoverage.h"
 #include "prx/libSceAgc/DcbState/include/Registers.hpp"
 #include <bit>
 #include <cmath>
@@ -114,6 +115,7 @@ namespace UnrealProspero::RHI
         {
             if (!std::isfinite(factor)) throw std::invalid_argument("Blend factor must be finite");
         }
+        WriteSampleCoverage(commands, description.NumSamples);
         WriteColorBlendRegisters(commands, *blend, description.RenderTargetsEnabled);
         WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, hasDepth, hasStencil, description.bDepthBounds);
         if (hasDepth) WriteDepthBias(commands, raster.DepthBias, raster.SlopeScaleDepthBias);
