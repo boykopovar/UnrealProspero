@@ -14,9 +14,14 @@ namespace UnrealProspero::RHI
         {
         case BufferFormat::Untyped:
         case BufferFormat::Uint1:
+        case BufferFormat::Sint1:
         case BufferFormat::Float1: result[0] = values[0]; break;
+        case BufferFormat::Uint2:
         case BufferFormat::Float2: std::copy_n(values.begin(), 2, result.begin()); break;
+        case BufferFormat::Uint3:
+        case BufferFormat::Sint3:
         case BufferFormat::Float3: std::copy_n(values.begin(), 3, result.begin()); break;
+        case BufferFormat::Uint4:
         case BufferFormat::Float4: result = values; break;
         case BufferFormat::Byte4Snorm:
         case BufferFormat::Byte4Uint:
