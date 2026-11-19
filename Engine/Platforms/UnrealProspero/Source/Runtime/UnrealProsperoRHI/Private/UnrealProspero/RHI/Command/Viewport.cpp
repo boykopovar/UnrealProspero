@@ -31,7 +31,7 @@ namespace UnrealProspero::RHI
         if (viewport.MaxX < viewport.MinX || viewport.MaxY < viewport.MinY || viewport.MinDepth < 0 || viewport.MinDepth > 1 || viewport.MaxDepth < 0 || viewport.MaxDepth > 1) throw std::out_of_range("Invalid viewport extent or depth range");
         const auto scaleX = (viewport.MaxX - viewport.MinX) * 0.5f;
         const auto scaleY = (viewport.MaxY - viewport.MinY) * 0.5f;
-        const std::array transform{scaleX, viewport.MinX + scaleX, scaleY, viewport.MinY + scaleY, viewport.MaxDepth - viewport.MinDepth, viewport.MinDepth};
+        const std::array transform{scaleX, viewport.MinX + scaleX, -scaleY, viewport.MinY + scaleY, viewport.MaxDepth - viewport.MinDepth, viewport.MinDepth};
         if (!std::all_of(transform.begin(), transform.end(), [](float value) { return std::isfinite(value); })) throw std::out_of_range("Viewport transform exceeds floating-point range");
         for (std::uint32_t component = 0; component < transform.size(); ++component) sceAgcDcbSetCxRegisterDirect(&commands, {0x10fu + index * 6 + component, std::bit_cast<std::uint32_t>(transform[component])});
         sceAgcDcbSetCxRegisterDirect(&commands, {0xb4u + index * 2, std::bit_cast<std::uint32_t>(std::min(viewport.MinDepth, viewport.MaxDepth))});
