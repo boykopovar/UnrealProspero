@@ -7,11 +7,22 @@
 
 namespace UnrealProspero::Shader
 {
-    struct AgcCompilation
+    struct AgcProgram
     {
         std::vector<std::uint8_t> Header;
         std::vector<std::uint8_t> Code;
         std::vector<std::uint8_t> Metadata;
+    };
+
+    struct AgcColorExportCompilation : AgcProgram
+    {
+        std::uint32_t Format;
+    };
+
+    struct AgcCompilation : AgcProgram
+    {
+        std::uint32_t ColorExportFormat = 0;
+        std::vector<AgcColorExportCompilation> ColorExports;
     };
 
     struct AgcTessellationCompilation

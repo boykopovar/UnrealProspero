@@ -51,7 +51,7 @@ namespace UnrealProspero::Shader
         if (FPaths::IsRelative(executable) || FPaths::IsRelative(workingRoot)) throw std::invalid_argument("Shader compiler paths must be absolute");
         if (!IFileManager::Get().MakeDirectory(*workingRoot, true)) throw std::runtime_error("Cannot create shader compiler working directory");
         compilerHash = hashExecutable(executable);
-        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 12u));
+        version = HashCombine(GetTypeHash(compilerHash), HashCombine(GetShaderConductorVersion(), 13u));
     }
 
     const IShaderPipelineCompiler* ShaderFormat::GetPipelineCompiler() const

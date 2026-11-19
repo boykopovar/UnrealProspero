@@ -15,6 +15,9 @@ namespace UnrealProspero::Shader
         if (writer.IsError()) throw std::runtime_error("Cannot serialize Unreal shader resource table");
         ShaderBinaryView binary{stage, target, agc.Header, agc.Code, agc.Metadata, {resourceTable.GetData(), static_cast<std::size_t>(resourceTable.Num())}, {}};
         binary.VertexIdentity = vertexIdentity;
+        binary.ColorExportFormat = agc.ColorExportFormat;
+        binary.ColorExports.reserve(agc.ColorExports.size());
+        for (const auto& variant : agc.ColorExports) binary.ColorExports.push_back({variant.Format, variant.Header, variant.Code, variant.Metadata});
         binary.Bindings.reserve(spirv.Parameters.size());
         for (const auto& parameter : spirv.Parameters)
         {

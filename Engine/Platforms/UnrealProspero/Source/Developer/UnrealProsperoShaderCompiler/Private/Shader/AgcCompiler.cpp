@@ -72,7 +72,7 @@ namespace UnrealProspero::Shader
             return result;
         }
 
-        std::uint32_t getColorExportFormat(std::span<const std::uint32_t> words)
+        std::pair<std::uint32_t, std::uint32_t> getColorExportFormats(std::span<const std::uint32_t> words)
         {
             constexpr std::uint32_t fullColorExport = 9;
             constexpr std::uint32_t maxRenderTargets = 8;
@@ -80,14 +80,17 @@ namespace UnrealProspero::Shader
             const auto* entry = spvReflectGetEntryPoint(reflection.Get(), "main");
             if (!entry) throw std::invalid_argument("Fragment shader entry point does not exist");
             std::uint32_t format = 0;
+            std::uint32_t floatingOutputs = 0;
             for (std::uint32_t index = 0; index < entry->output_variable_count; ++index)
             {
                 const auto& output = *entry->output_variables[index];
                 if (output.decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) continue;
                 if (output.location >= maxRenderTargets) throw std::invalid_argument("Fragment shader output exceeds the AGC render target range");
                 format |= fullColorExport << (4 * output.location);
+                if (!output.type_description) throw std::invalid_argument("Fragment output has no type description");
+                if (output.type_description->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) floatingOutputs |= 1u << output.location;
             }
-            return format;
+            return {format, floatingOutputs};
         }
 
         std::vector<AgcCompilation> runCompiler(FString arguments, std::span<const ShaderInput> inputs, std::span<const ShaderOutput> outputs, std::span<const DescriptorBinding> descriptors, const FString& executable, const FString& workingRoot)
@@ -127,7 +130,7 @@ namespace UnrealProspero::Shader
                 if (!launched || exitCode != 0) throw std::runtime_error("ADK shader compilation failed (" + std::to_string(exitCode) + "): " + TCHAR_TO_UTF8(*(standardOutput + standardError)));
                 for (const auto& output : outputs)
                 {
-                    results.push_back({readOutput(directory, output.Header), readOutput(directory, output.Code), readOutput(directory, output.Metadata)});
+                    results.push_back({{readOutput(directory, output.Header), readOutput(directory, output.Code), readOutput(directory, output.Metadata)}, 0, {}});
                 }
             }
             catch (...)
@@ -145,15 +148,29 @@ namespace UnrealProspero::Shader
         const auto normalized = normalizeInput(words, entryPoint);
         FString arguments = FString::Printf(TEXT("spirv --input shader.spv --header header.bin --code code.bin --metadata bindings.adk --stage %s --target %s --entry main --omit-implicit-primitive-id true"), stageName(stage), targetName(target));
         if (stage == SF_Vertex) arguments += TEXT(" --dynamic-vertex-input");
-        if (stage == SF_Pixel)
-        {
-            const auto colorExportFormat = getColorExportFormat(normalized);
-            if (colorExportFormat != 0) arguments += FString::Printf(TEXT(" --color-format %u"), colorExportFormat);
-        }
+        const auto formats = stage == SF_Pixel ? getColorExportFormats(normalized) : std::pair<std::uint32_t, std::uint32_t>{0, 0};
         const std::array inputs{ShaderInput{TEXT("shader.spv"), normalized}};
         const std::array outputs{ShaderOutput{TEXT("header.bin"), TEXT("code.bin"), TEXT("bindings.adk")}};
-        auto results = runCompiler(arguments, inputs, outputs, descriptors, executable, workingRoot);
-        return std::move(results.front());
+        const auto compile = [&](std::uint32_t format)
+        {
+            auto options = arguments;
+            if (format != 0) options += FString::Printf(TEXT(" --color-format %u"), format);
+            auto results = runCompiler(options, inputs, outputs, descriptors, executable, workingRoot);
+            return std::move(results.front());
+        };
+        auto result = compile(formats.first);
+        result.ColorExportFormat = formats.first;
+        for (auto subset = formats.second; subset != 0; subset = (subset - 1) & formats.second)
+        {
+            auto format = formats.first;
+            for (std::uint32_t targetIndex = 0; targetIndex < 8; ++targetIndex)
+            {
+                if (subset & (1u << targetIndex)) format = (format & ~(15u << (4 * targetIndex))) | (4u << (4 * targetIndex));
+            }
+            auto variant = compile(format);
+            result.ColorExports.push_back({{std::move(variant.Header), std::move(variant.Code), std::move(variant.Metadata)}, format});
+        }
+        return result;
     }
 
     AgcCompilation CompileGeometryAgc(std::span<const std::uint32_t> vertexWords, std::span<const std::uint32_t> geometryWords, std::span<const DescriptorBinding> descriptors, AgcTarget target, const FString& vertexEntryPoint, const FString& geometryEntryPoint, const FString& executable, const FString& workingRoot)
