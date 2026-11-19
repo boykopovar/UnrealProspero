@@ -25,7 +25,7 @@ namespace UnrealProspero::RHI
         return size;
     }
 
-    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount) : width(width), height(height), depth(depth), format(format), mipLayouts(calculateMipLayout(width, height, depth, format, mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Texture) {}
+    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount, AllocationUsage usage) : width(width), height(height), depth(depth), format(format), mipLayouts(calculateMipLayout(width, height, depth, format, mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, usage) {}
 
     std::size_t LinearTexture3D::validateLayout(std::size_t size, std::size_t dataRowPitch, std::size_t dataSlicePitch, const LinearMipLayout& mip) const
     {
