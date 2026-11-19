@@ -58,8 +58,8 @@ namespace UnrealProspero::RHI
             const auto base = index * 15;
             const std::array registers{
                 ShaderRegister{0x318 + base, static_cast<std::uint32_t>(target.Address >> 8)},
-                ShaderRegister{0x31b + base, target.View}, ShaderRegister{0x31c + base, colorInfo(target.Format)},
-                ShaderRegister{0x31d + base, forceAlpha ? 1u << 17 : 0}, ShaderRegister{0x31e + base, 0},
+                ShaderRegister{0x31b + base, target.View}, ShaderRegister{0x31c + base, colorInfo(target.Format) | (1u << 20) | (1u << 23)},
+                ShaderRegister{0x31d + base, forceAlpha ? 1u << 17 : 0}, ShaderRegister{0x31e + base, 0x48},
                 ShaderRegister{0x31f + base, 0}, ShaderRegister{0x321 + base, 0}, ShaderRegister{0x323 + base, 0},
                 ShaderRegister{0x324 + base, 0}, ShaderRegister{0x325 + base, 0},
                 ShaderRegister{0x390 + index, static_cast<std::uint32_t>(target.Address >> 40)},
