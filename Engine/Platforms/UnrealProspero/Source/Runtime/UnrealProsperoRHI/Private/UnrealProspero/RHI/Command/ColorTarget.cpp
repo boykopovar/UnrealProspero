@@ -14,6 +14,7 @@ namespace UnrealProspero::RHI
             case TextureFormat::R8Unorm: return (1 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rg8Unorm: return (3 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rgba8Unorm: return (10 << 2) | (1 << 15) | (1 << 17);
+            case TextureFormat::Rgb10A2Unorm: return (9 << 2) | (1 << 15) | (1 << 17);
             case TextureFormat::Rgba8Srgb: return (10 << 2) | (6 << 8) | (1 << 15) | (1 << 17);
             case TextureFormat::Bgra8Unorm: return (10 << 2) | (1 << 11) | (1 << 15) | (1 << 17);
             case TextureFormat::Bgra8Srgb: return (10 << 2) | (6 << 8) | (1 << 11) | (1 << 15) | (1 << 17);

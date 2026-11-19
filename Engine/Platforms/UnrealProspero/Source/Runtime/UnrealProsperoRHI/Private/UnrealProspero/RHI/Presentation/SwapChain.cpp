@@ -17,7 +17,8 @@ namespace UnrealProspero::RHI
             case TextureFormat::Bgra8Srgb: return 0x8000000000000000ull;
             case TextureFormat::Rgba8Unorm:
             case TextureFormat::Rgba8Srgb: return 0x8000000022000000ull;
-            default: throw std::invalid_argument("Swap chain requires an RGBA8 or BGRA8 texture");
+            case TextureFormat::Rgb10A2Unorm: return 0x8100000022000000ull;
+            default: throw std::invalid_argument("Swap chain texture format is not implemented");
             }
         }
     }

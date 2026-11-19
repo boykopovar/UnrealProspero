@@ -9,12 +9,12 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        std::uint32_t normalized(float value, bool srgb)
+        std::uint32_t normalized(float value, bool srgb, std::uint32_t maximum = 255)
         {
             if (std::isnan(value)) throw std::invalid_argument("Normalized color clear cannot encode NaN");
             value = std::clamp(value, 0.0f, 1.0f);
             if (srgb) value = value <= 0.0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
-            return static_cast<std::uint32_t>(std::floor(value * 255.0f + 0.5f));
+            return static_cast<std::uint32_t>(std::floor(value * static_cast<float>(maximum) + 0.5f));
         }
 
     }
@@ -23,6 +23,11 @@ namespace UnrealProspero::RHI
     {
         if (DescribeTextureFormat(format).Integer) throw std::invalid_argument("Integer texture clear requires integer values");
         std::array<std::uint32_t, 4> result{};
+        if (format == TextureFormat::Rgb10A2Unorm)
+        {
+            result.fill(normalized(color[0], false, 1023) | (normalized(color[1], false, 1023) << 10) | (normalized(color[2], false, 1023) << 20) | (normalized(color[3], false, 3) << 30));
+            return result;
+        }
         if (format == TextureFormat::Rgba32Float)
         {
             for (std::size_t index = 0; index < result.size(); ++index) result[index] = std::bit_cast<std::uint32_t>(color[index]);
@@ -72,6 +77,11 @@ namespace UnrealProspero::RHI
     {
         std::array<std::uint32_t, 4> result{};
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
+        if (format == TextureFormat::Rgb10A2Unorm)
+        {
+            result.fill((values[0] & 1023u) | ((values[1] & 1023u) << 10) | ((values[2] & 1023u) << 20) | ((values[3] & 3u) << 30));
+            return result;
+        }
         if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
         if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
         else if (format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)

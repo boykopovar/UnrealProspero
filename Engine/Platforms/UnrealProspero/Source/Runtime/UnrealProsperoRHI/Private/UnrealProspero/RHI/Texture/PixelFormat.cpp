@@ -18,6 +18,7 @@ namespace UnrealProspero::RHI
 
         constexpr std::array pixelFormatMappings{
             FormatMapping{PF_R8G8B8A8, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb},
+            FormatMapping{PF_A2B10G10R10, TextureFormat::Rgb10A2Unorm, std::nullopt},
             FormatMapping{PF_R8G8B8A8_UINT, TextureFormat::Rgba8Uint, std::nullopt},
             FormatMapping{PF_R32G32B32A32_UINT, TextureFormat::Rgba32Uint, std::nullopt},
             FormatMapping{PF_B8G8R8A8, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb},
