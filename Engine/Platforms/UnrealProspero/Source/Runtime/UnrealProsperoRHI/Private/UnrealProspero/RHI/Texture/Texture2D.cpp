@@ -86,7 +86,7 @@ namespace UnrealProspero::RHI
         return {
             static_cast<std::uint32_t>(address >> 8),
             static_cast<std::uint32_t>(address >> 40) | (info.Code << 20) | (((width - 1) & 3) << 30),
-            ((width - 1) >> 2) | ((height - 1) << 14),
+            ((width - 1) >> 2) | ((height - 1) << 14) | (1u << 31),
             info.Swizzle | ((mipCount - 1) << 16) | ((layout == Texture2DLayout::RenderTarget64K ? 27u : 0u) << 20) | (9u << 28),
             0, (mipCount - 1) << 4, 0, 0
         };

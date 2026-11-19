@@ -20,7 +20,7 @@ namespace UnrealProspero::RHI
         return {
             static_cast<std::uint32_t>(address >> 8),
             static_cast<std::uint32_t>(address >> 40) | ((stencil ? 5u : 22u) << 20) | (((width - 1) & 3u) << 30),
-            ((width - 1) >> 2) | ((height - 1) << 14),
+            ((width - 1) >> 2) | ((height - 1) << 14) | (1u << 31),
             4u | (stencil ? 4u << 3 : 0u) | (1u << 9) | (24u << 20) | (9u << 28),
             0, 0, 0, 0
         };
