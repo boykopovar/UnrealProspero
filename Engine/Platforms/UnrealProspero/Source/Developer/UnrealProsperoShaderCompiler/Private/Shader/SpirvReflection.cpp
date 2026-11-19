@@ -17,6 +17,14 @@ namespace UnrealProspero::Shader
 
     SpirvReflection::~SpirvReflection() { spvReflectDestroyShaderModule(&module); }
     const SpvReflectShaderModule* SpirvReflection::Get() const { return &module; }
+    void SpirvReflection::RemapInputLocation(const SpvReflectInterfaceVariable* input, std::uint32_t location)
+    {
+        bool found = false;
+        for (std::uint32_t index = 0; index < module.input_variable_count; ++index) found |= input == module.input_variables[index];
+        if (!found || location >= 32) throw std::invalid_argument("Invalid vertex input location remapping");
+        Check(spvReflectChangeInputVariableLocation(&module, input, location));
+    }
+
     void SpirvReflection::RemapBinding(const SpvReflectDescriptorBinding* descriptor, std::uint32_t binding)
     {
         bool found = false;

@@ -15,6 +15,7 @@ namespace UnrealProspero::Shader
         SpirvReflection(const SpirvReflection&) = delete;
         SpirvReflection& operator=(const SpirvReflection&) = delete;
         const SpvReflectShaderModule* Get() const;
+        void RemapInputLocation(const SpvReflectInterfaceVariable* input, std::uint32_t location);
         void RemapBinding(const SpvReflectDescriptorBinding* descriptor, std::uint32_t binding);
         static void Check(SpvReflectResult result);
 

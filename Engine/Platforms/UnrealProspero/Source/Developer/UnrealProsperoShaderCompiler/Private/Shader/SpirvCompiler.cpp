@@ -1,5 +1,6 @@
 #include "UnrealProspero/Shader/SpirvCompiler.h"
 #include "UnrealProspero/Shader/HlslCompiler.h"
+#include "UnrealProspero/Shader/VertexInputLocations.h"
 #include "ShaderCompilerCommon.h"
 #include "ShaderParameterParser.h"
 #include "ShaderPreprocessTypes.h"
@@ -31,7 +32,12 @@ namespace UnrealProspero::Shader
             const FTCHARToUTF8 utf8(*source, source.Len());
             SpirvCompilation result;
             result.Words = CompileHlslToSpirv(std::string_view(utf8.Get(), static_cast<std::size_t>(utf8.Length())), input, output);
-            if (input.Target.GetFrequency() == SF_Vertex) result.VertexInputs = ReflectVertexInputs(result.Words, TCHAR_TO_UTF8(*input.EntryPointName));
+            if (input.Target.GetFrequency() == SF_Vertex)
+            {
+                const std::string entryPoint(TCHAR_TO_UTF8(*input.EntryPointName));
+                result.Words = NormalizeVertexInputLocations(result.Words, entryPoint);
+                result.VertexInputs = ReflectVertexInputs(result.Words, entryPoint);
+            }
             result.Descriptors = ReflectDescriptorLayout(result.Words, TCHAR_TO_UTF8(*input.EntryPointName));
             output.bSucceeded = true;
             result.Parameters = RegisterParameters(result.Descriptors, input, parser, output);
