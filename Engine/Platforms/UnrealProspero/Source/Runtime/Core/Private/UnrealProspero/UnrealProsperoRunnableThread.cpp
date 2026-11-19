@@ -38,7 +38,8 @@ bool FUnrealProsperoRunnableThread::CreateInternal(FRunnable* runnable, const TC
     UnrealProspero::Kernel::ThreadAttributes attributes;
     attributes.SetPriority(UnrealProspero::Runnable::GetKernelPriority(priority));
     attributes.SetExclusiveScheduling(flags == EThreadCreateFlags::SMTExclusive);
-    if (stackSize != 0) attributes.SetStackSize(stackSize);
+    constexpr uint32 defaultStackSize = 2 * 1024 * 1024;
+    attributes.SetStackSize(stackSize == 0 ? defaultStackSize : stackSize);
     const auto mask = affinityMask == FPlatformAffinity::GetNoAffinityMask() ? UnrealProspero::Kernel::Affinity::Available() : affinityMask;
     attributes.SetAffinity(mask);
     auto kernelName = UnrealProspero::Text::EncodeUtf8(name);
