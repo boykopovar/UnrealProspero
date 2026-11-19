@@ -58,12 +58,19 @@ namespace UnrealProspero::Shader
             if (shader.Header.empty() || shader.Code.empty() || shader.Metadata.empty() || shader.ResourceTable.empty()) throw std::invalid_argument("Incomplete shader binary");
             const bool hasVertexIdentity = std::ranges::any_of(shader.VertexIdentity, [](auto value) { return value != 0; });
             if ((shader.Stage == ShaderStage::Geometry) != hasVertexIdentity) throw std::invalid_argument("Shader has an invalid linked vertex identity");
+            for (std::uint32_t index = 0; index < 8; ++index) if (((shader.ColorExportFormat >> (index * 4)) & 15u) > 9) throw std::invalid_argument("Invalid pixel shader color export format");
             if (shader.Stage != ShaderStage::Pixel && (shader.ColorExportFormat != 0 || !shader.ColorExports.empty())) throw std::invalid_argument("Color export variants require a pixel shader");
             if (shader.ColorExports.size() > 255) throw std::invalid_argument("Too many pixel shader export variants");
             for (std::size_t index = 0; index < shader.ColorExports.size(); ++index)
             {
                 const auto& variant = shader.ColorExports[index];
                 if (variant.Header.empty() || variant.Code.empty() || variant.Metadata.empty() || variant.Format == shader.ColorExportFormat) throw std::invalid_argument("Invalid pixel shader export variant");
+                for (std::uint32_t slot = 0; slot < 8; ++slot)
+                {
+                    const auto format = (variant.Format >> (slot * 4)) & 15u;
+                    const auto original = (shader.ColorExportFormat >> (slot * 4)) & 15u;
+                    if (format > 9 || (format == 0) != (original == 0)) throw std::invalid_argument("Inconsistent pixel shader export locations");
+                }
                 for (std::size_t previous = 0; previous < index; ++previous) if (shader.ColorExports[previous].Format == variant.Format) throw std::invalid_argument("Duplicate pixel shader export variant");
             }
             ValidateRuntimeBindings(shader.Bindings);

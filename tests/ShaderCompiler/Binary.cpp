@@ -86,7 +86,7 @@ int main()
     std::fill(invalidOptional.end() - 4, invalidOptional.end(), 0);
     reject([&] { DecodeUnrealShaderCode(invalidOptional); });
     for (std::size_t size = 0; size < bytes.size(); ++size) reject([&] { DecodeShaderBinary(std::span(bytes).first(size)); });
-    for (std::size_t offset : {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 52, 56, 60, 64, 72, 76, 80, 88})
+    for (std::size_t offset : {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 52, 56, 60, 64, 68, 72, 80, 84, 88, 96})
     {
         auto corrupt = bytes;
         std::fill_n(corrupt.begin() + offset, 4, 255);

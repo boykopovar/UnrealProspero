@@ -67,7 +67,7 @@ namespace UnrealProspero::Shader
         std::vector<RuntimeBinding> Bindings;
         ShaderIdentity VertexIdentity{};
         std::uint32_t ColorExportFormat = 0;
-        std::vector<ColorExportVariantView> ColorExports;
+        std::vector<ColorExportVariantView> ColorExports{};
     };
 
     UNREALPROSPEROSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);
