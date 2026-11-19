@@ -33,7 +33,9 @@ namespace UnrealProspero::RHI
         Bc6Ufloat,
         Bc6Sfloat,
         Bc7Unorm,
-        Bc7Srgb
+        Bc7Srgb,
+        Rgba8Uint,
+        Rgba32Uint
     };
 
     struct TextureFormatInfo
@@ -43,6 +45,7 @@ namespace UnrealProspero::RHI
         std::uint32_t Swizzle;
         std::uint32_t BlockWidth = 1;
         std::uint32_t BlockHeight = 1;
+        bool Integer = false;
     };
 
     UNREALPROSPERORHI_API TextureFormatInfo DescribeTextureFormat(TextureFormat format, bool disableSrgb = false);

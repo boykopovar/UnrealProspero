@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::RHI
 {
@@ -17,6 +18,8 @@ namespace UnrealProspero::RHI
 
         constexpr std::array pixelFormatMappings{
             FormatMapping{PF_R8G8B8A8, TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb},
+            FormatMapping{PF_R8G8B8A8_UINT, TextureFormat::Rgba8Uint, std::nullopt},
+            FormatMapping{PF_R32G32B32A32_UINT, TextureFormat::Rgba32Uint, std::nullopt},
             FormatMapping{PF_B8G8R8A8, TextureFormat::Bgra8Unorm, TextureFormat::Bgra8Srgb},
             FormatMapping{PF_DXT1, TextureFormat::Bc1Unorm, TextureFormat::Bc1Srgb},
             FormatMapping{PF_DXT3, TextureFormat::Bc2Unorm, TextureFormat::Bc2Srgb},
@@ -49,7 +52,7 @@ namespace UnrealProspero::RHI
             if (!mapping.Srgb) throw std::runtime_error("sRGB is not implemented for this texture format");
             return *mapping.Srgb;
         }
-        throw std::runtime_error("Texture pixel format is not implemented");
+        throw std::runtime_error("Texture pixel format is not implemented: " + std::to_string(static_cast<int>(format)));
     }
 
     void ConfigurePixelFormats()
@@ -72,8 +75,7 @@ namespace UnrealProspero::RHI
                 format.Capabilities = Caps::Texture2D | Caps::Texture3D | Caps::TextureCube | Caps::TextureMipmaps | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
                 continue;
             }
-            const bool integer = mapping.Linear == TextureFormat::R32Uint || mapping.Linear == TextureFormat::R32Sint;
-            format.Capabilities = integer ? colorCaps & ~(Caps::TextureCube | Caps::RenderTarget | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable) : colorCaps;
+            format.Capabilities = info.Integer ? colorCaps & ~(Caps::TextureCube | Caps::RenderTarget | Caps::TextureSample | Caps::TextureFilterable | Caps::TextureBlendable) : colorCaps;
         }
         auto& depth = GPixelFormats[PF_ShadowDepth];
         depth.Supported = true;

@@ -21,7 +21,7 @@ namespace UnrealProspero::RHI
 
     std::array<std::uint32_t, 4> EncodeTextureClear(TextureFormat format, const std::array<float, 4>& color)
     {
-        if (format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) throw std::invalid_argument("Integer texture clear requires integer values");
+        if (DescribeTextureFormat(format).Integer) throw std::invalid_argument("Integer texture clear requires integer values");
         std::array<std::uint32_t, 4> result{};
         if (format == TextureFormat::Rgba32Float)
         {
@@ -72,7 +72,7 @@ namespace UnrealProspero::RHI
     {
         std::array<std::uint32_t, 4> result{};
         const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
-        if (format == TextureFormat::Rgba32Float) return values;
+        if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
         if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
         else if (format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
         {
