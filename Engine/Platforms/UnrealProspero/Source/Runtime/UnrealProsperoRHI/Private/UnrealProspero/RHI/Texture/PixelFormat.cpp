@@ -45,6 +45,7 @@ namespace UnrealProspero::RHI
 
     TextureFormat ResolveTextureFormat(EPixelFormat format, bool srgb)
     {
+        if (format == PF_ShadowDepth && !srgb) return TextureFormat::R32Float;
         for (const auto& mapping : pixelFormatMappings)
         {
             if (mapping.Pixel != format) continue;
