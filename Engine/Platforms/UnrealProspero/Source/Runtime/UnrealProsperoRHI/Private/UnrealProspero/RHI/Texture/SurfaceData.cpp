@@ -3,6 +3,7 @@
 #include "RHISurfaceDataConversion.h"
 #include <cstring>
 #include <limits>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -42,6 +43,30 @@ namespace UnrealProspero::RHI
             const auto* input = source(texture, rectangle, mipLevel, arrayLayer);
             for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * texture.GetMipLayout(mipLevel).RowPitch, width * channels * sizeof(float));
             return values;
+        }
+
+        bool isNormalized16(TextureFormat format)
+        {
+            return format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm;
+        }
+
+        void readNormalized16(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, std::span<FLinearColor> output)
+        {
+            const auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
+            const auto pitch = texture.GetMipLayout(flags.GetMip()).RowPitch;
+            const auto channels = DescribeTextureFormat(texture.GetFormat()).BlockBytes / 2;
+            for (int32 row = 0; row < rectangle.Height(); ++row)
+            for (int32 column = 0; column < rectangle.Width(); ++column)
+            {
+                std::array<float, 4> values{0, 0, 0, 1};
+                for (std::size_t channel = 0; channel < channels; ++channel)
+                {
+                    std::uint16_t value;
+                    std::memcpy(&value, input + row * pitch + (column * channels + channel) * sizeof(value), sizeof(value));
+                    values[channel] = FColor::DequantizeUNorm16ToFloat(value);
+                }
+                output[row * rectangle.Width() + column] = FLinearColor(values[0], values[1], values[2], values[3]);
+            }
         }
 
         void readBytes(const Texture2D& texture, FIntRect rectangle, FColor* output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
@@ -120,11 +145,11 @@ namespace UnrealProspero::RHI
                 auto values = readHalfPixels(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
                 ConvertRawR16G16B16A16FDataToFColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags.GetLinearToGamma());
             }
-            else if (texture.GetFormat() == TextureFormat::Rgba16Unorm)
+            else if (isNormalized16(texture.GetFormat()))
             {
-                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
-                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
-                ConvertRawR16G16B16A16DataToFColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData(), flags.GetLinearToGamma());
+                std::vector<FLinearColor> values(result.Num());
+                readNormalized16(texture, rectangle, flags, values);
+                for (int32 index = 0; index < result.Num(); ++index) result[index] = values[index].ToFColor(flags.GetLinearToGamma());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {
@@ -153,11 +178,9 @@ namespace UnrealProspero::RHI
                 auto values = readHalfPixels(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
                 ConvertRawR16G16B16A16FDataToFLinearColor(rectangle.Width(), rectangle.Height(), reinterpret_cast<uint8*>(values.data()), rectangle.Width() * 8, result.GetData(), flags);
             }
-            else if (texture.GetFormat() == TextureFormat::Rgba16Unorm)
+            else if (isNormalized16(texture.GetFormat()))
             {
-                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
-                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
-                ConvertRawR16G16B16A16DataToFLinearColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData());
+                readNormalized16(texture, rectangle, flags, {result.GetData(), static_cast<std::size_t>(result.Num())});
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
             {

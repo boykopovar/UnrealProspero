@@ -33,12 +33,10 @@ namespace UnrealProspero::RHI
             for (std::size_t index = 0; index < result.size(); ++index) result[index] = std::bit_cast<std::uint32_t>(color[index]);
             return result;
         }
-        if (format == TextureFormat::Rgba16Unorm)
+        if (format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm)
         {
-            result[0] = normalized(color[0], false, 65535) | (normalized(color[1], false, 65535) << 16);
-            result[1] = normalized(color[2], false, 65535) | (normalized(color[3], false, 65535) << 16);
-            result[2] = result[0];
-            result[3] = result[1];
+            const auto channels = DescribeTextureFormat(format).BlockBytes / 2;
+            for (std::size_t index = 0; index < result.size(); ++index) result[index] = normalized(color[(index * 2) % channels], false, 65535) | (normalized(color[(index * 2 + 1) % channels], false, 65535) << 16);
             return result;
         }
         if (format == TextureFormat::Rgba16Float)
@@ -92,7 +90,7 @@ namespace UnrealProspero::RHI
         }
         if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
         if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
-        else if (format == TextureFormat::Rgba16Unorm || format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
+        else if (format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm || format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
         {
             const auto channels = pixelBytes / 2;
             for (std::size_t channel = 0; channel < 8; ++channel) result[channel / 2] |= (values[channel % channels] & 65535u) << ((channel % 2) * 16);

@@ -30,6 +30,8 @@ namespace UnrealProspero::RHI
         case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9), 1, 1, true};
         case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9), 1, 1, true};
         case TextureFormat::R32Float: return {22, 4, 4 | (1 << 9)};
+        case TextureFormat::R16Unorm: return {7, 2, 4 | (1 << 9)};
+        case TextureFormat::Rg16Unorm: return {23, 4, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::Rgba16Unorm: return {65, 8, 0xfac};
         case TextureFormat::Rgba16Float: return {71, 8, 0xfac};
         case TextureFormat::Rgba32Float: return {77, 16, 0xfac};
