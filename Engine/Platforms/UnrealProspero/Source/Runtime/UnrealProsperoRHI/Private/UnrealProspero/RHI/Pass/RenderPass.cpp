@@ -89,6 +89,8 @@ namespace UnrealProspero::RHI
             const auto& description = texture.GetDesc();
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
             const bool volume = description.Dimension == ETextureDimension::Texture3D;
+            const bool independentSlices = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::TargetArraySlicesIndependently) && (description.IsTextureArray() || description.IsTextureCube());
+            if (independentSlices && entry.ArraySlice < 0) throw std::invalid_argument("Independent array rendering requires an explicit slice");
             if (volume) volumes[index] = texture.CaptureVolume();
             else targets[index] = texture.Capture();
             const auto& mip = volume ? volumes[index]->GetMipLayout(entry.MipIndex) : targets[index]->GetMipLayout(entry.MipIndex);
