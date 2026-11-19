@@ -39,7 +39,7 @@ namespace UnrealProspero::RHI
             case BufferFormat::Short4Uint: return {69, 8, 0xfac};
             case BufferFormat::Short2Unorm: return {23, 4, 0x22c};
             case BufferFormat::Short4Unorm: return {65, 8, 0xfac};
-            case BufferFormat::Rgb10A2Unorm: return {44, 4, 0xfac};
+            case BufferFormat::Rgb10A2Unorm: return {50, 4, 0xfac};
             case BufferFormat::Uint1: return {20, 4, 0x204};
             case BufferFormat::Uint2: return {62, 8, 0x22c};
             case BufferFormat::Uint3: return {72, 12, 0x3ac};
