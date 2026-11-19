@@ -86,10 +86,9 @@ namespace UnrealProspero::RHI
             chain->Discard();
             return;
         }
-        if (!arguments.bLockToVsync) throw std::runtime_error("Unsynchronized viewport presentation is not implemented");
         static_cast<void>(acquireBackBuffer());
         if (PresentBeginLatencyCallback) PresentBeginLatencyCallback();
-        chain->Present(1);
+        chain->Present(arguments.bLockToVsync ? 1 : 2);
         if (PresentEndLatencyCallback) PresentEndLatencyCallback();
     }
 
