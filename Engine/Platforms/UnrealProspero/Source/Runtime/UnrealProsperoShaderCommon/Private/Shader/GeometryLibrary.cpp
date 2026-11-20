@@ -4,7 +4,6 @@
 #include <initializer_list>
 #include <set>
 #include <stdexcept>
-#include <tuple>
 #include <utility>
 
 namespace UnrealProspero::Shader
@@ -56,12 +55,7 @@ namespace UnrealProspero::Shader
         {
             if (shader.Stage != ShaderStage::Geometry || shader.Target != first.Target) throw std::invalid_argument("Geometry library contains an incompatible stage or target");
             if (!std::ranges::equal(shader.ResourceTable, first.ResourceTable) || shader.Bindings.size() != first.Bindings.size()) throw std::invalid_argument("Geometry library variants disagree on their resource interface");
-            for (std::size_t index = 0; index < shader.Bindings.size(); ++index)
-            {
-                const auto& binding = shader.Bindings[index];
-                const auto& expected = first.Bindings[index];
-                if (std::tie(binding.Kind, binding.ParameterIndex, binding.Set, binding.Count, binding.Stride, binding.BlockSize, binding.Type) != std::tie(expected.Kind, expected.ParameterIndex, expected.Set, expected.Count, expected.Stride, expected.BlockSize, expected.Type)) throw std::invalid_argument("Geometry library variants disagree on their logical bindings");
-            }
+            ValidateLogicalBindings(shader.Bindings, first.Bindings);
         }
     }
 

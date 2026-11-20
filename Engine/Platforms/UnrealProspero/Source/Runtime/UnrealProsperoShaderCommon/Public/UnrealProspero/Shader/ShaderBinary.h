@@ -71,6 +71,7 @@ namespace UnrealProspero::Shader
     };
 
     UNREALPROSPEROSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);
+    UNREALPROSPEROSHADERCOMMON_API void ValidateLogicalBindings(std::span<const RuntimeBinding> source, std::span<const RuntimeBinding> destination);
     UNREALPROSPEROSHADERCOMMON_API void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings);
     UNREALPROSPEROSHADERCOMMON_API std::vector<std::uint8_t> EncodeShaderBinary(const ShaderBinaryView& shader);
     UNREALPROSPEROSHADERCOMMON_API ShaderBinaryView DecodeShaderBinary(std::span<const std::uint8_t> bytes);

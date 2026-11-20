@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <utility>
+#include <tuple>
 
 namespace UnrealProspero::Shader
 {
@@ -74,6 +75,17 @@ namespace UnrealProspero::Shader
                 for (std::size_t previous = 0; previous < index; ++previous) if (shader.ColorExports[previous].Format == variant.Format) throw std::invalid_argument("Duplicate pixel shader export variant");
             }
             ValidateRuntimeBindings(shader.Bindings);
+        }
+    }
+
+    void ValidateLogicalBindings(std::span<const RuntimeBinding> source, std::span<const RuntimeBinding> destination)
+    {
+        if (source.size() != destination.size()) throw std::invalid_argument("Shader binding counts disagree");
+        for (std::size_t index = 0; index < source.size(); ++index)
+        {
+            const auto& binding = source[index];
+            const auto& expected = destination[index];
+            if (std::tie(binding.Kind, binding.ParameterIndex, binding.Set, binding.Count, binding.Stride, binding.BlockSize, binding.Type) != std::tie(expected.Kind, expected.ParameterIndex, expected.Set, expected.Count, expected.Stride, expected.BlockSize, expected.Type)) throw std::invalid_argument("Shader logical bindings disagree");
         }
     }
 
