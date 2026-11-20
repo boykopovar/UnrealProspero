@@ -1,6 +1,7 @@
 #include "UnrealProspero/Shader/ShaderCompiler.h"
 #include "UnrealProspero/Shader/SpirvCompiler.h"
 #include "UnrealProspero/Shader/ShaderOutput.h"
+#include "UnrealProspero/Shader/Cook/StageData.h"
 #include "ShaderCompilerCore.h"
 #include <stdexcept>
 
@@ -25,6 +26,11 @@ namespace UnrealProspero::Shader
             const auto agc = CompileAgc(spirv.Words, spirv.Descriptors, input.Target.GetFrequency(), target, input.EntryPointName, executable, workingRoot);
             const auto bytes = EncodeCompiledShader(spirv, agc, stage, target);
             output.ShaderCode.GetWriteAccess().Append(bytes.data(), static_cast<int32>(bytes.size()));
+            if (stage == ShaderStage::Vertex)
+            {
+                const auto cookData = Cook::EncodeStageData(SF_Vertex, target, input.EntryPointName, spirv);
+                output.ShaderCode.AddOptionalData(EShaderOptionalDataKey::ObjectFile, cookData.data(), static_cast<uint32>(cookData.size()));
+            }
             output.SerializeShaderCodeValidation();
             output.bSucceeded = true;
         }

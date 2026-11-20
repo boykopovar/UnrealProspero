@@ -58,46 +58,46 @@ namespace UnrealProspero::Shader::Cook
             return result;
         }
 
-        void validate(const StageData& data)
+        void validate(EShaderFrequency stage, AgcTarget target, const FString& entry, const SpirvCompilation& spirv)
         {
-            if (data.Stage != SF_Vertex && data.Stage != SF_Geometry) throw std::invalid_argument("Shader cook data requires a vertex or geometry stage");
-            if (data.Target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader cook target");
-            const auto name = entryPoint(data.EntryPoint);
-            const SpirvReflection reflection(data.Spirv.Words);
-            const auto* entry = spvReflectGetEntryPoint(reflection.Get(), name.c_str());
-            const auto expected = data.Stage == SF_Vertex ? SPV_REFLECT_SHADER_STAGE_VERTEX_BIT : SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT;
-            if (!entry || entry->shader_stage != expected) throw std::invalid_argument("Shader cook execution model does not match its stage");
-            if (ReflectDescriptorLayout(data.Spirv.Words, name) != data.Spirv.Descriptors) throw std::invalid_argument("Shader cook descriptors disagree with SPIR-V");
-            if (data.Stage == SF_Vertex && ReflectVertexInputs(data.Spirv.Words, name) != data.Spirv.VertexInputs) throw std::invalid_argument("Shader cook vertex inputs disagree with SPIR-V");
-            if (data.Stage == SF_Geometry && !data.Spirv.VertexInputs.empty()) throw std::invalid_argument("Geometry cook data contains vertex inputs");
-            if (data.Spirv.Parameters.size() != data.Spirv.Descriptors.size()) throw std::invalid_argument("Shader cook parameters do not cover its descriptors");
-            std::vector<bool> seen(data.Spirv.Descriptors.size());
-            for (const auto& parameter : data.Spirv.Parameters)
+            if (stage != SF_Vertex && stage != SF_Geometry) throw std::invalid_argument("Shader cook data requires a vertex or geometry stage");
+            if (target > AgcTarget::Ps5) throw std::invalid_argument("Invalid shader cook target");
+            const auto name = entryPoint(entry);
+            const SpirvReflection reflection(spirv.Words);
+            const auto* reflectedEntry = spvReflectGetEntryPoint(reflection.Get(), name.c_str());
+            const auto expected = stage == SF_Vertex ? SPV_REFLECT_SHADER_STAGE_VERTEX_BIT : SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT;
+            if (!reflectedEntry || reflectedEntry->shader_stage != expected) throw std::invalid_argument("Shader cook execution model does not match its stage");
+            if (ReflectDescriptorLayout(spirv.Words, name) != spirv.Descriptors) throw std::invalid_argument("Shader cook descriptors disagree with SPIR-V");
+            if (stage == SF_Vertex && ReflectVertexInputs(spirv.Words, name) != spirv.VertexInputs) throw std::invalid_argument("Shader cook vertex inputs disagree with SPIR-V");
+            if (stage == SF_Geometry && !spirv.VertexInputs.empty()) throw std::invalid_argument("Geometry cook data contains vertex inputs");
+            if (spirv.Parameters.size() != spirv.Descriptors.size()) throw std::invalid_argument("Shader cook parameters do not cover its descriptors");
+            std::vector<bool> seen(spirv.Descriptors.size());
+            for (const auto& parameter : spirv.Parameters)
             {
                 if (parameter.DescriptorIndex >= seen.size() || seen[parameter.DescriptorIndex]) throw std::invalid_argument("Invalid or duplicate shader cook parameter");
                 seen[parameter.DescriptorIndex] = true;
             }
-            BuildRuntimeBindings(data.Spirv);
+            BuildRuntimeBindings(spirv);
         }
     }
 
-    std::vector<std::uint8_t> EncodeStageData(const StageData& data)
+    std::vector<std::uint8_t> EncodeStageData(EShaderFrequency stage, AgcTarget target, const FString& entry, const SpirvCompilation& spirv)
     {
-        validate(data);
-        const auto name = entryPoint(data.EntryPoint);
-        const auto table = EncodeResourceTable(data.Spirv.ResourceTable);
+        validate(stage, target, entry, spirv);
+        const auto name = entryPoint(entry);
+        const auto table = EncodeResourceTable(spirv.ResourceTable);
         const auto nameSize = narrow(name.size());
-        const auto wordCount = narrow(data.Spirv.Words.size());
-        const auto parameterCount = narrow(data.Spirv.Parameters.size());
+        const auto wordCount = narrow(spirv.Words.size());
+        const auto parameterCount = narrow(spirv.Parameters.size());
         const auto tableSize = narrow(table.size());
         const auto size = std::uint64_t{32} + nameSize + std::uint64_t{wordCount} * 4 + std::uint64_t{parameterCount} * 8 + tableSize;
         if (size > static_cast<std::uint64_t>(std::numeric_limits<int32>::max())) throw std::overflow_error("Shader cook data exceeds Unreal array limits");
         std::vector<std::uint8_t> result;
         result.reserve(static_cast<std::size_t>(size));
-        for (const auto value : {Magic, Version, static_cast<std::uint32_t>(data.Stage), static_cast<std::uint32_t>(data.Target), nameSize, wordCount, parameterCount, tableSize}) append(result, value);
+        for (const auto value : {Magic, Version, static_cast<std::uint32_t>(stage), static_cast<std::uint32_t>(target), nameSize, wordCount, parameterCount, tableSize}) append(result, value);
         result.insert(result.end(), name.begin(), name.end());
-        for (const auto word : data.Spirv.Words) append(result, word);
-        for (const auto& parameter : data.Spirv.Parameters)
+        for (const auto word : spirv.Words) append(result, word);
+        for (const auto& parameter : spirv.Parameters)
         {
             append(result, narrow(parameter.DescriptorIndex));
             append(result, parameter.ParameterIndex);
@@ -141,7 +141,7 @@ namespace UnrealProspero::Shader::Cook
         if (reader.Size() != 0) throw std::invalid_argument("Trailing shader cook data");
         result.Spirv.Descriptors = ReflectDescriptorLayout(result.Spirv.Words, name);
         if (result.Stage == SF_Vertex) result.Spirv.VertexInputs = ReflectVertexInputs(result.Spirv.Words, name);
-        validate(result);
+        validate(result.Stage, result.Target, result.EntryPoint, result.Spirv);
         return result;
     }
 }

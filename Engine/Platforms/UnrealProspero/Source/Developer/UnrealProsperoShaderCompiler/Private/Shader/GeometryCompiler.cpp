@@ -1,6 +1,7 @@
 #include "UnrealProspero/Shader/GeometryCompiler.h"
 #include "UnrealProspero/Shader/PipelineDescriptors.h"
 #include "UnrealProspero/Shader/ShaderOutput.h"
+#include "UnrealProspero/Shader/Cook/StageData.h"
 #include "ShaderCompilerCore.h"
 #include "Misc/SecureHash.h"
 #include <array>
@@ -22,6 +23,8 @@ namespace UnrealProspero::Shader
             vertex.Output.bSucceeded = false;
             auto geometrySpirv = CompileSpirv(geometry.Input, geometry.Preprocessed, geometry.Output);
             geometry.Output.bSucceeded = false;
+            const auto vertexCookData = Cook::EncodeStageData(SF_Vertex, target, vertex.Input.EntryPointName, vertexSpirv);
+            const auto geometryCookData = Cook::EncodeStageData(SF_Geometry, target, geometry.Input.EntryPointName, geometrySpirv);
             const std::array stages{PipelineStageDescriptors{vertexSpirv.Words, vertexSpirv.Descriptors, TCHAR_TO_UTF8(*vertex.Input.EntryPointName)}, PipelineStageDescriptors{geometrySpirv.Words, geometrySpirv.Descriptors, TCHAR_TO_UTF8(*geometry.Input.EntryPointName)}};
             const auto descriptors = MergePipelineDescriptors(stages);
             const auto vertexAgc = CompileAgc(vertexSpirv.Words, vertexSpirv.Descriptors, SF_Vertex, target, vertex.Input.EntryPointName, executable, workingRoot);
@@ -32,6 +35,8 @@ namespace UnrealProspero::Shader
             const auto geometryBytes = EncodeCompiledShader(geometrySpirv, geometryAgc, ShaderStage::Geometry, target, vertexIdentity);
             vertex.Output.ShaderCode.GetWriteAccess().Append(vertexBytes.data(), static_cast<int32>(vertexBytes.size()));
             geometry.Output.ShaderCode.GetWriteAccess().Append(geometryBytes.data(), static_cast<int32>(geometryBytes.size()));
+            vertex.Output.ShaderCode.AddOptionalData(EShaderOptionalDataKey::ObjectFile, vertexCookData.data(), static_cast<uint32>(vertexCookData.size()));
+            geometry.Output.ShaderCode.AddOptionalData(EShaderOptionalDataKey::ObjectFile, geometryCookData.data(), static_cast<uint32>(geometryCookData.size()));
             vertex.Output.SerializeShaderCodeValidation();
             geometry.Output.SerializeShaderCodeValidation();
             vertex.Output.bSucceeded = true;

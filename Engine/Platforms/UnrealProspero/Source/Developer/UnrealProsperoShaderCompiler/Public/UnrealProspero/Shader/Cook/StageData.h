@@ -14,7 +14,7 @@ namespace UnrealProspero::Shader::Cook
         SpirvCompilation Spirv;
     };
 
-    UNREALPROSPEROSHADERCOMPILER_API std::vector<std::uint8_t> EncodeStageData(const StageData& data);
+    UNREALPROSPEROSHADERCOMPILER_API std::vector<std::uint8_t> EncodeStageData(EShaderFrequency stage, AgcTarget target, const FString& entryPoint, const SpirvCompilation& spirv);
     UNREALPROSPEROSHADERCOMPILER_API StageData DecodeStageData(std::span<const std::uint8_t> bytes);
 }
 
