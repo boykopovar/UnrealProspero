@@ -4,7 +4,7 @@ Unreal Engine platform extension for PS5 via [AnyDevKit](https://github.com/boyk
 
 ## Status
 
-Unreal Engine’s `BlankProgram` runs on PS5 (initializes Unreal Core and exits successfully). SaveData integration is in progress.
+`UnrealGame` renders a 3D scene on PS5. Engine patch removal is in progress.
 
 ## License
 
