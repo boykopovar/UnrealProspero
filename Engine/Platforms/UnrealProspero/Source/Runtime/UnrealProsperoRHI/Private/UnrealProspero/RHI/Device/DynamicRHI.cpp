@@ -386,8 +386,11 @@ namespace UnrealProspero::RHI
     {
         if (!viewport) throw std::invalid_argument("Viewport is null");
         if (commandList.IsExecuting()) throw std::runtime_error("Viewport present cannot execute inside a command list");
-        commandList.SubmitAndBlockUntilGPUIdle();
-        static_cast<ViewportResource*>(viewport)->EndFrame(arguments);
+        commandList.EnqueueLambda(TEXT("UnrealProsperoPresentViewport"), [viewport = FViewportRHIRef(viewport), arguments](FRHICommandListBase& executingList)
+        {
+            static_cast<GraphicsContext&>(executingList.GetContext()).PresentViewport(viewport.GetReference(), arguments);
+        });
+        commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
     }
 
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)

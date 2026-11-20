@@ -116,6 +116,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(SwapChainCheck SwapChain.cpp
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Presentation/SwapChain.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/Present.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/ColorClear.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureClearValue.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/BufferFill.cpp"

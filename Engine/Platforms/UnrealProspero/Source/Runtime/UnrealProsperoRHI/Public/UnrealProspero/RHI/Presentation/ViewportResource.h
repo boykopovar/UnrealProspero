@@ -15,7 +15,7 @@ namespace UnrealProspero::RHI
         static FViewportRHIRef Create(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh);
         FTextureRHIRef GetBackBuffer();
         void Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat format);
-        void EndFrame(const FRHIPresentArgs& arguments);
+        void EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments);
         void* GetNativeSwapChain() const override;
         void* GetNativeBackBufferTexture() const override;
         void* GetNativeWindow(void** extra = nullptr) const override;

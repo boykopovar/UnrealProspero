@@ -1,4 +1,5 @@
 #include "UnrealProspero/RHI/Presentation/SwapChain.h"
+#include "UnrealProspero/RHI/Command/Present.h"
 #include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libSceVideoOut/include/Buffer.hpp"
 #include <limits>
@@ -71,22 +72,12 @@ namespace UnrealProspero::RHI
 
     void SwapChain::Present(int mode)
     {
-        requireOpen();
-        if (!acquired) throw std::logic_error("Swap chain has no acquired frame");
-        if (mode < 1 || mode > 6) throw std::invalid_argument("Invalid video flip mode");
-        if (sequence == std::numeric_limits<std::int64_t>::max()) throw std::overflow_error("Video flip sequence exhausted");
-        try
-        {
-            output->MarkBufferPending(static_cast<int>(bufferIndex));
-            output->SubmitFlip(static_cast<int>(bufferIndex), mode, ++sequence);
-            acquired = false;
-            bufferIndex = (bufferIndex + 1) % buffers.size();
-        }
-        catch (...)
-        {
-            failed = true;
-            throw;
-        }
+        present(mode, [&](int index, std::int64_t argument) { output->SubmitFlip(index, mode, argument); });
+    }
+
+    void SwapChain::Present(CommandBuffer& commands, int mode)
+    {
+        present(mode, [&](int index, std::int64_t argument) { WritePresent(commands, *output, index, mode, argument); });
     }
 
     void SwapChain::Discard()

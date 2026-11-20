@@ -78,7 +78,7 @@ namespace UnrealProspero::RHI
         format = chosenFormat;
     }
 
-    void ViewportResource::EndFrame(const FRHIPresentArgs& arguments)
+    void ViewportResource::EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments)
     {
         FScopeLock lock(mutex.get());
         if (!arguments.bPresent || !visible->load(std::memory_order_acquire))
@@ -88,7 +88,7 @@ namespace UnrealProspero::RHI
         }
         static_cast<void>(acquireBackBuffer());
         if (PresentBeginLatencyCallback) PresentBeginLatencyCallback();
-        chain->Present(arguments.bLockToVsync ? 1 : 2);
+        chain->Present(commands, arguments.bLockToVsync ? 1 : 2);
         if (PresentEndLatencyCallback) PresentEndLatencyCallback();
     }
 

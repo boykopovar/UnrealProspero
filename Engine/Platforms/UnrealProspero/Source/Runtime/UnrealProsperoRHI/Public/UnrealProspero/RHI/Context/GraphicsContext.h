@@ -15,6 +15,7 @@ namespace UnrealProspero::RHI
     {
     public:
         GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
+        void PresentViewport(FRHIViewport* viewport, const FRHIPresentArgs& arguments);
         using ComputeContext::RHISetShaderParameters;
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
@@ -57,6 +58,7 @@ namespace UnrealProspero::RHI
         void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
         std::vector<std::shared_ptr<OcclusionSnapshot>> querySnapshots;
         std::vector<Draw> draws;
+        std::vector<FViewportRHIRef> presentedViewports;
         std::vector<std::shared_ptr<const Texture2D>> copiedTextures;
         std::vector<std::shared_ptr<TextureUpload>> textureUploads;
         std::vector<std::shared_ptr<VolumeUpload>> volumeUploads;

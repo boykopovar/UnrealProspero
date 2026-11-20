@@ -1,4 +1,5 @@
 #include "UnrealProspero/RHI/Context/GraphicsContext.h"
+#include "UnrealProspero/RHI/Presentation/ViewportResource.h"
 #include "UnrealProspero/RHI/Command/Viewport.h"
 #include "UnrealProspero/RHI/Command/DepthBounds.h"
 #include "UnrealProspero/RHI/Command/IndirectDraw.h"
@@ -19,6 +20,13 @@
 namespace UnrealProspero::RHI
 {
     static_assert(!std::is_abstract_v<GraphicsContext>);
+    void GraphicsContext::PresentViewport(FRHIViewport* viewport, const FRHIPresentArgs& arguments)
+    {
+        if (!viewport || activeRenderPass) throw std::invalid_argument("Presentation requires a viewport outside a render pass");
+        presentedViewports.emplace_back(viewport);
+        RecordCommands([&](CommandBuffer& commands) { static_cast<ViewportResource*>(viewport)->EndFrame(commands, arguments); });
+    }
+
     void GraphicsContext::RHIBeginRenderQuery(FRHIRenderQuery* query)
     {
         RecordCommands([&](CommandBuffer& commands)
