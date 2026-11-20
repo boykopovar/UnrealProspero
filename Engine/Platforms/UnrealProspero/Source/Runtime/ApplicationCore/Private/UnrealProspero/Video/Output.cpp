@@ -5,6 +5,7 @@
 #include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libkernel/Time/include/Time.hpp"
 #include <atomic>
+#include <array>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -76,6 +77,13 @@ namespace UnrealProspero::Video
         Kernel::CheckResult(sceVideoOutSubmitFlip(GetHandle(), bufferIndex, mode, argument), "sceVideoOutSubmitFlip");
     }
 
+    std::uint32_t Output::ReserveEopFlip(int bufferIndex, int mode, std::int64_t argument)
+    {
+        alignas(std::uint64_t) std::array<std::uint32_t, 2> token{};
+        Kernel::CheckResult(sceVideoOutSubmitEopFlip(GetHandle(), bufferIndex, mode, argument, token.data()), "sceVideoOutSubmitEopFlip");
+        return token[0] & 0x0fffffffu;
+    }
+
     VideoOutFlipStatus Output::GetFlipStatus() const
     {
         VideoOutFlipStatus status{};
@@ -83,7 +91,7 @@ namespace UnrealProspero::Video
         return status;
     }
 
-    std::uint64_t& Output::getBufferLabel(int bufferIndex) const
+    std::uint64_t& Output::GetBufferLabel(int bufferIndex) const
     {
         std::uintptr_t address = 0;
         const int count = sceVideoOutGetBufferLabelAddress(GetHandle(), &address);
@@ -95,14 +103,14 @@ namespace UnrealProspero::Video
 
     bool Output::IsBufferReleased(int bufferIndex) const
     {
-        std::atomic_ref label(getBufferLabel(bufferIndex));
+        std::atomic_ref label(GetBufferLabel(bufferIndex));
         static_assert(decltype(label)::is_always_lock_free);
         return label.load(std::memory_order_acquire) == 0;
     }
 
     void Output::MarkBufferPending(int bufferIndex)
     {
-        std::atomic_ref label(getBufferLabel(bufferIndex));
+        std::atomic_ref label(GetBufferLabel(bufferIndex));
         std::uint64_t expected = 0;
         if (!label.compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) throw std::logic_error("Video buffer is still pending");
     }

@@ -23,6 +23,8 @@ namespace UnrealProspero::Video
         void RegisterBuffers(int setIndex, int firstBuffer, std::span<const VideoOutBuffers> buffers, const VideoOutBufferAttribute2& attribute, int category);
         void UnregisterBuffers(int setIndex);
         void SubmitFlip(int bufferIndex, int mode, std::int64_t argument);
+        std::uint32_t ReserveEopFlip(int bufferIndex, int mode, std::int64_t argument);
+        std::uint64_t& GetBufferLabel(int bufferIndex) const;
         VideoOutFlipStatus GetFlipStatus() const;
         bool IsBufferReleased(int bufferIndex) const;
         void MarkBufferPending(int bufferIndex);
@@ -30,7 +32,6 @@ namespace UnrealProspero::Video
         void Close();
 
     private:
-        std::uint64_t& getBufferLabel(int bufferIndex) const;
         std::optional<int> handle;
     };
 }
