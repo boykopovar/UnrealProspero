@@ -106,7 +106,6 @@ namespace UnrealProspero::Shader
         input.Environment.SetDefine(TEXT("COMPILER_DXC"), true);
         input.Environment.SetDefine(TEXT("SM5_PROFILE"), true);
         input.Environment.SetDefine(TEXT("SUPPORTS_INDEPENDENT_SAMPLERS"), true);
-        input.Environment.SetDefine(TEXT("UNREALPROSPERO_SHADER_PRINT_GLOBAL_RESOURCES"), true);
     }
 
     void ShaderFormat::AppendToKeyString(FString& key) const
