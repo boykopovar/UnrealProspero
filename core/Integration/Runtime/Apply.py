@@ -55,34 +55,6 @@ def apply(engine):
     elif old_solver in data or data.count(new_solver) != 1:
         raise RuntimeError(f"Unexpected suspension solver initialization in {path}")
 
-    http = runtime / "Experimental/IoStore/HttpClient/Private"
-    http_sites = {
-        "Socket.inl": (
-            (b"#if defined(IAS_HTTP_SOCKET_FORWARD)", b"#if defined(IAS_HTTP_SOCKET_FORWARD) && !defined(UNREALPROSPERO_TARGET_PS5)"),
-            (b"#else\n\tstatic int32 LastSocketResult() { return errno; }",
-             b"#elif defined(UNREALPROSPERO_TARGET_PS5)\n\tstatic int32 LastSocketResult() { return errno; }\n#\tdefine IsSocketResult(err) (LastSocketResult() == Prospero_##err)\n#else\n\tstatic int32 LastSocketResult() { return errno; }"),
-        ),
-        "ConnectionPool.inl": (
-            (b"\taddrinfo* Info = nullptr;", b"#if defined(UNREALPROSPERO_TARGET_PS5)\n\tconst int32 AddressCount = ResolveProsperoHost(HostName, MakeArrayView(IpAddresses));\n#else\n\taddrinfo* Info = nullptr;"),
-            (b"\n\tif (AddressCount > 0)", b"\n#endif\n\n\tif (AddressCount > 0)"),
-        ),
-    }
-    for name, replacements in http_sites.items():
-        path = http / name
-        original = path.read_bytes()
-        data = original
-        newline = b"\r\n" if b"\r\n" in data else b"\n"
-        for old_code, new_code in replacements:
-            old_code = old_code.replace(b"\n", newline)
-            new_code = new_code.replace(b"\n", newline)
-            if data.count(new_code) == 1:
-                continue
-            if data.count(old_code) != 1:
-                raise RuntimeError(f"Unexpected IoStore HTTP code in {path}")
-            data = data.replace(old_code, new_code)
-        if data != original:
-            changes[path] = data
-
     path = engine / "Shaders/Private/ShaderPrint.ush"
     data = path.read_bytes()
     old_shader_print = b"#if ES3_1_PROFILE || (COMPILER_HLSL && !COMPILER_DXC)"

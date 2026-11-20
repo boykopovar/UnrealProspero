@@ -4,9 +4,20 @@
 #include "prx/libkernel/include/Api.hpp"
 #include "prx/libScePosixForWebKit/include/Api.hpp"
 #include <cerrno>
+#include <memory>
+#include <stdexcept>
 
 #define IAS_HTTP_USE_POLL
 #define IAS_HTTP_HAS_NONBLOCK_IMPL
+#undef IAS_HTTP_SOCKET_FORWARD
+#undef EAGAIN
+#undef EWOULDBLOCK
+#undef EINPROGRESS
+#undef ENOTCONN
+#define EAGAIN 35
+#define EWOULDBLOCK 35
+#define EINPROGRESS 36
+#define ENOTCONN 57
 
 namespace UE::IoStore::HTTP
 {
@@ -56,9 +67,6 @@ namespace UE::IoStore::HTTP
     constexpr int16 POLLERR = 0x8;
     constexpr int16 POLLHUP = 0x10;
     constexpr int16 POLLNVAL = 0x20;
-    constexpr int32 Prospero_EWOULDBLOCK = 35;
-    constexpr int32 Prospero_EINPROGRESS = 36;
-    constexpr int32 Prospero_ENOTCONN = 57;
 
     static uint16 htons(uint16 value) { return ByteSwap(value); }
     static uint32 htonl(uint32 value) { return ByteSwap(value); }
@@ -100,24 +108,66 @@ namespace UE::IoStore::HTTP
         return result;
     }
 
-    static int32 ResolveProsperoHost(const char* host, TArrayView<uint32> addresses)
+    struct addrinfo
     {
-        GuestResolver::AddressInfo hints{};
-        hints.family = AF_INET;
-        hints.socketType = SOCK_STREAM;
-        hints.protocol = IPPROTO_TCP;
-        GuestResolver::AddressInfo* first = nullptr;
-        if (getaddrinfo_nid_postfix(host, nullptr, &hints, &first) != 0) return -1;
-        ON_SCOPE_EXIT { if (first) freeaddrinfo_nid_postfix(first); };
-        int32 count = 0;
-        for (auto* current = first; current && count < addresses.Num(); current = current->next)
+        int32 ai_flags{};
+        int32 ai_family{};
+        int32 ai_socktype{};
+        int32 ai_protocol{};
+        socklen_t ai_addrlen{};
+        char* ai_canonname{};
+        sockaddr* ai_addr{};
+        addrinfo* ai_next{};
+        GuestResolver::AddressInfo* owner{};
+    };
+
+    static void Socket_FreeAddrInfo(addrinfo* addresses)
+    {
+        if (addresses && addresses->owner) freeaddrinfo_nid_postfix(addresses->owner);
+        while (addresses)
         {
-            if (current->family != AF_INET || current->addressLength != sizeof(sockaddr_in) || !current->address) continue;
-            sockaddr_in address{};
-            FMemory::Memcpy(&address, current->address, sizeof(address));
-            if (address.sin_family == AF_INET && address.sin_addr != 0) addresses[count++] = ByteSwap(address.sin_addr);
+            auto* next = addresses->ai_next;
+            delete addresses;
+            addresses = next;
         }
-        return count;
+    }
+
+    static int32 Socket_GetAddrInfo(const char* host, const char* service, const addrinfo* hints, addrinfo** output)
+    {
+        if (!output) throw std::invalid_argument("Missing IoStore resolver output");
+        *output = nullptr;
+        GuestResolver::AddressInfo nativeHints{};
+        if (hints)
+        {
+            nativeHints.flags = hints->ai_flags;
+            nativeHints.family = hints->ai_family;
+            nativeHints.socketType = hints->ai_socktype;
+            nativeHints.protocol = hints->ai_protocol;
+        }
+        GuestResolver::AddressInfo* nativeOutput = nullptr;
+        const int32 result = getaddrinfo_nid_postfix(host, service, hints ? &nativeHints : nullptr, &nativeOutput);
+        std::unique_ptr<GuestResolver::AddressInfo, decltype(&freeaddrinfo_nid_postfix)> nativeAddresses(nativeOutput, freeaddrinfo_nid_postfix);
+        if (result != 0) return result;
+        std::unique_ptr<addrinfo, decltype(&Socket_FreeAddrInfo)> addresses(nullptr, Socket_FreeAddrInfo);
+        addrinfo* last = nullptr;
+        for (auto* native = nativeOutput; native; native = native->next)
+        {
+            auto address = std::make_unique<addrinfo>();
+            address->ai_flags = native->flags;
+            address->ai_family = native->family;
+            address->ai_socktype = native->socketType;
+            address->ai_protocol = native->protocol;
+            address->ai_addrlen = native->addressLength;
+            address->ai_canonname = native->canonicalName;
+            address->ai_addr = static_cast<sockaddr*>(native->address);
+            if (!address->ai_addr || address->ai_addrlen < sizeof(sockaddr) || address->ai_addr->family != address->ai_family) throw std::runtime_error("Invalid IoStore resolver address");
+            if (last) last->ai_next = address.get();
+            else addresses.reset(address.get());
+            last = address.release();
+        }
+        if (addresses) addresses->owner = nativeAddresses.release();
+        *output = addresses.release();
+        return result;
     }
 }
 
