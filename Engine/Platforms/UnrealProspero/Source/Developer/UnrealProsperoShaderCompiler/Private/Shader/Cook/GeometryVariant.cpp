@@ -1,4 +1,5 @@
 #include "UnrealProspero/Shader/Cook/GeometryVariant.h"
+#include "UnrealProspero/Shader/Cook/GeometryInterface.h"
 #include "UnrealProspero/Shader/PipelineDescriptors.h"
 #include "UnrealProspero/Shader/ShaderOutput.h"
 #include <algorithm>
@@ -14,6 +15,7 @@ namespace UnrealProspero::Shader::Cook
         auto vertexWords = vertex.Spirv.Words;
         auto vertexDescriptors = vertex.Spirv.Descriptors;
         auto geometrySpirv = geometry.Spirv;
+        geometrySpirv.Words = LinkGeometryInputs(vertexWords, TCHAR_TO_UTF8(*vertex.EntryPoint), geometrySpirv.Words, TCHAR_TO_UTF8(*geometry.EntryPoint));
         const std::array stages{PipelineStageDescriptors{vertexWords, vertexDescriptors, TCHAR_TO_UTF8(*vertex.EntryPoint)}, PipelineStageDescriptors{geometrySpirv.Words, geometrySpirv.Descriptors, TCHAR_TO_UTF8(*geometry.EntryPoint)}};
         const auto descriptors = MergePipelineDescriptors(stages, PipelineDescriptorLayout::PreserveFirstStage);
         if (vertexWords != vertex.Spirv.Words || vertexDescriptors != vertex.Spirv.Descriptors) throw std::runtime_error("Offline geometry compilation changed the native vertex interface");
