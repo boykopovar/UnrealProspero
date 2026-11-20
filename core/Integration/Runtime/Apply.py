@@ -5,24 +5,6 @@ from pathlib import Path
 def apply(engine):
     runtime = engine / "Source/Runtime"
     changes = {}
-    path = runtime / "Online/Experimental/DownlinkBandwidthManager/Private/DownlinkBandwidthManager.cpp"
-    data = changes.get(path, path.read_bytes())
-    newline = b"\r\n" if b"\r\n" in data else b"\n"
-    old_seed = newline.join((b"\tstd::random_device Device;", b"\tstd::mt19937 Generator(Device());"))
-    new_seed = newline.join((
-        b"\tconst FGuid RandomSeed = FGuid::NewGuid();",
-        b"\tstd::seed_seq Seed{RandomSeed.A, RandomSeed.B, RandomSeed.C, RandomSeed.D};",
-        b"\tstd::mt19937 Generator(Seed);",
-    ))
-    guid_header = b'#include "Misc/Guid.h"'
-    if data.count(old_seed) == 1 and data.count(b"#include <random>") == 1:
-        data = data.replace(old_seed, new_seed)
-        if guid_header not in data:
-            data = data.replace(b"#include <random>", guid_header + newline + b"#include <random>")
-        changes[path] = data
-    elif data.count(new_seed) != 1 or guid_header not in data or old_seed in data:
-        raise RuntimeError(f"Unexpected random seed code in {path}")
-
     path = engine / "Shaders/Private/ShaderPrint.ush"
     data = path.read_bytes()
     old_shader_print = b"#if ES3_1_PROFILE || (COMPILER_HLSL && !COMPILER_DXC)"
