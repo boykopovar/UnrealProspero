@@ -26,7 +26,7 @@ public sealed class UnrealProsperoPlatformSdk : UEBuildPlatformSDK
 
     protected override string? GetInstalledSDKVersion()
     {
-        if (installation == null) return null;
+        if (installation == null || !installation.HasTarget(target)) return null;
         return RequireInstallation().CxxVersion;
     }
 
