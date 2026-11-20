@@ -1,14 +1,16 @@
 #include "UnrealProspero/Shader/PipelineDescriptors.h"
 #include "UnrealProspero/Shader/SpirvReflection.h"
 #include <array>
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <utility>
 
 namespace UnrealProspero::Shader
 {
-    std::vector<DescriptorBinding> MergePipelineDescriptors(std::span<const PipelineStageDescriptors> stages)
+    std::vector<DescriptorBinding> MergePipelineDescriptors(std::span<const PipelineStageDescriptors> stages, PipelineDescriptorLayout layout)
     {
+        if (layout != PipelineDescriptorLayout::ReindexStages && layout != PipelineDescriptorLayout::PreserveFirstStage) throw std::invalid_argument("Invalid pipeline descriptor layout mode");
         if (stages.empty()) throw std::invalid_argument("Shader pipeline has no stages");
         struct PreparedStage
         {
@@ -52,10 +54,20 @@ namespace UnrealProspero::Shader
                 const auto size = static_cast<std::uint64_t>(descriptor.Count) * descriptor.Stride;
                 if (binding == std::numeric_limits<std::uint32_t>::max() || size > std::numeric_limits<std::uint32_t>::max() - offset) throw std::overflow_error("Pipeline descriptor table exceeds format limits");
                 auto& updated = destination.Descriptors[index];
-                updated.Binding = binding++;
-                updated.Offset = offset;
-                offset += static_cast<std::uint32_t>(size);
-                remaps.emplace_back(reflected, updated.Binding);
+                if (stageIndex == 0 && layout == PipelineDescriptorLayout::PreserveFirstStage)
+                {
+                    if (!(descriptor == expected)) throw std::invalid_argument("Preserved pipeline descriptors disagree with SPIR-V");
+                    if (descriptor.Binding == std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("Pipeline binding exceeds format limits");
+                    binding = std::max(binding, descriptor.Binding + 1);
+                    offset += static_cast<std::uint32_t>(size);
+                }
+                else
+                {
+                    updated.Binding = binding++;
+                    updated.Offset = offset;
+                    offset += static_cast<std::uint32_t>(size);
+                    remaps.emplace_back(reflected, updated.Binding);
+                }
                 merged.push_back(updated);
             }
             for (const auto& [descriptor, binding] : remaps) reflection.RemapBinding(descriptor, binding);
