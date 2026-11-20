@@ -13,6 +13,7 @@ struct FPlatformMemoryStats : FGenericPlatformMemoryStats
 
 struct FUnrealProsperoPlatformMemory : FGenericPlatformMemory
 {
+    static CORE_API class FMalloc* BaseAllocator();
     using FPlatformVirtualMemoryBlock = UnrealProspero::Memory::VirtualMemoryBlock;
     static void* BinnedAllocFromOS(SIZE_T size)
     {
