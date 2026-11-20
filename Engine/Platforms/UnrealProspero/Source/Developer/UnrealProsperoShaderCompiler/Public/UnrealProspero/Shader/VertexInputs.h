@@ -15,6 +15,7 @@ namespace UnrealProspero::Shader
         std::uint32_t Location;
         std::uint32_t Components;
         VertexScalarType Type;
+        bool operator==(const VertexInput&) const = default;
     };
 
     UNREALPROSPEROSHADERCOMPILER_API std::vector<VertexInput> ReflectVertexInputs(std::span<const std::uint32_t> words, const std::string& entryPoint);

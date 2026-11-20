@@ -13,6 +13,7 @@ namespace UnrealProspero::Shader
         std::string Name;
         std::uint32_t Offset;
         std::uint32_t Size;
+        bool operator==(const ConstantMember&) const = default;
     };
 
     struct DescriptorBinding
@@ -27,6 +28,7 @@ namespace UnrealProspero::Shader
         ResourceKind Kind;
         std::uint32_t BlockSize;
         std::vector<ConstantMember> Members;
+        bool operator==(const DescriptorBinding&) const = default;
     };
 
     UNREALPROSPEROSHADERCOMPILER_API std::vector<DescriptorBinding> ReflectDescriptorLayout(std::span<const std::uint32_t> spirv, const std::string& entryPoint);
