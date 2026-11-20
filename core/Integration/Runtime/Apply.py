@@ -84,16 +84,6 @@ def apply(engine):
         if data != original:
             changes[path] = data
 
-    path = runtime / "Launch/Private/Launch.cpp"
-    data = path.read_bytes()
-    old_launch = b"#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX || PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION"
-    new_launch = old_launch + b" || PLATFORM_UNREALPROSPERO"
-    if data.count(new_launch) != 1:
-        if data.count(old_launch) != 1:
-            raise RuntimeError(f"Unexpected generic launch condition in {path}")
-        changes[path] = data.replace(old_launch, new_launch)
-
-
     sockets = runtime / "Sockets/Private/BSDSockets"
     socket_calls = {
         "SocketsBSD.cpp": {
