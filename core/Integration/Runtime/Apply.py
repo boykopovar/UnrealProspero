@@ -4,26 +4,7 @@ from pathlib import Path
 
 def apply(engine):
     runtime = engine / "Source/Runtime"
-    ticker_sites = {
-        "Dataflow/Core/Private/Dataflow/DataflowContextEvaluator.cpp": 2,
-        "Dataflow/Core/Private/Dataflow/DataflowTaskGraph.cpp": 1,
-        "Online/BuildPatchServices/Private/BuildPatchGeneration.cpp": 1,
-        "Online/BuildPatchServices/Private/Generation/ChunkHarvester.cpp": 1,
-        "Online/BuildPatchServices/Private/Generation/ChunkDeltaOptimiser.cpp": 1,
-        "Online/Experimental/BandwidthMeasurementTool/Private/BandwidthMeasurementTool.cpp": 2,
-        "Online/Experimental/DownlinkBandwidthManager/Private/DownlinkBandwidthManager.cpp": 1,
-    }
-    old_ticker = b"FTSTicker::GetCoreTicker().RemoveTicker("
-    new_ticker = b"FTSTicker::RemoveTicker("
     changes = {}
-    for name, count in ticker_sites.items():
-        path = runtime / name
-        data = path.read_bytes()
-        if data.count(old_ticker) == count:
-            changes[path] = data.replace(old_ticker, new_ticker)
-        elif old_ticker in data or data.count(new_ticker) < count:
-            raise RuntimeError(f"Unexpected ticker calls in {path}")
-
     path = runtime / "Online/Experimental/DownlinkBandwidthManager/Private/DownlinkBandwidthManager.cpp"
     data = changes.get(path, path.read_bytes())
     newline = b"\r\n" if b"\r\n" in data else b"\n"
@@ -41,19 +22,6 @@ def apply(engine):
         changes[path] = data
     elif data.count(new_seed) != 1 or guid_header not in data or old_seed in data:
         raise RuntimeError(f"Unexpected random seed code in {path}")
-
-    path = runtime / "Experimental/Chaos/Private/Chaos/PBDSuspensionConstraints.cpp"
-    data = path.read_bytes()
-    newline = b"\r\n" if b"\r\n" in data else b"\n"
-    old_solver = newline.join((
-        b"\t\tCollisionSolvers.Add(Private::FPBDCollisionSolver());",
-        b"\t\tCollisionSolvers[CollisionSolvers.Num() - 1].MakeInitialized();",
-    ))
-    new_solver = b"\t\tCollisionSolvers.Add(Private::FPBDCollisionSolver::MakeInitialized());"
-    if data.count(old_solver) == 1 and new_solver not in data:
-        changes[path] = data.replace(old_solver, new_solver)
-    elif old_solver in data or data.count(new_solver) != 1:
-        raise RuntimeError(f"Unexpected suspension solver initialization in {path}")
 
     path = engine / "Shaders/Private/ShaderPrint.ush"
     data = path.read_bytes()
