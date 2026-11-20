@@ -4,6 +4,8 @@
 #include "UnrealProspero/Shader/ShaderBinary.h"
 #include "UnrealProspero/RHI/Command/CommandList.h"
 #include <DynamicRHI.h>
+#include <atomic>
+#include <mutex>
 #include <vector>
 
 namespace UnrealProspero::RHI
@@ -85,9 +87,10 @@ namespace UnrealProspero::RHI
     private:
         Shader::AgcTarget target;
         std::uint32_t addressHigh;
+        std::mutex submissionMutex;
         std::vector<std::unique_ptr<CommandList>> pendingCommandLists;
         std::unique_ptr<ComputeContext> defaultContext;
-        bool submissionFailed = false;
+        std::atomic<bool> submissionFailed = false;
         bool initialized = false;
         bool shutDown = false;
     };

@@ -137,6 +137,7 @@ namespace UnrealProspero::RHI
         if (defaultContext)
         {
             auto commands = std::make_unique<CommandList>(std::move(defaultContext));
+            const std::lock_guard lock(submissionMutex);
             pendingCommandLists.push_back(std::move(commands));
             try
             {
@@ -558,6 +559,7 @@ namespace UnrealProspero::RHI
     void DynamicRHI::RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args)
     {
         if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         std::set<IRHIPlatformCommandList*> uniqueLists;
         for (const auto& list : pendingCommandLists) uniqueLists.insert(list.get());
@@ -588,12 +590,14 @@ namespace UnrealProspero::RHI
 
     void DynamicRHI::RHIProcessDeleteQueue()
     {
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 
     void DynamicRHI::RHIBlockUntilGPUIdle()
     {
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         for (const auto& list : pendingCommandLists) list->Wait(10000000);
         pendingCommandLists.clear();
