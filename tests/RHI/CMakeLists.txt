@@ -42,6 +42,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/AgcShader.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Shader/ShaderCommands.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     set(graphics_sources Graphics.cpp
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Query/OcclusionSnapshot.cpp"
@@ -66,6 +67,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Descriptor/BufferDescriptor.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Buffer/BufferClearValue.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
     set(depth_sources ${graphics_sources}
@@ -94,6 +96,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     target_sources(TextureCopyCheck PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/TextureUpload.cpp" "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp")
     target_sources(TextureCopyCheck PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/VolumeUpload.cpp" "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearTexture3D.cpp")
@@ -112,6 +115,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
     adk_add_executable(SwapChainCheck SwapChain.cpp
@@ -129,6 +133,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/TextureFormat.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/ApplicationCore/Private/UnrealProspero/Video/Output.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/Clock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
@@ -139,6 +144,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/CommandStorage.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryAcquire.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(DrawArgumentsCheck libc libkernel libSceAgc libSceAgcDriver)
     list(APPEND test_targets DrawArgumentsCheck)
@@ -148,6 +154,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/LinearMipLayout.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Texture/DepthTexture2D.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(MemoryAccountingCheck libc libkernel)
     list(APPEND test_targets ComputeCheck GraphicsCheck TextureCopyCheck ColorClearCheck SwapChainCheck MemoryAccountingCheck)

@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_MEMORY_BUFFER_ALLOCATION_H
 #define UNREALPROSPERO_RHI_MEMORY_BUFFER_ALLOCATION_H
 
-#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/RHI/Memory/ReusableAllocation.h"
 #include <span>
 
 namespace UnrealProspero::RHI
@@ -33,7 +33,7 @@ namespace UnrealProspero::RHI
 #endif
 
     private:
-        Kernel::DirectAllocation allocation;
+        ReusableAllocation allocation;
         std::size_t size;
         AllocationUsage usage;
     };
