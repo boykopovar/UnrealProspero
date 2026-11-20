@@ -3,6 +3,7 @@
 #if UNREALPROSPERO_TARGET_PS5
 
 #include "BSDSockets/SocketSubsystemBSD.h"
+#include "UnrealProspero/SocketUnrealProspero.h"
 #include "SocketSubsystemModule.h"
 #include <cerrno>
 
@@ -79,6 +80,12 @@ namespace
         {
             auto address = CreateInternetAddr();
             return GetLocalHostAddrViaConnect(address);
+        }
+
+    protected:
+        FSocketBSD* InternalBSDSocketFactory(SOCKET socket, ESocketType socketType, const FString& description, const FName& protocol) override
+        {
+            return new FSocketUnrealProspero(socket, socketType, description, protocol, this);
         }
     };
 
