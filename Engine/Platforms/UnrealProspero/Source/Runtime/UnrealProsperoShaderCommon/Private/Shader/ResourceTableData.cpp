@@ -35,6 +35,6 @@ namespace UnrealProspero::Shader
         FMemoryReaderView reader(memory, true);
         reader << table;
         if (reader.IsError() || reader.Tell() != reader.TotalSize()) throw std::invalid_argument("Cannot deserialize Unreal shader resource table");
-        if (table.ResourceTableLayoutHashes.Num() > 32 || static_cast<unsigned>(table.ResourceTableLayoutHashes.Num()) < std::bit_width(table.ResourceTableBits)) throw std::invalid_argument("Unreal shader resource table mask exceeds its layouts");
+        if (table.ResourceTableLayoutHashes.Num() > 32 || table.ResourceTableLayoutHashes.Num() < static_cast<int32>(std::bit_width(table.ResourceTableBits))) throw std::invalid_argument("Unreal shader resource table mask exceeds its layouts");
     }
 }

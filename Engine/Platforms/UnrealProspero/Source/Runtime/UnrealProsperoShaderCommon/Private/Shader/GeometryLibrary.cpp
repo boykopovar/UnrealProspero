@@ -13,21 +13,21 @@ namespace UnrealProspero::Shader
         constexpr std::uint32_t Magic = 0x56474741;
         constexpr std::uint32_t Version = 1;
 
-        std::uint32_t narrow(std::size_t size)
+        std::uint32_t narrowLibrarySize(std::size_t size)
         {
             if (size > std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("Geometry library exceeds format limits");
             return static_cast<std::uint32_t>(size);
         }
 
-        void append(std::vector<std::uint8_t>& bytes, std::uint32_t value)
+        void appendLibraryWord(std::vector<std::uint8_t>& bytes, std::uint32_t value)
         {
             for (unsigned shift = 0; shift < 32; shift += 8) bytes.push_back(static_cast<std::uint8_t>(value >> shift));
         }
 
-        class Reader final
+        class GeometryLibraryReader final
         {
         public:
-            explicit Reader(std::span<const std::uint8_t> bytes) : remaining(bytes) {}
+            explicit GeometryLibraryReader(std::span<const std::uint8_t> bytes) : remaining(bytes) {}
 
             std::span<const std::uint8_t> Take(std::size_t size)
             {
@@ -63,7 +63,7 @@ namespace UnrealProspero::Shader
     {
         if (variants.empty()) throw std::invalid_argument("Geometry library has no variants");
         std::uint64_t size = 12;
-        const auto count = narrow(variants.size());
+        const auto count = narrowLibrarySize(variants.size());
         const auto first = DecodeShaderBinary(variants.front());
         std::set<ShaderIdentity> identities;
         for (const auto& bytes : variants)
@@ -71,15 +71,15 @@ namespace UnrealProspero::Shader
             const auto shader = DecodeShaderBinary(bytes);
             validate(shader, first);
             if (!identities.insert(shader.VertexIdentity).second) throw std::invalid_argument("Duplicate geometry library vertex identity");
-            size += std::uint64_t{4} + narrow(bytes.size());
+            size += std::uint64_t{4} + narrowLibrarySize(bytes.size());
             if (size > std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("Geometry library exceeds format limits");
         }
         std::vector<std::uint8_t> result;
         result.reserve(static_cast<std::size_t>(size));
-        for (const auto value : {Magic, Version, count}) append(result, value);
+        for (const auto value : {Magic, Version, count}) appendLibraryWord(result, value);
         for (const auto& bytes : variants)
         {
-            append(result, narrow(bytes.size()));
+            appendLibraryWord(result, narrowLibrarySize(bytes.size()));
             result.insert(result.end(), bytes.begin(), bytes.end());
         }
         return result;
@@ -88,7 +88,7 @@ namespace UnrealProspero::Shader
     std::vector<GeometryVariantView> DecodeGeometryLibrary(std::span<const std::uint8_t> bytes)
     {
         if (bytes.size() > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Geometry library exceeds format limits");
-        Reader reader(bytes);
+        GeometryLibraryReader reader(bytes);
         if (reader.Read() != Magic || reader.Read() != Version) throw std::invalid_argument("Unsupported geometry library format");
         const auto count = reader.Read();
         if (count == 0 || count > reader.Size() / 4) throw std::invalid_argument("Invalid geometry library variant count");
