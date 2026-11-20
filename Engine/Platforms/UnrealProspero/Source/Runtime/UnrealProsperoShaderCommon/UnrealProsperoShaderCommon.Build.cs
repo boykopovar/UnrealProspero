@@ -6,6 +6,7 @@ public class UnrealProsperoShaderCommon : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
+        PublicDependencyModuleNames.Add("RHI");
         PrivateDependencyModuleNames.Add("Core");
     }
 }

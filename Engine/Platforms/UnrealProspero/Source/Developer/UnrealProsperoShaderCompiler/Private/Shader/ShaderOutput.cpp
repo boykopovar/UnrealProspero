@@ -1,5 +1,5 @@
 #include "UnrealProspero/Shader/ShaderOutput.h"
-#include "Serialization/MemoryWriter.h"
+#include "UnrealProspero/Shader/ResourceTableData.h"
 #include "ShaderCompilerCore.h"
 #include <limits>
 #include <stdexcept>
@@ -8,12 +8,8 @@ namespace UnrealProspero::Shader
 {
     std::vector<std::uint8_t> EncodeCompiledShader(const SpirvCompilation& spirv, const AgcCompilation& agc, ShaderStage stage, AgcTarget target, const ShaderIdentity& vertexIdentity)
     {
-        TArray<uint8> resourceTable;
-        FMemoryWriter writer(resourceTable, true);
-        auto table = spirv.ResourceTable;
-        writer << table;
-        if (writer.IsError()) throw std::runtime_error("Cannot serialize Unreal shader resource table");
-        ShaderBinaryView binary{stage, target, agc.Header, agc.Code, agc.Metadata, {resourceTable.GetData(), static_cast<std::size_t>(resourceTable.Num())}, {}};
+        const auto resourceTable = EncodeResourceTable(spirv.ResourceTable);
+        ShaderBinaryView binary{stage, target, agc.Header, agc.Code, agc.Metadata, resourceTable, {}};
         binary.VertexIdentity = vertexIdentity;
         binary.ColorExportFormat = agc.ColorExportFormat;
         binary.ColorExports.reserve(agc.ColorExports.size());
