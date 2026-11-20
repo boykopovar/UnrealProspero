@@ -4,7 +4,7 @@ Unreal Engine platform extension for PS5 via [AnyDevKit](https://github.com/boyk
 
 ## Status
 
-`UnrealGame` renders a 3D scene on PS5. Engine patch removal is in progress.
+`UnrealGame` renders a 3D scene on PS5. Stock engine validation is in progress.
 
 ## License
 
