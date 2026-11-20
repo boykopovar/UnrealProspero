@@ -222,7 +222,7 @@ namespace UnrealProspero::Shader
         return result;
     }
 
-    ShaderBinaryView DecodeUnrealShaderCode(std::span<const std::uint8_t> bytes)
+    UnrealShaderCodeView DecodeUnrealShaderEnvelope(std::span<const std::uint8_t> bytes)
     {
         if (bytes.size() < 4 || bytes.size() > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) throw std::invalid_argument("Invalid Unreal shader code size");
         Reader trailer(bytes.last(4));
@@ -230,14 +230,47 @@ namespace UnrealProspero::Shader
         if (optionalSize < 4 || optionalSize >= bytes.size()) throw std::invalid_argument("Invalid Unreal shader optional data size");
         const auto codeSize = bytes.size() - optionalSize;
         Reader optional(bytes.subspan(codeSize, optionalSize - 4));
+        UnrealShaderCodeView result{bytes.first(codeSize), {}};
         std::array<bool, 256> keys{};
         while (optional.Size() != 0)
         {
             const auto key = optional.Take(1).front();
             if (keys[key]) throw std::invalid_argument("Duplicate Unreal shader optional data key");
             keys[key] = true;
-            optional.Take(optional.Read());
+            result.OptionalData.push_back({key, optional.Take(optional.Read())});
         }
-        return DecodeShaderBinary(bytes.first(codeSize));
+        return result;
+    }
+
+    std::vector<std::uint8_t> EncodeUnrealShaderEnvelope(const UnrealShaderCodeView& shader)
+    {
+        if (shader.Code.empty()) throw std::invalid_argument("Unreal shader code is empty");
+        if (shader.Code.size() > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) throw std::overflow_error("Unreal shader code exceeds array limits");
+        std::array<bool, 256> keys{};
+        std::uint64_t optionalSize = 4;
+        for (const auto& data : shader.OptionalData)
+        {
+            if (keys[data.Key]) throw std::invalid_argument("Duplicate Unreal shader optional data key");
+            keys[data.Key] = true;
+            optionalSize += std::uint64_t{5} + narrow(data.Bytes.size());
+        }
+        const auto size = optionalSize + shader.Code.size();
+        if (size > static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())) throw std::overflow_error("Unreal shader code exceeds array limits");
+        std::vector<std::uint8_t> result;
+        result.reserve(static_cast<std::size_t>(size));
+        result.insert(result.end(), shader.Code.begin(), shader.Code.end());
+        for (const auto& data : shader.OptionalData)
+        {
+            result.push_back(data.Key);
+            append(result, narrow(data.Bytes.size()));
+            result.insert(result.end(), data.Bytes.begin(), data.Bytes.end());
+        }
+        append(result, static_cast<std::uint32_t>(optionalSize));
+        return result;
+    }
+
+    ShaderBinaryView DecodeUnrealShaderCode(std::span<const std::uint8_t> bytes)
+    {
+        return DecodeShaderBinary(DecodeUnrealShaderEnvelope(bytes).Code);
     }
 }

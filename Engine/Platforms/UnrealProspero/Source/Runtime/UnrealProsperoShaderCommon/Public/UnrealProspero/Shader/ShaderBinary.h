@@ -70,6 +70,20 @@ namespace UnrealProspero::Shader
         std::vector<ColorExportVariantView> ColorExports{};
     };
 
+    struct ShaderOptionalDataView
+    {
+        std::uint8_t Key;
+        std::span<const std::uint8_t> Bytes;
+    };
+
+    struct UnrealShaderCodeView
+    {
+        std::span<const std::uint8_t> Code;
+        std::vector<ShaderOptionalDataView> OptionalData;
+    };
+
+    UNREALPROSPEROSHADERCOMMON_API UnrealShaderCodeView DecodeUnrealShaderEnvelope(std::span<const std::uint8_t> bytes);
+    UNREALPROSPEROSHADERCOMMON_API std::vector<std::uint8_t> EncodeUnrealShaderEnvelope(const UnrealShaderCodeView& shader);
     UNREALPROSPEROSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);
     UNREALPROSPEROSHADERCOMMON_API void ValidateLogicalBindings(std::span<const RuntimeBinding> source, std::span<const RuntimeBinding> destination);
     UNREALPROSPEROSHADERCOMMON_API void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings);
