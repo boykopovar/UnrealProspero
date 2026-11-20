@@ -9,7 +9,7 @@ namespace UnrealProspero::RHI
     {
         auto* label = reinterpret_cast<Label*>(&output.GetBufferLabel(bufferIndex));
         const auto offset = commands.cursor_up - commands.bottom;
-        sceAgcCbReleaseMem(&commands, 4, 0x620, 1, 0, label, 2, 1, 0, 0, 2, 0);
+        sceAgcCbReleaseMem(&commands, 4, 0x200, 1, 3, label, 2, 1, 0, 0, 2, 0);
         if (commands.cursor_up - commands.bottom != offset + 8) throw std::runtime_error("Unexpected end of pipe flip packet size");
         const auto token = output.ReserveEopFlip(bufferIndex, mode, argument);
         commands.bottom[offset + 7] = token;
