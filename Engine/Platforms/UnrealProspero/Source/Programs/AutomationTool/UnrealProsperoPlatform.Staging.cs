@@ -12,6 +12,7 @@ public abstract partial class UnrealProsperoPlatform
     public override void GetFilesToDeployOrStage(ProjectParams parameters, DeploymentContext context)
     {
         if (context.StageTargets.Count == 0) throw new AutomationException("No UnrealProspero build receipts to stage");
+        finalizeShaderArchives(parameters, context);
         foreach (StageTarget stage in context.StageTargets)
         {
             if (stage.Receipt.Platform != TargetPlatformType) throw new AutomationException("Receipt platform does not match staging platform");

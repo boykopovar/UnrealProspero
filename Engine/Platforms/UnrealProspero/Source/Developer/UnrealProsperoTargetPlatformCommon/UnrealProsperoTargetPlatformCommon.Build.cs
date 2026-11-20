@@ -12,5 +12,6 @@ public class UnrealProsperoTargetPlatformCommon : ModuleRules
         if (target.Platform == UnrealTargetPlatform.Win64) PrivateIncludePathModuleNames.Add("WindowsTargetPlatformControls");
         else if (target.Platform == UnrealTargetPlatform.Linux) PrivateIncludePathModuleNames.Add("LinuxTargetPlatformControls");
         if (target.bCompileAgainstEngine) PublicDependencyModuleNames.AddRange(new[] { "Engine", "RHI" });
+        if (target.Type == TargetType.Editor) DynamicallyLoadedModuleNames.Add("UnrealProsperoShaderCooker");
     }
 }
