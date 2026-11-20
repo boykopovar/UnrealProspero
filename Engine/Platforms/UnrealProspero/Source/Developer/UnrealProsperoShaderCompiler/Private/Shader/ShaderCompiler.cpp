@@ -19,12 +19,18 @@ namespace UnrealProspero::Shader
                 case SF_Vertex: stage = ShaderStage::Vertex; break;
                 case SF_Pixel: stage = ShaderStage::Pixel; break;
                 case SF_Compute: stage = ShaderStage::Compute; break;
+                case SF_Geometry: stage = ShaderStage::Geometry; break;
                 default: throw std::invalid_argument("AGC SPIR-V compiler does not support this shader stage");
             }
             auto spirv = CompileSpirv(input, preprocessed, output);
             output.bSucceeded = false;
-            const auto agc = CompileAgc(spirv.Words, spirv.Descriptors, input.Target.GetFrequency(), target, input.EntryPointName, executable, workingRoot);
-            const auto bytes = EncodeCompiledShader(spirv, agc, stage, target);
+            std::vector<std::uint8_t> bytes;
+            if (stage == ShaderStage::Geometry) bytes = Cook::EncodeStageData(SF_Geometry, target, input.EntryPointName, spirv);
+            else
+            {
+                const auto agc = CompileAgc(spirv.Words, spirv.Descriptors, input.Target.GetFrequency(), target, input.EntryPointName, executable, workingRoot);
+                bytes = EncodeCompiledShader(spirv, agc, stage, target);
+            }
             output.ShaderCode.GetWriteAccess().Append(bytes.data(), static_cast<int32>(bytes.size()));
             if (stage == ShaderStage::Vertex)
             {
