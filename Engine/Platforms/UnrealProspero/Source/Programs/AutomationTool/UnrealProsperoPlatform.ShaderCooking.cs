@@ -25,7 +25,7 @@ public abstract partial class UnrealProsperoPlatform
             + " -Output=" + CommandUtils.MakePathSafeToUseWithCommandLine(output)
             + " -Compiler=" + CommandUtils.MakePathSafeToUseWithCommandLine(sdk.Executable)
             + " -WorkingRoot=" + CommandUtils.MakePathSafeToUseWithCommandLine(work)
-            + " -TargetPlatform=" + context.CookPlatform + " -unattended -nop4 -NullRHI";
+            + " -TargetPlatform=" + context.CookPlatform + " -unattended -nop4 -NullRHI -DisablePython";
         if (parameters.HasDDCGraph) arguments += " -ddc=" + CommandUtils.MakePathSafeToUseWithCommandLine(parameters.DDCGraph);
         CommandUtils.RunCommandlet(parameters.RawProjectPath, parameters.UnrealExe, "UnrealProsperoShaderCooker", arguments);
     }
