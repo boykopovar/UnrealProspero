@@ -12,11 +12,12 @@
 namespace UnrealProspero::RHI
 {
     UNREALPROSPERORHI_API void InitializeShaderMetadata(FRHIShader& resource, const ShaderCode& code, const FShaderHash& hash);
+    UNREALPROSPERORHI_API void InitializeShaderMetadata(FRHIShader& resource, TConstArrayView<uint8> source, const FShaderHash& hash);
 
     template<typename TBase, Shader::ShaderStage TStage>
     class ShaderResource final : public TBase
     {
-        static_assert((std::is_same_v<TBase, FRHIComputeShader> && TStage == Shader::ShaderStage::Compute) || (std::is_same_v<TBase, FRHIVertexShader> && TStage == Shader::ShaderStage::Vertex) || (std::is_same_v<TBase, FRHIPixelShader> && TStage == Shader::ShaderStage::Pixel) || (std::is_same_v<TBase, FRHIGeometryShader> && TStage == Shader::ShaderStage::Geometry));
+        static_assert((std::is_same_v<TBase, FRHIComputeShader> && TStage == Shader::ShaderStage::Compute) || (std::is_same_v<TBase, FRHIVertexShader> && TStage == Shader::ShaderStage::Vertex) || (std::is_same_v<TBase, FRHIPixelShader> && TStage == Shader::ShaderStage::Pixel));
 
     public:
         ShaderResource(TConstArrayView<uint8> source, const FShaderHash& hash, Shader::AgcTarget target) : code(source, TStage, target), shader(code.GetBinary(), TStage, target)
@@ -61,7 +62,6 @@ namespace UnrealProspero::RHI
     extern template class UNREALPROSPERORHI_API ShaderResource<FRHIComputeShader, Shader::ShaderStage::Compute>;
     extern template class UNREALPROSPERORHI_API ShaderResource<FRHIVertexShader, Shader::ShaderStage::Vertex>;
     extern template class UNREALPROSPERORHI_API ShaderResource<FRHIPixelShader, Shader::ShaderStage::Pixel>;
-    extern template class UNREALPROSPERORHI_API ShaderResource<FRHIGeometryShader, Shader::ShaderStage::Geometry>;
 }
 
 #endif

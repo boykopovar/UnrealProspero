@@ -33,6 +33,7 @@ namespace UnrealProspero::RHI
         Shader::ValidateGeometryVertex(binary, vertex.binary, vertex.identity);
     }
 
+    const Shader::ShaderIdentity& ShaderCode::GetIdentity() const { return identity; }
     const Shader::ShaderBinaryView& ShaderCode::GetBinary() const { return binary; }
     const FShaderResourceTable& ShaderCode::GetResourceTable() const { return resourceTable; }
     const std::vector<ResourceTableBinding>& ShaderCode::GetResourceBindings() const { return resourceBindings; }

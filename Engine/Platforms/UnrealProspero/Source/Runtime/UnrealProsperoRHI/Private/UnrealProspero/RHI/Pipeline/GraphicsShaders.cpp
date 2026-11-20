@@ -7,26 +7,26 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        GraphicsShaderLink createLink(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, const AgcShader* pixelNative)
+        GraphicsShaderLink createLink(VertexShader& vertex, PixelShader* pixel, const ShaderCode* geometryCode, const AgcShader* geometryNative, std::uint32_t primitiveType, const AgcShader* pixelNative)
         {
             if (pixel && vertex.GetCode().GetBinary().Target != pixel->GetCode().GetBinary().Target) throw std::invalid_argument("Graphics shaders require matching target platforms");
             if (pixel && vertex.GetCode().GetUserData().GetAddressHigh() != pixel->GetCode().GetUserData().GetAddressHigh()) throw std::invalid_argument("Graphics shaders require matching address apertures");
-            if (geometry)
+            if (geometryCode)
             {
-                geometry->GetCode().ValidateVertex(vertex.GetCode());
-                if (geometry->GetCode().GetUserData().GetAddressHigh() != vertex.GetCode().GetUserData().GetAddressHigh()) throw std::invalid_argument("Merged graphics shaders require matching address apertures");
+                geometryCode->ValidateVertex(vertex.GetCode());
+                if (geometryCode->GetUserData().GetAddressHigh() != vertex.GetCode().GetUserData().GetAddressHigh()) throw std::invalid_argument("Merged graphics shaders require matching address apertures");
             }
-            return GraphicsShaderLink(geometry ? geometry->GetNativeShader() : vertex.GetNativeShader(), pixelNative, primitiveType);
+            return GraphicsShaderLink(geometryNative ? *geometryNative : vertex.GetNativeShader(), pixelNative, primitiveType);
         }
     }
 
-    GraphicsShaders::GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, std::uint32_t pixelColorFormat) : vertex(&vertex), pixel(pixel), geometry(geometry), pixelNative(pixel ? &pixel->GetNativeShader(pixelColorFormat) : nullptr), link(createLink(vertex, pixel, geometry, primitiveType, pixelNative)) {}
+    GraphicsShaders::GraphicsShaders(VertexShader& vertex, PixelShader* pixel, GeometryShader* geometry, std::uint32_t primitiveType, std::uint32_t pixelColorFormat) : vertex(&vertex), pixel(pixel), geometry(geometry), pixelNative(pixel ? &pixel->GetNativeShader(pixelColorFormat) : nullptr), geometryCode(geometry ? &geometry->GetCode(vertex.GetCode()) : nullptr), geometryNative(geometry ? &geometry->GetNativeShader(vertex.GetCode()) : nullptr), link(createLink(vertex, pixel, geometryCode, geometryNative, primitiveType, pixelNative)) {}
 
     VertexShader& GraphicsShaders::GetVertexShader() const { return *vertex; }
     PixelShader* GraphicsShaders::GetPixelShader() const { return pixel.GetReference(); }
 
     GeometryShader* GraphicsShaders::GetGeometryShader() const { return geometry.GetReference(); }
-    const Shader::UserDataLayout& GraphicsShaders::GetVertexInputLayout() const { return geometry ? geometry->GetCode().GetUserData() : vertex->GetCode().GetUserData(); }
+    const Shader::UserDataLayout& GraphicsShaders::GetVertexInputLayout() const { return geometryCode ? geometryCode->GetUserData() : vertex->GetCode().GetUserData(); }
 
     std::unique_ptr<MergedDescriptorTables> GraphicsShaders::Record(CommandBuffer& commands, ShaderBindings& vertexBindings, ShaderBindings* pixelBindings, ShaderBindings* geometryBindings, const VertexBufferTable& vertexBuffers, Shader::UserDataInputs vertexInputs) const
     {
@@ -41,7 +41,7 @@ namespace UnrealProspero::RHI
         std::unique_ptr<MergedDescriptorTables> merged;
         if (geometryBindings)
         {
-            const std::array sources{&vertexBindings.FinalizeDescriptors(), &geometryBindings->FinalizeDescriptors()};
+            const std::array sources{vertexBindings.FinalizeDescriptors().GetRanges(), geometryBindings->FinalizeDescriptors().GetRanges(geometry->GetCode().GetBinary().Bindings, geometryCode->GetBinary().Bindings)};
             merged = std::make_unique<MergedDescriptorTables>(sources, vertexLayout.GetAddressHigh());
             merged->Apply(vertexInputs);
             vertexLayout.Build(vertexInputs);
@@ -64,7 +64,7 @@ namespace UnrealProspero::RHI
             const auto mergedRanges = merged->GetMemoryRanges();
             ranges.insert(ranges.end(), mergedRanges.begin(), mergedRanges.end());
         }
-        const auto& vertexNative = geometry ? geometry->GetNativeShader() : vertex->GetNativeShader();
+        const auto& vertexNative = geometryNative ? *geometryNative : vertex->GetNativeShader();
         ranges.push_back({vertexNative.Get().code, vertexNative.Get().shader_size});
         if (pixelNative) ranges.push_back({pixelNative->Get().code, pixelNative->Get().shader_size});
         WriteMemoryAcquire(commands, ranges);

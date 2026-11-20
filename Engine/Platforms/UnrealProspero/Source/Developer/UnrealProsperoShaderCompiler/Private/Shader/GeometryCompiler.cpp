@@ -2,9 +2,11 @@
 #include "UnrealProspero/Shader/PipelineDescriptors.h"
 #include "UnrealProspero/Shader/ShaderOutput.h"
 #include "UnrealProspero/Shader/Cook/StageData.h"
+#include "UnrealProspero/Shader/GeometryLibrary.h"
 #include "ShaderCompilerCore.h"
 #include "Misc/SecureHash.h"
 #include <array>
+#include <limits>
 #include <stdexcept>
 
 namespace UnrealProspero::Shader
@@ -33,8 +35,10 @@ namespace UnrealProspero::Shader
             ShaderIdentity vertexIdentity;
             FSHA1::HashBuffer(vertexBytes.data(), vertexBytes.size(), vertexIdentity.data());
             const auto geometryBytes = EncodeCompiledShader(geometrySpirv, geometryAgc, ShaderStage::Geometry, target, vertexIdentity);
+            const auto geometryLibrary = EncodeGeometryLibrary(std::array{geometryBytes});
+            if (geometryLibrary.size() > static_cast<std::size_t>(std::numeric_limits<int32>::max())) throw std::overflow_error("Geometry library exceeds Unreal array limits");
             vertex.Output.ShaderCode.GetWriteAccess().Append(vertexBytes.data(), static_cast<int32>(vertexBytes.size()));
-            geometry.Output.ShaderCode.GetWriteAccess().Append(geometryBytes.data(), static_cast<int32>(geometryBytes.size()));
+            geometry.Output.ShaderCode.GetWriteAccess().Append(geometryLibrary.data(), static_cast<int32>(geometryLibrary.size()));
             vertex.Output.ShaderCode.AddOptionalData(EShaderOptionalDataKey::ObjectFile, vertexCookData.data(), static_cast<uint32>(vertexCookData.size()));
             geometry.Output.ShaderCode.AddOptionalData(EShaderOptionalDataKey::ObjectFile, geometryCookData.data(), static_cast<uint32>(geometryCookData.size()));
             vertex.Output.SerializeShaderCodeValidation();

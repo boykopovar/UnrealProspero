@@ -23,6 +23,8 @@ namespace UnrealProspero::RHI
         TRefCountPtr<PixelShader> pixel;
         TRefCountPtr<GeometryShader> geometry;
         const AgcShader* pixelNative;
+        const ShaderCode* geometryCode;
+        const AgcShader* geometryNative;
         GraphicsShaderLink link;
     };
 }
