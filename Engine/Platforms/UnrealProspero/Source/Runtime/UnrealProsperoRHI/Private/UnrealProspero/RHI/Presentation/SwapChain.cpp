@@ -66,7 +66,7 @@ namespace UnrealProspero::RHI
     std::shared_ptr<Texture2D> SwapChain::Acquire()
     {
         requireOpen();
-#if UNREALPROSPERO_WITH_UE_TRACKING
+#if UNREALPROSPERO_WITH_UE_TRACKING && CSV_PROFILER
         CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoAcquireDisplayBuffer);
         if (FCsvProfiler::IsCapturing_Renderthread())
         {
