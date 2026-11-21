@@ -1,3 +1,4 @@
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/RHI/Device/DynamicRHI.h"
 #include "UnrealProspero/RHI/Device/DeviceLimits.h"
 #include "UnrealProspero/RHI/Device/ShaderPlatform.h"
@@ -607,6 +608,7 @@ namespace UnrealProspero::RHI
 
     void DynamicRHI::RHIBlockUntilGPUIdle()
     {
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoWaitForGpuIdle);
         const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         for (const auto& list : pendingCommandLists) list->Wait(10000000);

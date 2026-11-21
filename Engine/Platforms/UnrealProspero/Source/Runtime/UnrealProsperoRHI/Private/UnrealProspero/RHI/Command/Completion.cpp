@@ -1,3 +1,4 @@
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/RHI/Command/Completion.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/Cb/include/Sync.hpp"
@@ -27,6 +28,7 @@ namespace UnrealProspero::RHI
 
     void Completion::Wait(std::uint64_t timeoutMicroseconds) const
     {
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoWaitForGpuCompletion);
         if (!written || timeoutMicroseconds == 0) throw std::invalid_argument("GPU completion wait requires a recorded marker and a positive timeout");
         const auto start = sceKernelGetProcessTime();
         while (!IsComplete())

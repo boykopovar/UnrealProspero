@@ -1,3 +1,4 @@
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/RHI/Command/CommandList.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgcDriver/Submit/include/Dcb.hpp"
@@ -21,6 +22,7 @@ namespace UnrealProspero::RHI
 
     void CommandList::Submit()
     {
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoSubmitCommands);
         if (submitted) throw std::runtime_error("Command list has already been submitted");
         submitted = true;
         std::atomic_thread_fence(std::memory_order_seq_cst);
