@@ -13,25 +13,54 @@ namespace UnrealProspero::RHI
     {
         void validate(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags)
         {
-            if (texture.GetLayout() != Texture2DLayout::Linear) throw std::runtime_error("Tiled surface readback is not implemented");
+            if (texture.GetLayout() != Texture2DLayout::Linear && texture.GetLayout() != Texture2DLayout::RenderTarget64K) throw std::runtime_error("Surface readback layout is not implemented");
+            const auto format = DescribeTextureFormat(texture.GetFormat());
+            if (format.BlockWidth != 1 || format.BlockHeight != 1) throw std::runtime_error("Compressed surface readback is not implemented");
             if (flags.GetGPUIndex() != 0 || (flags.GetArrayIndex() < 0 || static_cast<std::uint32_t>(flags.GetArrayIndex()) >= texture.GetArrayLayers()) || flags.GetCubeFace() != CubeFace_MAX || flags.GetOutputStencil()) throw std::invalid_argument("Surface read requires the available color subresource");
             if (flags.GetCompressionMode() < RCM_UNorm || flags.GetCompressionMode() > RCM_MinMax) throw std::invalid_argument("Invalid surface range compression mode");
             const auto& mip = texture.GetMipLayout(flags.GetMip());
             if (rectangle.Min.X < 0 || rectangle.Min.Y < 0 || rectangle.Max.X < rectangle.Min.X || rectangle.Max.Y < rectangle.Min.Y || static_cast<uint32>(rectangle.Max.X) > mip.Width || static_cast<uint32>(rectangle.Max.Y) > mip.Height) throw std::out_of_range("Surface read rectangle exceeds its texture");
         }
 
-        uint8* source(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+        class SurfacePixels final
         {
-            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * (texture.GetMipLayout(mipLevel).RowBytes / texture.GetMipLayout(mipLevel).Width);
-            return reinterpret_cast<uint8*>(texture.GetMipRange(mipLevel, arrayLayer).data()) + offset;
-        }
+        public:
+            SurfacePixels(const Texture2D& texture, std::uint32_t mipLevel, std::uint32_t arrayLayer) : bytes(texture.GetMipRange(mipLevel, arrayLayer)), pitch(texture.GetMipLayout(mipLevel).RowPitch), pixelBytes(DescribeTextureFormat(texture.GetFormat()).BlockBytes)
+            {
+                if (texture.GetLayout() == Texture2DLayout::RenderTarget64K)
+                {
+                    const auto& mip = texture.GetMipLayout(mipLevel);
+                    pitch = mip.RowBytes;
+                    linear.resize(pitch * mip.RowCount);
+                    texture.CopyRowsTo(linear, pitch, mipLevel, arrayLayer);
+                    bytes = linear;
+                }
+            }
+
+            std::span<std::byte> GetRange(FIntRect rectangle) const
+            {
+                const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * pitch + static_cast<std::size_t>(rectangle.Min.X) * pixelBytes;
+                if (offset > bytes.size()) throw std::out_of_range("Surface read offset exceeds its storage");
+                return bytes.subspan(offset);
+            }
+
+            uint8* GetData(FIntRect rectangle) const { return reinterpret_cast<uint8*>(GetRange(rectangle).data()); }
+            std::size_t GetPitch() const { return pitch; }
+
+        private:
+            std::vector<std::byte> linear;
+            std::span<std::byte> bytes;
+            std::size_t pitch;
+            std::size_t pixelBytes;
+        };
 
         std::vector<std::array<std::uint16_t, 4>> readHalfPixels(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
             const auto pixelBytes = Texture2D::CalculateRowBytes(1, texture.GetFormat());
-            const auto offset = static_cast<std::size_t>(rectangle.Min.Y) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Min.X * pixelBytes;
-            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * texture.GetMipLayout(mipLevel).RowPitch + rectangle.Width() * pixelBytes;
-            return ExpandHalfPixels(texture.GetMipRange(mipLevel, arrayLayer).subspan(offset, bytes), rectangle.Width(), rectangle.Height(), texture.GetMipLayout(mipLevel).RowPitch, texture.GetFormat());
+            const SurfacePixels pixels(texture, mipLevel, arrayLayer);
+            const auto bytes = static_cast<std::size_t>(rectangle.Height() - 1) * pixels.GetPitch() + rectangle.Width() * pixelBytes;
+            if (bytes > pixels.GetRange(rectangle).size()) throw std::out_of_range("Half surface read exceeds its storage");
+            return ExpandHalfPixels(pixels.GetRange(rectangle).first(bytes), rectangle.Width(), rectangle.Height(), pixels.GetPitch(), texture.GetFormat());
         }
 
         std::vector<float> readFloats(const Texture2D& texture, FIntRect rectangle, std::uint32_t mipLevel, std::uint32_t arrayLayer)
@@ -40,8 +69,9 @@ namespace UnrealProspero::RHI
             const auto height = static_cast<std::size_t>(rectangle.Height());
             const auto channels = texture.GetFormat() == TextureFormat::R32Float ? 1u : 4u;
             std::vector<float> values(width * height * channels);
-            const auto* input = source(texture, rectangle, mipLevel, arrayLayer);
-            for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * texture.GetMipLayout(mipLevel).RowPitch, width * channels * sizeof(float));
+            const SurfacePixels pixels(texture, mipLevel, arrayLayer);
+            const auto* input = pixels.GetData(rectangle);
+            for (std::size_t row = 0; row < height; ++row) std::memcpy(values.data() + row * width * channels, input + row * pixels.GetPitch(), width * channels * sizeof(float));
             return values;
         }
 
@@ -52,8 +82,9 @@ namespace UnrealProspero::RHI
 
         void readNormalized16(const Texture2D& texture, FIntRect rectangle, const FReadSurfaceDataFlags& flags, std::span<FLinearColor> output)
         {
-            const auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
-            const auto pitch = texture.GetMipLayout(flags.GetMip()).RowPitch;
+            const SurfacePixels pixels(texture, flags.GetMip(), flags.GetArrayIndex());
+            const auto* input = pixels.GetData(rectangle);
+            const auto pitch = pixels.GetPitch();
             const auto channels = DescribeTextureFormat(texture.GetFormat()).BlockBytes / 2;
             for (int32 row = 0; row < rectangle.Height(); ++row)
             for (int32 column = 0; column < rectangle.Width(); ++column)
@@ -71,10 +102,11 @@ namespace UnrealProspero::RHI
 
         void readBytes(const Texture2D& texture, FIntRect rectangle, FColor* output, std::uint32_t mipLevel, std::uint32_t arrayLayer)
         {
-            auto* input = source(texture, rectangle, mipLevel, arrayLayer);
+            const SurfacePixels pixels(texture, mipLevel, arrayLayer);
+            auto* input = pixels.GetData(rectangle);
             const auto width = static_cast<uint32>(rectangle.Width());
             const auto height = static_cast<uint32>(rectangle.Height());
-            const auto pitch = static_cast<uint32>(texture.GetMipLayout(mipLevel).RowPitch);
+            const auto pitch = static_cast<uint32>(pixels.GetPitch());
             switch (texture.GetFormat())
             {
             case TextureFormat::A8Unorm:
@@ -91,6 +123,7 @@ namespace UnrealProspero::RHI
             case TextureFormat::Rgba8Srgb: ConvertRawR8G8B8A8DataToFColor(width, height, input, pitch, output); break;
             case TextureFormat::Bgra8Unorm:
             case TextureFormat::Bgra8Srgb: ConvertRawB8G8R8A8DataToFColor(width, height, input, pitch, output); break;
+            case TextureFormat::Rgb10A2Unorm: ConvertRawR10G10B10A2DataToFColor(width, height, input, pitch, output); break;
             default: throw std::invalid_argument("Surface format is not byte normalized");
             }
         }
@@ -159,8 +192,9 @@ namespace UnrealProspero::RHI
             }
             else if (texture.GetFormat() == TextureFormat::R11G11B10Float)
             {
-                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
-                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
+                const SurfacePixels pixels(texture, flags.GetMip(), flags.GetArrayIndex());
+                auto* input = pixels.GetData(rectangle);
+                const auto pitch = static_cast<uint32>(pixels.GetPitch());
                 ConvertRawR11G11B10DataToFColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData(), flags.GetLinearToGamma());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
@@ -196,8 +230,9 @@ namespace UnrealProspero::RHI
             }
             else if (texture.GetFormat() == TextureFormat::R11G11B10Float)
             {
-                auto* input = source(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
-                const auto pitch = static_cast<uint32>(texture.GetMipLayout(flags.GetMip()).RowPitch);
+                const SurfacePixels pixels(texture, flags.GetMip(), flags.GetArrayIndex());
+                auto* input = pixels.GetData(rectangle);
+                const auto pitch = static_cast<uint32>(pixels.GetPitch());
                 ConvertRawR11G11B10FDataToFLinearColor(rectangle.Width(), rectangle.Height(), input, pitch, result.GetData());
             }
             else if (texture.GetFormat() == TextureFormat::Rgba32Float)
@@ -209,6 +244,20 @@ namespace UnrealProspero::RHI
             {
                 const auto values = readFloats(texture, rectangle, flags.GetMip(), flags.GetArrayIndex());
                 for (int32 index = 0; index < result.Num(); ++index) result[index] = FLinearColor(values[index], 0, 0, 1);
+            }
+            else if (texture.GetFormat() == TextureFormat::Rgb10A2Unorm)
+            {
+                const SurfacePixels pixels(texture, flags.GetMip(), flags.GetArrayIndex());
+                const auto* input = pixels.GetData(rectangle);
+                for (int32 row = 0; row < rectangle.Height(); ++row)
+                {
+                    for (int32 column = 0; column < rectangle.Width(); ++column)
+                    {
+                        std::uint32_t value;
+                        std::memcpy(&value, input + static_cast<std::size_t>(row) * pixels.GetPitch() + static_cast<std::size_t>(column) * 4, sizeof(value));
+                        result[row * rectangle.Width() + column] = FLinearColor((value & 1023u) / 1023.0f, ((value >> 10) & 1023u) / 1023.0f, ((value >> 20) & 1023u) / 1023.0f, (value >> 30) / 3.0f);
+                    }
+                }
             }
             else
             {
