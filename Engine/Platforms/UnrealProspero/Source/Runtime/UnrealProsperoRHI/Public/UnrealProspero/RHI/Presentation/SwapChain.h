@@ -21,6 +21,7 @@ namespace UnrealProspero::RHI
         void Present(int mode);
         void Present(CommandBuffer& commands, int mode);
         void Discard();
+        void ConfigureHighRefresh();
         void Resize(std::uint32_t width, std::uint32_t height, TextureFormat format);
         void Close();
         int GetHandle() const;

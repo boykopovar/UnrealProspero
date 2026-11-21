@@ -386,6 +386,13 @@ namespace UnrealProspero::RHI
     {
         if (!viewport) throw std::invalid_argument("Viewport is null");
         if (commandList.IsExecuting()) throw std::runtime_error("Viewport present cannot execute inside a command list");
+        auto& resource = *static_cast<ViewportResource*>(viewport);
+        if (resource.RequiresOutputTransition(arguments))
+        {
+            commandList.SubmitAndBlockUntilGPUIdle();
+            resource.PresentOutputTransition(arguments);
+            return;
+        }
         commandList.EnqueueLambda(TEXT("UnrealProsperoPresentViewport"), [viewport = FViewportRHIRef(viewport), arguments](FRHICommandListBase& executingList)
         {
             static_cast<GraphicsContext&>(executingList.GetContext()).PresentViewport(viewport.GetReference(), arguments);

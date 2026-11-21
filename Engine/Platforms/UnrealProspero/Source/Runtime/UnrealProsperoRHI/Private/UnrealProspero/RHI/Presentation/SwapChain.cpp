@@ -80,6 +80,22 @@ namespace UnrealProspero::RHI
         present(mode, [&](int index, std::int64_t argument) { WritePresent(commands, *output, index, mode, argument); });
     }
 
+    void SwapChain::ConfigureHighRefresh()
+    {
+        requireOpen();
+        if (acquired || sequence == 0) throw std::logic_error("Output transition requires a submitted frame");
+        try
+        {
+            drain();
+            output->ConfigureHighRefresh();
+        }
+        catch (...)
+        {
+            failed = true;
+            throw;
+        }
+    }
+
     void SwapChain::Discard()
     {
         requireOpen();

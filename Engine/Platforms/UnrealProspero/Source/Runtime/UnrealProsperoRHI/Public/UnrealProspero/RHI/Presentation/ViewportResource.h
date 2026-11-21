@@ -16,6 +16,8 @@ namespace UnrealProspero::RHI
         FTextureRHIRef GetBackBuffer();
         void Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat format);
         void EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments);
+        bool RequiresOutputTransition(const FRHIPresentArgs& arguments) const;
+        void PresentOutputTransition(const FRHIPresentArgs& arguments);
         void* GetNativeSwapChain() const override;
         void* GetNativeBackBufferTexture() const override;
         void* GetNativeWindow(void** extra = nullptr) const override;
@@ -32,6 +34,7 @@ namespace UnrealProspero::RHI
         std::unique_ptr<SwapChain> chain;
         std::array<TRefCountPtr<TextureResource>, 3> backBuffers;
         std::unique_ptr<FCriticalSection> mutex;
+        bool highRefreshPending;
     };
 }
 

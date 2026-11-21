@@ -1,5 +1,6 @@
 #include "UnrealProspero/RHI/Presentation/ViewportResource.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/IConsoleManager.h"
 #include "UnrealProspero/Windowing/Window.h"
 #include <stdexcept>
 #include <string>
@@ -9,6 +10,8 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
+        TAutoConsoleVariable<int32> highRefreshRate(TEXT("r.UnrealProspero.HighRefreshRate"), 0, TEXT("Request 120 Hz output on PS5."), ECVF_RenderThreadSafe);
+
         TextureFormat storageFormat(EPixelFormat format)
         {
             if (format == PF_B8G8R8A8) return TextureFormat::Bgra8Unorm;
@@ -31,7 +34,7 @@ namespace UnrealProspero::RHI
         return new ViewportResource(windowHandle, target, chosenFormat, std::move(visible), std::move(chain), std::move(mutex));
     }
 
-    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)) {}
+    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)), highRefreshPending(target == Shader::AgcTarget::Ps5 && highRefreshRate.GetValueOnAnyThread() != 0) {}
 
     void ViewportResource::validateMode(bool fullscreen, Shader::AgcTarget target)
     {
@@ -76,6 +79,25 @@ namespace UnrealProspero::RHI
         chain->Resize(width, height, nativeFormat);
         for (auto& buffer : backBuffers) buffer.SafeRelease();
         format = chosenFormat;
+    }
+
+    bool ViewportResource::RequiresOutputTransition(const FRHIPresentArgs& arguments) const
+    {
+        FScopeLock lock(mutex.get());
+        return highRefreshPending && arguments.bPresent && visible->load(std::memory_order_acquire);
+    }
+
+    void ViewportResource::PresentOutputTransition(const FRHIPresentArgs& arguments)
+    {
+        FScopeLock lock(mutex.get());
+        if (!highRefreshPending || !arguments.bPresent || !visible->load(std::memory_order_acquire)) throw std::logic_error("Viewport output transition is not pending");
+        static_cast<void>(acquireBackBuffer());
+        if (PresentBeginLatencyCallback) PresentBeginLatencyCallback();
+        chain->Present(arguments.bLockToVsync ? 1 : 2);
+        chain->ConfigureHighRefresh();
+        highRefreshPending = false;
+        if (PresentEndLatencyCallback) PresentEndLatencyCallback();
+        UE_LOG(LogRHI, Display, TEXT("UnrealProspero video output configured for 120 Hz"));
     }
 
     void ViewportResource::EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments)
