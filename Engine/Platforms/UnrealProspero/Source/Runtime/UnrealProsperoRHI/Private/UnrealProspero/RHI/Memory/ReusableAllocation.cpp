@@ -66,6 +66,8 @@ namespace UnrealProspero::RHI
         {
 #if UNREALPROSPERO_WITH_UE_TRACKING
             CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationCacheHits, 1, ECsvCustomStatOp::Accumulate);
+            CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoClearGpuAllocation);
+            CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationClearedBytes, static_cast<double>(size), ECsvCustomStatOp::Accumulate);
 #endif
             std::memset(allocation->Data(), 0, size);
         }
