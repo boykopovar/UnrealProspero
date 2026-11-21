@@ -23,7 +23,7 @@ namespace UnrealProspero::RHI
     void GraphicsContext::PresentViewport(FRHIViewport* viewport, const FRHIPresentArgs& arguments)
     {
         if (!viewport || activeRenderPass) throw std::invalid_argument("Presentation requires a viewport outside a render pass");
-        presentedViewports.emplace_back(viewport);
+        presentedSwapChains.push_back(static_cast<ViewportResource*>(viewport)->CaptureSwapChain());
         RecordCommands([&](CommandBuffer& commands) { static_cast<ViewportResource*>(viewport)->EndFrame(commands, arguments); });
     }
 

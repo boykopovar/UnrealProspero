@@ -11,6 +11,8 @@
 
 namespace UnrealProspero::RHI
 {
+    class SwapChain;
+
     class UNREALPROSPERORHI_API GraphicsContext : public ComputeContext
     {
     public:
@@ -58,7 +60,7 @@ namespace UnrealProspero::RHI
         void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
         std::vector<std::shared_ptr<OcclusionSnapshot>> querySnapshots;
         std::vector<Draw> draws;
-        std::vector<FViewportRHIRef> presentedViewports;
+        std::vector<std::shared_ptr<SwapChain>> presentedSwapChains;
         std::vector<std::shared_ptr<const Texture2D>> copiedTextures;
         std::vector<std::shared_ptr<TextureUpload>> textureUploads;
         std::vector<std::shared_ptr<VolumeUpload>> volumeUploads;

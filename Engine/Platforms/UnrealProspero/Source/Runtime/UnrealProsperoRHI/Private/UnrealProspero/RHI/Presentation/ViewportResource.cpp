@@ -30,11 +30,11 @@ namespace UnrealProspero::RHI
         auto visible = window.CaptureVisibility();
         const auto chosenFormat = format == PF_Unknown ? PF_B8G8R8A8 : format;
         auto mutex = std::make_unique<FCriticalSection>();
-        auto chain = std::make_unique<SwapChain>(std::move(output), width, height, storageFormat(chosenFormat), addressHigh);
+        auto chain = std::make_shared<SwapChain>(std::move(output), width, height, storageFormat(chosenFormat), addressHigh);
         return new ViewportResource(windowHandle, target, chosenFormat, std::move(visible), std::move(chain), std::move(mutex));
     }
 
-    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)), highRefreshPending(target == Shader::AgcTarget::Ps5 && highRefreshRate.GetValueOnAnyThread() != 0) {}
+    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::shared_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)), highRefreshPending(target == Shader::AgcTarget::Ps5 && highRefreshRate.GetValueOnAnyThread() != 0) {}
 
     void ViewportResource::validateMode(bool fullscreen, Shader::AgcTarget target)
     {
@@ -62,6 +62,8 @@ namespace UnrealProspero::RHI
         }
         return buffer.GetReference();
     }
+
+    std::shared_ptr<SwapChain> ViewportResource::CaptureSwapChain() const { return chain; }
 
     FTextureRHIRef ViewportResource::GetBackBuffer()
     {

@@ -14,6 +14,7 @@ namespace UnrealProspero::RHI
     public:
         static FViewportRHIRef Create(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh);
         FTextureRHIRef GetBackBuffer();
+        std::shared_ptr<SwapChain> CaptureSwapChain() const;
         void Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat format);
         void EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments);
         bool RequiresOutputTransition(const FRHIPresentArgs& arguments) const;
@@ -24,14 +25,14 @@ namespace UnrealProspero::RHI
         void SetCustomPresent(FRHICustomPresent* present) override;
 
     private:
-        ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::unique_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex);
+        ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::shared_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex);
         static void validateMode(bool fullscreen, Shader::AgcTarget target);
         FTextureRHIRef acquireBackBuffer();
         void* windowHandle;
         std::shared_ptr<const std::atomic<bool>> visible;
         Shader::AgcTarget target;
         EPixelFormat format;
-        std::unique_ptr<SwapChain> chain;
+        std::shared_ptr<SwapChain> chain;
         std::array<TRefCountPtr<TextureResource>, 3> backBuffers;
         std::unique_ptr<FCriticalSection> mutex;
         bool highRefreshPending;
