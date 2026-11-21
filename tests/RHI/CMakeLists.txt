@@ -44,6 +44,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     set(graphics_sources Graphics.cpp
@@ -71,6 +72,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_add_executable(GraphicsCheck ${graphics_sources})
@@ -102,6 +104,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     target_sources(TextureCopyCheck PRIVATE "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/TextureUpload.cpp" "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Command/MemoryBarrier.cpp")
@@ -123,6 +126,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(ColorClearCheck libc libkernel libSceAgc libSceAgcDriver)
@@ -143,6 +147,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/ApplicationCore/Private/UnrealProspero/Video/Output.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/Clock.cpp"
@@ -156,6 +161,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(DrawArgumentsCheck libc libkernel libSceAgc libSceAgcDriver)
@@ -168,6 +174,7 @@ if(UNREALPROSPERO_TEST_CREATE_SHADER)
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/BufferAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/ReusableAllocation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressSpace.cpp"
+        "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuAddressReservation.cpp"
         "${runtime_root}/UnrealProsperoRHI/Private/UnrealProspero/RHI/Memory/GpuMemoryBlock.cpp"
         "${runtime_root}/Core/Private/UnrealProspero/Kernel/DirectAllocation.cpp")
     adk_link_libraries(MemoryAccountingCheck libc libkernel)

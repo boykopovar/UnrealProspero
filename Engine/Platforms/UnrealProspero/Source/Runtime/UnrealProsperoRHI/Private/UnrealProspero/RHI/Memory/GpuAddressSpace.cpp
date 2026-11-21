@@ -2,6 +2,7 @@
 #include "UnrealProspero/Kernel/DirectAllocation.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
+#include <algorithm>
 #include <bit>
 #include <iterator>
 #include <limits>
@@ -16,20 +17,42 @@ namespace UnrealProspero::RHI
         const auto skipped = addressHigh == 0 ? std::size_t{65536} : 0;
         base = (static_cast<std::uintptr_t>(addressHigh) << 32) + skipped;
         size = (std::uint64_t{1} << 32) - skipped;
-        freeRanges.emplace(0, size);
-        void* address = reinterpret_cast<void*>(base);
-        Kernel::CheckResult(sceKernelReserveVirtualRange(&address, size, 0x90, Kernel::DirectAllocation::PageSize), "sceKernelReserveVirtualRange");
-        if (reinterpret_cast<std::uintptr_t>(address) != base)
+        const auto end = base + size;
+        auto cursor = base;
+        constexpr auto page = Kernel::MemoryPageSize;
+        while (cursor < end)
         {
-            Kernel::CheckResult(sceKernelMunmap(reinterpret_cast<std::uintptr_t>(address), size), "sceKernelMunmap");
-            throw std::runtime_error("Fixed GPU address reservation moved");
+            VirtualQueryInfo info{};
+            const auto result = sceKernelVirtualQuery(reinterpret_cast<void*>(cursor), 1, &info, sizeof(info));
+            if (result == SCE_KERNEL_ERROR_EACCES)
+            {
+                reserveRange(cursor, end);
+                break;
+            }
+            Kernel::CheckResult(result, "sceKernelVirtualQuery");
+            if (info.start >= info.end || info.end <= cursor) throw std::runtime_error("Invalid virtual memory query extent");
+            if (info.start > cursor)
+            {
+                const auto gapEnd = std::min(info.start, end) & ~(static_cast<std::uintptr_t>(page) - 1);
+                if (gapEnd > cursor) reserveRange(cursor, gapEnd);
+            }
+            if (info.end >= end) break;
+            cursor = (info.end + page - 1) & ~(static_cast<std::uintptr_t>(page) - 1);
         }
+        if (freeRanges.empty()) throw std::runtime_error("GPU shader address aperture has no available virtual ranges");
+    }
+
+    void GpuAddressSpace::reserveRange(std::uintptr_t begin, std::uintptr_t end)
+    {
+        if (begin < base || begin >= end || end - base > size) throw std::logic_error("Invalid GPU address reservation extent");
+        auto reservation = std::make_unique<GpuAddressReservation>(reinterpret_cast<void*>(begin), end - begin);
+        if (!freeRanges.emplace(begin - base, end - begin).second) throw std::logic_error("GPU address reservations overlap");
+        reservations.push_back(std::move(reservation));
     }
 
     GpuAddressSpace::~GpuAddressSpace() noexcept(false)
     {
         if (!allocations.empty()) throw std::logic_error("GPU address space still has live allocations");
-        Kernel::CheckResult(sceKernelMunmap(base, size), "sceKernelMunmap");
     }
 
     void* GpuAddressSpace::Allocate(std::size_t bytes, std::size_t alignment)
