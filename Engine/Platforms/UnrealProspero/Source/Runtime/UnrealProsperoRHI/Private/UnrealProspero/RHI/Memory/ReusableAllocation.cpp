@@ -21,6 +21,7 @@ namespace UnrealProspero::RHI
         struct CachedAllocation
         {
             std::uint64_t ReleasedAt;
+            std::size_t WritableSize;
             std::unique_ptr<GpuMemoryBlock> Block;
         };
 
@@ -41,14 +42,16 @@ namespace UnrealProspero::RHI
         }
     }
 
-    ReusableAllocation::ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment) : addressHigh(addressHigh), alignment(alignment)
+    ReusableAllocation::ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize) : addressHigh(addressHigh), alignment(alignment), writableSize(writableSize)
     {
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
         if (size == 0 || size % Kernel::DirectAllocation::PageSize != 0 || size > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Invalid reusable GPU allocation size");
+        if (writableSize == 0 || writableSize > size) throw std::invalid_argument("GPU writable extent exceeds its allocation");
         if (alignment < Kernel::DirectAllocation::PageSize || !std::has_single_bit(alignment)) throw std::invalid_argument("Invalid reusable GPU allocation alignment");
 #if UNREALPROSPERO_WITH_UE_TRACKING
         CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationRequests, 1, ECsvCustomStatOp::Accumulate);
 #endif
+        std::size_t clearSize = 0;
         auto& cache = getAllocationCache();
         {
             const std::lock_guard lock(cache.Mutex);
@@ -56,6 +59,7 @@ namespace UnrealProspero::RHI
             if (found != cache.Blocks.end())
             {
                 if (found->second.empty()) throw std::logic_error("GPU allocation cache contains an empty bucket");
+                clearSize = found->second.back().WritableSize;
                 allocation = std::move(found->second.back().Block);
                 found->second.pop_back();
                 cache.Bytes -= size;
@@ -67,9 +71,9 @@ namespace UnrealProspero::RHI
 #if UNREALPROSPERO_WITH_UE_TRACKING
             CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationCacheHits, 1, ECsvCustomStatOp::Accumulate);
             CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoClearGpuAllocation);
-            CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationClearedBytes, static_cast<double>(size), ECsvCustomStatOp::Accumulate);
+            CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationClearedBytes, static_cast<double>(clearSize), ECsvCustomStatOp::Accumulate);
 #endif
-            std::memset(allocation->Data(), 0, size);
+            std::memset(allocation->Data(), 0, clearSize);
         }
         else
         {
@@ -113,7 +117,7 @@ namespace UnrealProspero::RHI
             cache.Bytes -= retiredSize;
             if (oldest->second.empty()) cache.Blocks.erase(oldest);
         }
-        cache.Blocks[{size, addressHigh, alignment}].push_back({++cache.Serial, std::move(allocation)});
+        cache.Blocks[{size, addressHigh, alignment}].push_back({++cache.Serial, writableSize, std::move(allocation)});
         cache.Bytes += size;
     }
 

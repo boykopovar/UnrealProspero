@@ -9,7 +9,7 @@ namespace UnrealProspero::RHI
     class ReusableAllocation final
     {
     public:
-        ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment);
+        ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize);
         ~ReusableAllocation() noexcept(false);
         ReusableAllocation(const ReusableAllocation&) = delete;
         ReusableAllocation& operator=(const ReusableAllocation&) = delete;
@@ -20,6 +20,7 @@ namespace UnrealProspero::RHI
         std::unique_ptr<GpuMemoryBlock> allocation;
         std::uint32_t addressHigh;
         std::size_t alignment;
+        std::size_t writableSize;
     };
 }
 
