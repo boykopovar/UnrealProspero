@@ -216,8 +216,14 @@ namespace UnrealProspero::RHI
         return {storage, &allocation};
     }
 
+    bool TextureResource::SupportsShaderAccess() const
+    {
+        return !EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::CPUReadback);
+    }
+
     std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t firstLayer, std::uint32_t layerCount, FRHIViewDesc::EDimension viewDimension, ERHITexturePlane plane) const
     {
+        if (!SupportsShaderAccess()) throw std::invalid_argument("Texture does not support shader access");
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
         using Dimension = FRHIViewDesc::EDimension;
         if (viewDimension == Dimension::Unknown)

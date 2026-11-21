@@ -12,8 +12,8 @@ namespace UnrealProspero::RHI
             if (description.Common.ViewType != expectedType) throw std::invalid_argument("Texture view description does not match the requested access");
             const FRHIViewDesc::FTexture& view = unorderedAccess ? static_cast<const FRHIViewDesc::FTexture&>(description.Texture.UAV) : description.Texture.SRV;
             const auto& resource = texture.GetDesc();
-            const auto requiredFlag = unorderedAccess ? ETextureCreateFlags::UAV : ETextureCreateFlags::ShaderResource;
-            if (!EnumHasAnyFlags(resource.Flags, requiredFlag)) throw std::invalid_argument("Texture does not allow the requested view access");
+            const bool accessible = unorderedAccess ? EnumHasAnyFlags(resource.Flags, ETextureCreateFlags::UAV) : texture.SupportsShaderAccess();
+            if (!accessible) throw std::invalid_argument("Texture does not allow the requested view access");
             if (unorderedAccess && view.MipRange.Num != 1) throw std::invalid_argument("Texture UAV must select exactly one mip level");
             const auto expectedDimension = resource.Dimension == ETextureDimension::Texture3D ? FRHIViewDesc::EDimension::Texture3D : resource.Dimension == ETextureDimension::Texture2DArray ? FRHIViewDesc::EDimension::Texture2DArray : FRHIViewDesc::EDimension::Texture2D;
             const bool cubeView = view.Dimension == FRHIViewDesc::EDimension::TextureCube || view.Dimension == FRHIViewDesc::EDimension::TextureCubeArray;
