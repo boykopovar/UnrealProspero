@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_KERNEL_DIRECT_ALLOCATION_H
 #define UNREALPROSPERO_KERNEL_DIRECT_ALLOCATION_H
 
+#include "UnrealProspero/Kernel/MemoryConstants.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -21,7 +22,7 @@ namespace UnrealProspero::Kernel
     class DirectAllocation
     {
     public:
-        static constexpr std::size_t PageSize = 16384;
+        static constexpr std::size_t PageSize = MemoryPageSize;
         explicit DirectAllocation(std::size_t size, std::size_t alignment = PageSize, DirectMemoryAccess access = DirectMemoryAccess::Cpu, void* addressHint = nullptr, DirectMemoryPlacement placement = DirectMemoryPlacement::Hint);
         ~DirectAllocation() noexcept(false);
         DirectAllocation(const DirectAllocation&) = delete;

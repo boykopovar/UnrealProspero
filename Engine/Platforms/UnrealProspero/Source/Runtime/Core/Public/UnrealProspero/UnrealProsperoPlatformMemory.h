@@ -3,7 +3,7 @@
 
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "UnrealProspero/Memory/PageAllocator.h"
-#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/Kernel/MemoryConstants.h"
 #include "UnrealProspero/Memory/VirtualMemoryBlock.h"
 #include <stdexcept>
 
@@ -35,7 +35,7 @@ struct FUnrealProsperoPlatformMemory : FGenericPlatformMemory
     {
         allocate = UnrealProspero::Memory::PageAllocator::Allocate;
         free = UnrealProspero::Memory::PageAllocator::Free;
-        alignment = UnrealProspero::Kernel::DirectAllocation::PageSize;
+        alignment = UnrealProspero::Kernel::MemoryPageSize;
         return true;
     }
 
