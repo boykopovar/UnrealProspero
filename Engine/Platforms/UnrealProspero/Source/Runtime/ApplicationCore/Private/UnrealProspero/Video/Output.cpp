@@ -2,6 +2,8 @@
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceVideoOut/include/Output.hpp"
 #include "prx/libSceVideoOut/include/Buffer.hpp"
+#include "prx/libSceVideoOut/include/Event.hpp"
+#include "prx/libkernel/include/Api.hpp"
 #include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libkernel/Time/include/Time.hpp"
 #include <atomic>
@@ -12,6 +14,48 @@
 
 namespace UnrealProspero::Video
 {
+    namespace
+    {
+        class OutputModeEvents final
+        {
+        public:
+            explicit OutputModeEvents(int handle) : handle(handle)
+            {
+                Kernel::CheckResult(sceKernelCreateEqueue(&queue, "UnrealProspero output mode"), "sceKernelCreateEqueue");
+                const auto result = sceVideoOutAddOutputModeEvent(queue, handle, nullptr);
+                if (result != 0)
+                {
+                    Kernel::CheckResult(sceKernelDeleteEqueue(queue), "sceKernelDeleteEqueue");
+                    throw Kernel::Error(result, "sceVideoOutAddOutputModeEvent");
+                }
+            }
+
+            ~OutputModeEvents() noexcept(false)
+            {
+                Kernel::CheckResult(sceVideoOutDeleteOutputModeEvent(queue, handle), "sceVideoOutDeleteOutputModeEvent");
+                Kernel::CheckResult(sceKernelDeleteEqueue(queue), "sceKernelDeleteEqueue");
+            }
+
+            OutputModeEvents(const OutputModeEvents&) = delete;
+            OutputModeEvents& operator=(const OutputModeEvents&) = delete;
+
+            bool Wait(KernelUseconds timeout)
+            {
+                KernelEvent event{};
+                int count = 0;
+                const auto result = sceKernelWaitEqueue(queue, &event, 1, &count, &timeout);
+                if (result == SCE_KERNEL_ERROR_ETIMEDOUT && timeout == 0) return false;
+                Kernel::CheckResult(result, "sceKernelWaitEqueue");
+                if (count != 1) throw std::runtime_error("Invalid output mode event count");
+                return true;
+            }
+
+        private:
+            KernelEqueue queue{};
+            int handle;
+        };
+    }
+
     std::shared_ptr<Output> Output::AcquirePrimary()
     {
         static const auto output = std::make_shared<Output>();
@@ -49,6 +93,32 @@ namespace UnrealProspero::Video
     {
         if (rate < 0 || rate > 2) throw std::invalid_argument("Invalid video flip rate");
         Kernel::CheckResult(sceVideoOutSetFlipRate(GetHandle(), rate), "sceVideoOutSetFlipRate");
+    }
+
+    void Output::ConfigureHighRefresh()
+    {
+        VideoOutOutputOptions options{};
+        Kernel::CheckResult(sceVideoOutInitializeOutputOptions(&options), "sceVideoOutInitializeOutputOptions");
+        const auto supported = sceVideoOutIsOutputSupported(GetHandle(), 15, &options, nullptr, 0);
+        if (supported < 0) throw Kernel::Error(supported, "sceVideoOutIsOutputSupported");
+        if (supported != 1) throw std::runtime_error("120 Hz output is not supported");
+        VideoOutOutputStatus status{};
+        Kernel::CheckResult(sceVideoOutGetOutputStatus(GetHandle(), &status), "sceVideoOutGetOutputStatus");
+        if (status.refreshRate != 13)
+        {
+            OutputModeEvents events(GetHandle());
+            while (events.Wait(0)) {}
+            Kernel::CheckResult(sceVideoOutConfigureOutput(GetHandle(), 15, &options, nullptr, 0), "sceVideoOutConfigureOutput");
+            const auto start = Kernel::Clock::MonotonicNanoseconds();
+            do
+            {
+                const auto now = Kernel::Clock::MonotonicNanoseconds();
+                if (now < start || now - start >= 5000000000ull) throw std::runtime_error("120 Hz output transition timed out");
+                events.Wait(static_cast<KernelUseconds>((5000000000ull - (now - start) + 999) / 1000));
+                Kernel::CheckResult(sceVideoOutGetOutputStatus(GetHandle(), &status), "sceVideoOutGetOutputStatus");
+            } while (status.refreshRate != 13);
+        }
+        SetFlipRate(0);
     }
 
     void Output::WaitVblank()

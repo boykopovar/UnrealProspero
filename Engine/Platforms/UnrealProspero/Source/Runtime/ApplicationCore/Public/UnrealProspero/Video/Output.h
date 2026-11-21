@@ -19,6 +19,7 @@ namespace UnrealProspero::Video
         int GetHandle() const;
         VideoOutResolutionStatus GetResolution() const;
         void SetFlipRate(int rate);
+        void ConfigureHighRefresh();
         void WaitVblank();
         void RegisterBuffers(int setIndex, int firstBuffer, std::span<const VideoOutBuffers> buffers, const VideoOutBufferAttribute2& attribute, int category);
         void UnregisterBuffers(int setIndex);
