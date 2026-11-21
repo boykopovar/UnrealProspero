@@ -17,6 +17,7 @@ namespace UnrealProspero::Windowing
     void Window::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& handler)
     {
         messageHandler = handler;
+        active.reset();
     }
 
     void Window::Initialize(const TSharedRef<FGenericWindowDefinition>& definition, bool show)
@@ -134,8 +135,20 @@ namespace UnrealProspero::Windowing
 
     void Window::SetWindowFocus()
     {
+        static_cast<void>(PollActivation());
+    }
+
+    bool Window::PollActivation()
+    {
         requireInitialized();
-        if (!IsForegroundWindow()) throw std::runtime_error("Activating a background application is not implemented");
+        const bool nextActive = IsForegroundWindow();
+        if (active && *active == nextActive) return nextActive;
+        const auto handler = messageHandler.Pin();
+        if (!handler.IsValid()) throw std::runtime_error("Game window message handler is unavailable");
+        active = nextActive;
+        handler->OnApplicationActivationChanged(nextActive);
+        handler->OnWindowActivationChanged(AsShared(), nextActive ? EWindowActivation::Activate : EWindowActivation::Deactivate);
+        return nextActive;
     }
 
     void Window::SetOpacity(float opacity)

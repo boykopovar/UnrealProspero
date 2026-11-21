@@ -60,7 +60,8 @@ namespace UnrealProspero::Windowing
     void Application::PollGameDeviceState(float deltaTime)
     {
         if (!controllers) throw std::runtime_error("Application has been destroyed");
-        const bool enabled = window.IsValid() && !window->IsDestroyed() && window->IsVisible() && window->GetDefinition().AcceptsInput && window->IsForegroundWindow();
+        const bool active = window.IsValid() && !window->IsDestroyed() && window->IsVisible() && window->PollActivation();
+        const bool enabled = active && window->GetDefinition().AcceptsInput;
         controllerEvents->Dispatch(controllers->Poll(), GetMessageHandler().Get(), enabled, deltaTime);
     }
 
