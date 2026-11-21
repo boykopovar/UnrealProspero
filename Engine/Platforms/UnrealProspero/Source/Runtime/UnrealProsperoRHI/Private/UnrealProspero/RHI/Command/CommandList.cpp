@@ -27,6 +27,7 @@ namespace UnrealProspero::RHI
         submitted = true;
         std::atomic_thread_fence(std::memory_order_seq_cst);
         Kernel::CheckResult(sceAgcDriverSubmitDcb(&packet), "sceAgcDriverSubmitDcb");
+        CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoSubmittedLists, 1, ECsvCustomStatOp::Accumulate);
     }
 
     bool CommandList::IsComplete() const { return submitted && context->completion.IsComplete(); }
