@@ -75,7 +75,7 @@ namespace UnrealProspero::RHI
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
         const BufferAllocation* getComputeScratch();
         CommandStorage commandStorage;
-        Completion completion;
+        std::shared_ptr<Completion> completion;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ShaderParameters> parameters;

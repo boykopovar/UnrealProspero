@@ -3,6 +3,7 @@
 
 #include "UnrealProspero/Shader/ShaderBinary.h"
 #include "UnrealProspero/RHI/Command/CommandList.h"
+#include "UnrealProspero/RHI/Profiling/FrameProfiler.h"
 #include <DynamicRHI.h>
 #include <atomic>
 #include <mutex>
@@ -90,6 +91,7 @@ namespace UnrealProspero::RHI
         std::mutex submissionMutex;
         std::vector<std::unique_ptr<CommandList>> pendingCommandLists;
         std::unique_ptr<ComputeContext> defaultContext;
+        std::unique_ptr<FrameProfiler> frameProfiler;
         std::atomic<bool> submissionFailed = false;
         bool initialized = false;
         bool shutDown = false;

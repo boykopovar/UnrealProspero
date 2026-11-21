@@ -125,6 +125,7 @@ namespace UnrealProspero::RHI
         ConfigurePixelFormats();
         ConfigureDeviceLimits();
         ConfigureTransitionStorage();
+        frameProfiler = std::make_unique<FrameProfiler>();
         initialized = true;
         FRenderResource::InitPreRHIResources();
         GIsRHIInitialized = true;
@@ -606,13 +607,18 @@ namespace UnrealProspero::RHI
     void DynamicRHI::RHIEndFrame(const FRHIEndFrameArgs& arguments)
     {
         if (arguments.bProfileNextFrame) throw std::runtime_error("GPU frame timing capture is not implemented");
-        RHIProcessDeleteQueue();
+        const std::lock_guard lock(submissionMutex);
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        frameProfiler->EndFrame(arguments, pendingCommandLists.empty() ? nullptr : pendingCommandLists.back()->CaptureCompletion());
+        frameProfiler->Poll();
+        std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 
     void DynamicRHI::RHIProcessDeleteQueue()
     {
         const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        frameProfiler->Poll();
         std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 
@@ -622,6 +628,7 @@ namespace UnrealProspero::RHI
         const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         for (const auto& list : pendingCommandLists) list->Wait(10000000);
+        frameProfiler->Poll();
         pendingCommandLists.clear();
     }
 

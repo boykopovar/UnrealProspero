@@ -12,6 +12,7 @@ namespace UnrealProspero::RHI
         ~CommandList();
         void Submit();
         bool IsComplete() const;
+        std::shared_ptr<const Completion> CaptureCompletion() const;
         void Wait(std::uint64_t timeoutMicroseconds) const;
 
     private:

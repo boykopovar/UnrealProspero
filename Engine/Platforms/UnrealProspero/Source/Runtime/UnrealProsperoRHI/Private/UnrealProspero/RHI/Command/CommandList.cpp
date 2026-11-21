@@ -30,11 +30,17 @@ namespace UnrealProspero::RHI
         CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoSubmittedLists, 1, ECsvCustomStatOp::Accumulate);
     }
 
-    bool CommandList::IsComplete() const { return submitted && context->completion.IsComplete(); }
+    bool CommandList::IsComplete() const { return submitted && context->completion->IsComplete(); }
+
+    std::shared_ptr<const Completion> CommandList::CaptureCompletion() const
+    {
+        if (!submitted) throw std::runtime_error("Command list has not been submitted");
+        return context->completion;
+    }
 
     void CommandList::Wait(std::uint64_t timeoutMicroseconds) const
     {
         if (!submitted) throw std::runtime_error("Command list has not been submitted");
-        context->completion.Wait(timeoutMicroseconds);
+        context->completion->Wait(timeoutMicroseconds);
     }
 }

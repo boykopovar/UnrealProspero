@@ -44,7 +44,7 @@ namespace UnrealProspero::RHI
     }
 #endif
 
-    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(addressHigh), commands(commandStorage.Get()), addressHigh(addressHigh)
+    ComputeContext::ComputeContext(std::size_t initialCommandBytes, std::uint32_t addressHigh) : commandStorage(initialCommandBytes, addressHigh), completion(std::make_shared<Completion>(addressHigh)), commands(commandStorage.Get()), addressHigh(addressHigh)
     {
         sceAgcDcbContextStateOp(&commands, 0);
     }
@@ -54,7 +54,7 @@ namespace UnrealProspero::RHI
         requireWritable();
         ValidateFinalization();
         finalized = true;
-        completion.Write(commands);
+        completion->Write(commands);
         return {commands.bottom, static_cast<std::uint32_t>(commands.cursor_up - commands.bottom), 0, {}};
     }
 
