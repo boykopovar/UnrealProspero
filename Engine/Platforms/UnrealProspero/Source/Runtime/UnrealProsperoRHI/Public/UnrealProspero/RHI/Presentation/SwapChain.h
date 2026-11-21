@@ -12,6 +12,7 @@ namespace UnrealProspero::RHI
     class UNREALPROSPERORHI_API SwapChain final
     {
     public:
+        static constexpr std::size_t BufferCount = 4;
         SwapChain(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         SwapChain(std::shared_ptr<Video::Output> output, std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         ~SwapChain() noexcept(false);
@@ -28,7 +29,7 @@ namespace UnrealProspero::RHI
         std::uint32_t GetBufferIndex() const;
 
     private:
-        using Buffers = std::array<std::shared_ptr<Texture2D>, 3>;
+        using Buffers = std::array<std::shared_ptr<Texture2D>, BufferCount>;
         static Buffers createBuffers(std::uint32_t width, std::uint32_t height, TextureFormat format, std::uint32_t addressHigh);
         void registerBuffers();
         void drain();

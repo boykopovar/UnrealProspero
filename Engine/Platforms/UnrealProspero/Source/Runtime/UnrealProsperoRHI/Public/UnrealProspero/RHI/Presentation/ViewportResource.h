@@ -33,7 +33,7 @@ namespace UnrealProspero::RHI
         Shader::AgcTarget target;
         EPixelFormat format;
         std::shared_ptr<SwapChain> chain;
-        std::array<TRefCountPtr<TextureResource>, 3> backBuffers;
+        std::array<TRefCountPtr<TextureResource>, SwapChain::BufferCount> backBuffers;
         std::unique_ptr<FCriticalSection> mutex;
         bool highRefreshPending;
     };

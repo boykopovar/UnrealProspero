@@ -52,7 +52,7 @@ namespace UnrealProspero::RHI
         VideoOutBufferAttribute2 attribute{};
         const auto& first = *buffers[0];
         sceVideoOutSetBufferAttribute2(&attribute, pixelFormat(first.GetFormat()), 0, first.GetWidth(), first.GetHeight(), 0, 0, 0);
-        std::array<VideoOutBuffers, 3> addresses{};
+        std::array<VideoOutBuffers, BufferCount> addresses{};
         for (std::size_t index = 0; index < buffers.size(); ++index) addresses[index].data = buffers[index]->GetStorage().Data();
         output->RegisterBuffers(0, 0, addresses, attribute, 0);
         registered = true;
@@ -65,10 +65,13 @@ namespace UnrealProspero::RHI
 
     std::shared_ptr<Texture2D> SwapChain::Acquire()
     {
+        requireOpen();
 #if UNREALPROSPERO_WITH_UE_TRACKING
         CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoAcquireDisplayBuffer);
         if (FCsvProfiler::IsCapturing_Renderthread())
         {
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, BackBufferWidth, static_cast<int32>(buffers.front()->GetWidth()), ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, BackBufferHeight, static_cast<int32>(buffers.front()->GetHeight()), ECsvCustomStatOp::Set);
             const auto flip = output->GetFlipStatus();
             const auto vblank = output->GetVblankStatus();
             CSV_CUSTOM_STAT(UnrealProsperoPresent, DisplayedFrames, static_cast<double>(flip.count), ECsvCustomStatOp::Set);
@@ -79,7 +82,6 @@ namespace UnrealProspero::RHI
             CSV_CUSTOM_STAT(UnrealProsperoPresent, VblankProcessTime, static_cast<double>(vblank.processTime), ECsvCustomStatOp::Set);
         }
 #endif
-        requireOpen();
         if (!acquired)
         {
             output->WaitForBufferRelease(static_cast<int>(bufferIndex), 5000000000ull);
