@@ -183,7 +183,7 @@ namespace UnrealProspero::RHI
 
     std::size_t Texture2D::tiledTexelOffset(std::uint32_t x, std::uint32_t y) const
     {
-        constexpr std::array<std::uint32_t, 16> equation{0, 0, 1, 2, 0x1000, 0x2000, 4, 0x4000, 0x8008008, 0x4010010, 0x2020040, 0x1040020, 0x8000, 0x10, 0x40000, 0x40};
+        constexpr std::array<std::uint32_t, 16> equation{0, 0, 1, 2, 0x1000, 0x2000, 0x4000, 4, 0x8008008, 0x4010010, 0x2020040, 0x1040020, 0x8000, 0x10, 0x40000, 0x40};
         const auto coordinates = (x & 127u) | ((y & 127u) << 12);
         std::size_t offset = (static_cast<std::size_t>(y / 128) * ((width + 127) / 128) + x / 128) * 65536;
         for (std::size_t bit = 2; bit < equation.size(); ++bit) offset |= static_cast<std::size_t>(std::popcount(coordinates & equation[bit]) & 1) << bit;
