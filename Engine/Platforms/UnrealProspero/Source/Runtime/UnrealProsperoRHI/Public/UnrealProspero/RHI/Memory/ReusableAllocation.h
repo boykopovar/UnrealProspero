@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_MEMORY_REUSABLE_ALLOCATION_H
 #define UNREALPROSPERO_RHI_MEMORY_REUSABLE_ALLOCATION_H
 
-#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/RHI/Memory/GpuMemoryBlock.h"
 #include <memory>
 
 namespace UnrealProspero::RHI
@@ -17,7 +17,7 @@ namespace UnrealProspero::RHI
         std::size_t Size() const;
 
     private:
-        std::unique_ptr<Kernel::DirectAllocation> allocation;
+        std::unique_ptr<GpuMemoryBlock> allocation;
         std::uint32_t addressHigh;
         std::size_t alignment;
     };

@@ -19,7 +19,8 @@ namespace UnrealProspero::RHI
         {
             static constexpr std::size_t Capacity = 64 * 1024 * 1024;
             std::mutex Mutex;
-            std::map<AllocationKey, std::vector<std::unique_ptr<Kernel::DirectAllocation>>> Blocks;
+            std::map<AllocationKey, std::vector<std::unique_ptr<GpuMemoryBlock>>> Blocks;
+            std::map<std::uint32_t, std::shared_ptr<GpuAddressSpace>> AddressSpaces;
             std::size_t Bytes = 0;
         };
 
@@ -53,9 +54,14 @@ namespace UnrealProspero::RHI
         }
         else
         {
-            const auto base = static_cast<std::uint64_t>(addressHigh) << 32;
-            const auto hint = base == 0 ? std::max<std::uint64_t>(65536, alignment) : base;
-            allocation = std::make_unique<Kernel::DirectAllocation>(size, alignment, Kernel::DirectMemoryAccess::CpuGpu, reinterpret_cast<void*>(static_cast<std::uintptr_t>(hint)));
+            std::shared_ptr<GpuAddressSpace> addressSpace;
+            {
+                const std::lock_guard lock(cache.Mutex);
+                auto found = cache.AddressSpaces.find(addressHigh);
+                if (found == cache.AddressSpaces.end()) found = cache.AddressSpaces.emplace(addressHigh, std::make_shared<GpuAddressSpace>(addressHigh)).first;
+                addressSpace = found->second;
+            }
+            allocation = std::make_unique<GpuMemoryBlock>(std::move(addressSpace), size, alignment);
             const auto address = reinterpret_cast<std::uintptr_t>(allocation->Data());
             if ((address >> 32) != addressHigh || ((address + size - 1) >> 32) != addressHigh) throw std::runtime_error("Kernel mapped GPU buffer outside the shader address aperture");
         }
