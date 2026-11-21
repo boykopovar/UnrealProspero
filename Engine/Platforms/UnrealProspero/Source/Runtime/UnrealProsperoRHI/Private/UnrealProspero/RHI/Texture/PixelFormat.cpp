@@ -31,6 +31,7 @@ namespace UnrealProspero::RHI
             FormatMapping{PF_BC7, TextureFormat::Bc7Unorm, TextureFormat::Bc7Srgb},
             FormatMapping{PF_G8, TextureFormat::R8Unorm, TextureFormat::R8Srgb},
             FormatMapping{PF_R8, TextureFormat::R8Unorm, TextureFormat::R8Srgb},
+            FormatMapping{PF_A8, TextureFormat::A8Unorm, std::nullopt},
             FormatMapping{PF_R8G8, TextureFormat::Rg8Unorm, TextureFormat::Rg8Srgb},
             FormatMapping{PF_R16F, TextureFormat::R16Float, std::nullopt},
             FormatMapping{PF_R16F_FILTER, TextureFormat::R16Float, std::nullopt},
@@ -81,7 +82,7 @@ namespace UnrealProspero::RHI
             format.Supported = true;
             const auto info = DescribeTextureFormat(mapping.Linear);
             if (format.BlockSizeX != info.BlockWidth || format.BlockSizeY != info.BlockHeight || format.BlockBytes != info.BlockBytes) throw std::runtime_error("Texture format block layout does not match Unreal");
-            if (info.BlockWidth > 1)
+            if (info.BlockWidth > 1 || mapping.Pixel == PF_A8)
             {
                 format.Capabilities = Caps::Texture2D | Caps::Texture3D | Caps::TextureCube | Caps::TextureMipmaps | Caps::TextureLoad | Caps::TextureSample | Caps::TextureFilterable;
                 continue;

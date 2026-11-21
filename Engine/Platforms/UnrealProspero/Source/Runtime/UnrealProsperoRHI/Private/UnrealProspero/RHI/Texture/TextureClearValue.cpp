@@ -46,6 +46,11 @@ namespace UnrealProspero::RHI
     {
         if (DescribeTextureFormat(format).Integer) throw std::invalid_argument("Integer texture clear requires integer values");
         std::array<std::uint32_t, 4> result{};
+        if (format == TextureFormat::A8Unorm)
+        {
+            result.fill(normalized(color[3], false) * 0x01010101u);
+            return result;
+        }
         if (format == TextureFormat::Rgb10A2Unorm)
         {
             result.fill(normalized(color[0], false, 1023) | (normalized(color[1], false, 1023) << 10) | (normalized(color[2], false, 1023) << 20) | (normalized(color[3], false, 3) << 30));
@@ -111,6 +116,11 @@ namespace UnrealProspero::RHI
     {
         std::array<std::uint32_t, 4> result{};
         const auto pixelBytes = Texture2D::CalculateRowBytes(1, format);
+        if (format == TextureFormat::A8Unorm)
+        {
+            result.fill((values[3] & 255u) * 0x01010101u);
+            return result;
+        }
         if (format == TextureFormat::Rgb10A2Unorm)
         {
             result.fill((values[0] & 1023u) | ((values[1] & 1023u) << 10) | ((values[2] & 1023u) << 20) | ((values[3] & 3u) << 30));

@@ -56,6 +56,7 @@ namespace UnrealProspero::RHI
                 return;
             }
             const auto formatInfo = DescribeTextureFormat(ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)));
+            if (description.Format == PF_A8 && EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable)) throw std::invalid_argument("Alpha-only textures do not support render target or unordered access usage");
             if (EnumHasAnyFlags(description.Flags, Flags::AtomicCompatible) && description.Format != PF_R32_UINT && description.Format != PF_R32_SINT) throw std::runtime_error("Texture atomics require a supported 32-bit integer format: " + std::to_string(static_cast<int>(description.Format)));
             if (formatInfo.BlockWidth > 1 && EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable | Flags::Presentable)) throw std::invalid_argument("Compressed textures do not support render target or unordered access usage");
             constexpr auto supported = Flags::AtomicCompatible | Flags::Tiling3D | Flags::ReduceMemoryWithTilingMode | Flags::InputAttachmentRead | Flags::NoFastClearFinalize | Flags::TargetArraySlicesIndependently | Flags::OfflineProcessed | Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;

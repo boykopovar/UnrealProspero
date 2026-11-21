@@ -77,6 +77,12 @@ namespace UnrealProspero::RHI
             const auto pitch = static_cast<uint32>(texture.GetMipLayout(mipLevel).RowPitch);
             switch (texture.GetFormat())
             {
+            case TextureFormat::A8Unorm:
+                for (uint32 row = 0; row < height; ++row)
+                {
+                    for (uint32 column = 0; column < width; ++column) output[static_cast<std::size_t>(row) * width + column] = FColor(0, 0, 0, input[static_cast<std::size_t>(row) * pitch + column]);
+                }
+                break;
             case TextureFormat::R8Srgb:
             case TextureFormat::R8Unorm: ConvertRawR8DataToFColor(width, height, input, pitch, output); break;
             case TextureFormat::Rg8Srgb:

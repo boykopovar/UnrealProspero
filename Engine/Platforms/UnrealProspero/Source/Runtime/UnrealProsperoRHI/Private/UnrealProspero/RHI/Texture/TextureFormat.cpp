@@ -18,6 +18,7 @@ namespace UnrealProspero::RHI
         case TextureFormat::R8Srgb: return {128, 1, 4 | (1 << 9)};
         case TextureFormat::Rg8Srgb: return {129, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::R8Unorm: return {1, 1, 4 | (1 << 9)};
+        case TextureFormat::A8Unorm: return {1, 1, 4 << 9};
         case TextureFormat::Rg8Unorm: return {14, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::Rgba8Unorm: return {56, 4, 0xfac};
         case TextureFormat::Rgb10A2Unorm: return {50, 4, 0xfac};
