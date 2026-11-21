@@ -2,7 +2,7 @@
 #define UNREALPROSPERO_PLATFORM_PROPERTIES_H
 
 #include "GenericPlatform/GenericPlatformProperties.h"
-#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/Kernel/MemoryConstants.h"
 #include <array>
 #include <string_view>
 
@@ -78,7 +78,7 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 
     static constexpr bool HasFixedResolution()
     {
-        return TTarget == EUnrealProsperoTarget::Ps5;
+        return false;
     }
 
     static constexpr bool SupportsQuit()
@@ -88,7 +88,7 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 
     static constexpr int GetMaxSupportedVirtualMemoryAlignment()
     {
-        return UnrealProspero::Kernel::DirectAllocation::PageSize;
+        return UnrealProspero::Kernel::MemoryPageSize;
     }
 
 private:
