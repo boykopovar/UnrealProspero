@@ -31,6 +31,7 @@
 #include "RHIResourceReplace.h"
 #include "RHIStats.h"
 #include "RenderResource.h"
+#include "RenderingThread.h"
 #include <stdexcept>
 #include <set>
 #include <limits>
@@ -371,10 +372,19 @@ namespace UnrealProspero::RHI
     void DynamicRHI::RHIResizeViewport(FRHIViewport* viewport, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
     {
         if (!viewport) throw std::invalid_argument("Viewport is null");
-        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
-        if (commandList.IsExecuting()) throw std::runtime_error("Viewport resize cannot execute inside a command list");
-        commandList.SubmitAndBlockUntilGPUIdle();
-        static_cast<ViewportResource*>(viewport)->Resize(width, height, fullscreen, format);
+        if (!IsInRenderingThread() && !IsInGameThread()) throw std::runtime_error("Viewport resize requires the game or rendering thread");
+        auto resize = [viewport = FViewportRHIRef(viewport), width, height, fullscreen, format](FRHICommandListImmediate& commandList)
+        {
+            if (commandList.IsExecuting()) throw std::runtime_error("Viewport resize cannot execute inside a command list");
+            commandList.SubmitAndBlockUntilGPUIdle();
+            static_cast<ViewportResource*>(viewport.GetReference())->Resize(width, height, fullscreen, format);
+        };
+        if (IsInRenderingThread()) resize(FRHICommandListExecutor::GetImmediateCommandList());
+        else
+        {
+            ENQUEUE_RENDER_COMMAND(UnrealProsperoResizeViewport)(MoveTemp(resize));
+            FlushRenderingCommands();
+        }
     }
 
     FTextureRHIRef DynamicRHI::RHIGetViewportBackBuffer(FRHIViewport* viewport)
