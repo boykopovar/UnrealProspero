@@ -1,5 +1,7 @@
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/RHI/Presentation/SwapChain.h"
+#if UNREALPROSPERO_WITH_UE_TRACKING
+#include "ProfilingDebugging/CsvProfiler.h"
+#endif
 #include "UnrealProspero/RHI/Command/Present.h"
 #include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libSceVideoOut/include/Buffer.hpp"
@@ -62,7 +64,9 @@ namespace UnrealProspero::RHI
 
     std::shared_ptr<Texture2D> SwapChain::Acquire()
     {
+#if UNREALPROSPERO_WITH_UE_TRACKING
         CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoAcquireDisplayBuffer);
+#endif
         requireOpen();
         if (!acquired)
         {
