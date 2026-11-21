@@ -24,6 +24,12 @@ namespace UnrealProspero::Windowing
         if (destroyed || Definition) throw std::runtime_error("Game window cannot be initialized again");
         if (definition->Type != EWindowType::Normal || definition->TransparencySupport != EWindowTransparency::None || definition->Opacity != 1 || definition->IsModalWindow) throw std::runtime_error("Only an opaque primary game window is implemented");
         if (!std::isfinite(definition->WidthDesiredOnScreen) || !std::isfinite(definition->HeightDesiredOnScreen) || definition->WidthDesiredOnScreen < 1 || definition->HeightDesiredOnScreen < 1 || definition->WidthDesiredOnScreen > 16384 || definition->HeightDesiredOnScreen > 16384) throw std::invalid_argument("Invalid game window dimensions");
+        const auto coordinate = [](float value)
+        {
+            if (!std::isfinite(value) || static_cast<double>(value) < std::numeric_limits<int32>::min() || static_cast<double>(value) > std::numeric_limits<int32>::max()) throw std::invalid_argument("Invalid game window position");
+            return static_cast<int32>(value);
+        };
+        setRestoredPosition(coordinate(definition->XDesiredPositionOnScreen), coordinate(definition->YDesiredPositionOnScreen));
         width = static_cast<int32>(definition->WidthDesiredOnScreen);
         height = static_cast<int32>(definition->HeightDesiredOnScreen);
         Definition = definition;
@@ -42,10 +48,10 @@ namespace UnrealProspero::Windowing
     void Window::ReshapeWindow(int32 x, int32 y, int32 nextWidth, int32 nextHeight)
     {
         requireInitialized();
-        if (x != 0 || y != 0) throw std::runtime_error("Positioning the game output is not implemented");
         if (nextWidth < 1 || nextHeight < 1 || nextWidth > 16384 || nextHeight > 16384) throw std::invalid_argument("Invalid game window dimensions");
         const auto handler = messageHandler.Pin();
         if (!handler.IsValid()) throw std::runtime_error("Game window message handler has expired");
+        setRestoredPosition(x, y);
         width = nextWidth;
         height = nextHeight;
         handler->OnSizeChanged(AsShared(), width, height);
@@ -63,10 +69,19 @@ namespace UnrealProspero::Windowing
         return true;
     }
 
+    void Window::setRestoredPosition(int32 x, int32 y)
+    {
+#if !UNREALPROSPERO_TARGET_PS5
+        if (x != 0 || y != 0) throw std::runtime_error("Positioning the game output is not implemented");
+#endif
+        restoredX = x;
+        restoredY = y;
+    }
+
     void Window::MoveWindowTo(int32 x, int32 y)
     {
         requireInitialized();
-        if (x != 0 || y != 0) throw std::runtime_error("Positioning the game output is not implemented");
+        setRestoredPosition(x, y);
     }
 
     void Window::BringToFront(bool) { SetWindowFocus(); }
@@ -110,8 +125,8 @@ namespace UnrealProspero::Windowing
     bool Window::GetRestoredDimensions(int32& x, int32& y, int32& restoredWidth, int32& restoredHeight)
     {
         requireInitialized();
-        x = 0;
-        y = 0;
+        x = restoredX;
+        y = restoredY;
         restoredWidth = width;
         restoredHeight = height;
         return true;
