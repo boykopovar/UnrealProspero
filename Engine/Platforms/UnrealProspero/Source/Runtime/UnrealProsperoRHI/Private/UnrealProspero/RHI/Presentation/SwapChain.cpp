@@ -1,6 +1,7 @@
 #include "UnrealProspero/RHI/Presentation/SwapChain.h"
 #if UNREALPROSPERO_WITH_UE_TRACKING
 #include "ProfilingDebugging/CsvProfiler.h"
+CSV_DEFINE_CATEGORY(UnrealProsperoPresent, true);
 #endif
 #include "UnrealProspero/RHI/Command/Present.h"
 #include "UnrealProspero/Kernel/Clock.h"
@@ -66,6 +67,17 @@ namespace UnrealProspero::RHI
     {
 #if UNREALPROSPERO_WITH_UE_TRACKING
         CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoAcquireDisplayBuffer);
+        if (FCsvProfiler::IsCapturing_Renderthread())
+        {
+            const auto flip = output->GetFlipStatus();
+            const auto vblank = output->GetVblankStatus();
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, DisplayedFrames, static_cast<double>(flip.count), ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, Vblanks, static_cast<double>(vblank.count), ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, PendingFlips, flip.flipPendingNum, ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, PendingGpuFlips, flip.gcQueueNum, ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, FlipProcessTime, static_cast<double>(flip.processTime), ECsvCustomStatOp::Set);
+            CSV_CUSTOM_STAT(UnrealProsperoPresent, VblankProcessTime, static_cast<double>(vblank.processTime), ECsvCustomStatOp::Set);
+        }
 #endif
         requireOpen();
         if (!acquired)

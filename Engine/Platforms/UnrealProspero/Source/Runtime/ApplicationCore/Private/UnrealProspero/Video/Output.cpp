@@ -6,6 +6,7 @@
 #include "prx/libkernel/include/Api.hpp"
 #include "UnrealProspero/Kernel/Clock.h"
 #include "prx/libkernel/Time/include/Time.hpp"
+#include <algorithm>
 #include <atomic>
 #include <array>
 #include <limits>
@@ -68,6 +69,18 @@ namespace UnrealProspero::Video
         const int opened = sceVideoOutOpen(userId, 0, 0, nullptr);
         if (opened < 0) throw Kernel::Error(opened, "sceVideoOutOpen");
         handle = opened;
+        try
+        {
+            Kernel::CheckResult(sceKernelCreateEqueue(&flipQueue, "UnrealProspero display flips"), "sceKernelCreateEqueue");
+            Kernel::CheckResult(sceVideoOutAddFlipEvent(flipQueue, opened, nullptr), "sceVideoOutAddFlipEvent");
+        }
+        catch (...)
+        {
+            if (flipQueue) Kernel::CheckResult(sceKernelDeleteEqueue(flipQueue), "sceKernelDeleteEqueue");
+            Kernel::CheckResult(sceVideoOutClose(opened), "sceVideoOutClose");
+            handle.reset();
+            throw;
+        }
     }
 
     Output::~Output() noexcept(false)
@@ -118,7 +131,6 @@ namespace UnrealProspero::Video
                 Kernel::CheckResult(sceVideoOutGetOutputStatus(GetHandle(), &status), "sceVideoOutGetOutputStatus");
             } while (status.refreshRate != 13);
         }
-        SetFlipRate(0);
     }
 
     void Output::WaitVblank()
@@ -161,6 +173,13 @@ namespace UnrealProspero::Video
         return status;
     }
 
+    VideoOutVblankStatus Output::GetVblankStatus() const
+    {
+        VideoOutVblankStatus status{};
+        Kernel::CheckResult(sceVideoOutGetVblankStatus(GetHandle(), &status), "sceVideoOutGetVblankStatus");
+        return status;
+    }
+
     std::uint64_t& Output::GetBufferLabel(int bufferIndex) const
     {
         std::uintptr_t address = 0;
@@ -193,13 +212,24 @@ namespace UnrealProspero::Video
             const auto now = Kernel::Clock::MonotonicNanoseconds();
             if (now < start) throw std::runtime_error("Monotonic clock moved backwards");
             if (now - start >= timeoutNanoseconds) throw std::runtime_error("Video buffer release timed out");
-            Kernel::CheckResult(sceKernelUsleep_nid_postfix(100), "sceKernelUsleep");
+            const auto remainingMicroseconds = (timeoutNanoseconds - (now - start)) / 1000 + ((timeoutNanoseconds - (now - start)) % 1000 != 0);
+            const auto timeout = static_cast<KernelUseconds>(std::min<std::uint64_t>(remainingMicroseconds, std::numeric_limits<KernelUseconds>::max()));
+            KernelEvent event{};
+            int count = 0;
+            Kernel::CheckResult(sceKernelWaitEqueue(flipQueue, &event, 1, &count, &timeout), "sceKernelWaitEqueue");
+            if (count != 1) throw std::runtime_error("Invalid display flip event count");
         }
     }
 
     void Output::Close()
     {
         if (!handle) return;
+        if (flipQueue)
+        {
+            Kernel::CheckResult(sceVideoOutDeleteFlipEvent(flipQueue, *handle), "sceVideoOutDeleteFlipEvent");
+            Kernel::CheckResult(sceKernelDeleteEqueue(flipQueue), "sceKernelDeleteEqueue");
+            flipQueue = {};
+        }
         Kernel::CheckResult(sceVideoOutClose(*handle), "sceVideoOutClose");
         handle.reset();
     }

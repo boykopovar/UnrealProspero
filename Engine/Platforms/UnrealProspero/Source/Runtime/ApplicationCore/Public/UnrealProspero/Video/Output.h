@@ -27,6 +27,7 @@ namespace UnrealProspero::Video
         std::uint32_t ReserveEopFlip(int bufferIndex, int mode, std::int64_t argument);
         std::uint64_t& GetBufferLabel(int bufferIndex) const;
         VideoOutFlipStatus GetFlipStatus() const;
+        VideoOutVblankStatus GetVblankStatus() const;
         bool IsBufferReleased(int bufferIndex) const;
         void MarkBufferPending(int bufferIndex);
         void WaitForBufferRelease(int bufferIndex, std::uint64_t timeoutNanoseconds) const;
@@ -34,6 +35,7 @@ namespace UnrealProspero::Video
 
     private:
         std::optional<int> handle;
+        KernelEqueue flipQueue{};
     };
 }
 
