@@ -118,7 +118,7 @@ internal static class ToolchainChecks
         }
         foreach (IExternalAction action in makefile.Actions)
         {
-            if (rhiOnly && !action.ProducedItems.Any(item => item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "rhi")))) continue;
+            if (rhiOnly && !action.ProducedItems.Any(item => item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "rhi")) || item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "platform")))) continue;
             foreach (FileItem input in action.PrerequisiteItems)
             {
                 if (!File.Exists(input.AbsolutePath)) throw new FileNotFoundException("Missing action prerequisite", input.AbsolutePath);
