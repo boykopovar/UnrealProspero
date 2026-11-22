@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 
 from .process import require_tool, run
+from .compiler_cache import run_ubt
 
 
 HOST_MODULES = ('BuildSettings', 'RHI', 'UnrealProsperoShaderCommon', 'UnrealProsperoShaderCompiler', 'UnrealProsperoShaderFormat', 'UnrealProsperoShaderCooker', 'UnrealProsperoTargetPlatformCommon', 'AnyPS5TargetPlatform', 'AnyPS5TargetPlatformSettings', 'AnyPS5TargetPlatformControls')
@@ -78,7 +79,7 @@ def build_host(engine, dotnet, work, jobs, no_link=False):
     arguments += ['-Module=' + name for name in HOST_MODULES]
     if no_link:
         arguments.append('-NoLink')
-    run(arguments, engine, work, Path(work) / 'logs/editor-build.log', {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
+    run_ubt(arguments, engine, work, Path(work) / 'logs/editor-build.log', {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
     if not no_link:
         write_host_metadata(engine, dotnet, work, project, platform)
 
