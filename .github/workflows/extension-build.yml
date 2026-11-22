@@ -101,6 +101,8 @@ jobs:
           path: build/ports
       - name: Package extension
         run: python tools/Package.py --sdk build/sdk --ports build/ports --output build/packages --work build/archive-work --version "${GITHUB_SHA:0:12}"
+      - name: Verify archive installation
+        run: python tools/VerifyPackage.py --packages build/packages --engine build/sources/unreal --work build/installed-work
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unrealprospero-${{ matrix.platform }}
@@ -114,4 +116,5 @@ jobs:
           path: |
             build/work/logs
             build/sdk-work/logs
+            build/installed-work/logs
           if-no-files-found: error
