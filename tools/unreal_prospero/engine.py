@@ -25,6 +25,8 @@ def require_engine(directory):
     for name in ('Runtime/Core/Private/HAL/ThreadingBase.cpp', 'Runtime/Engine/Private/UnrealEngine.cpp', 'Editor/UnrealEd/Private/UnrealEdEngine.cpp'):
         if not (directory / 'Engine/Source' / name).is_file():
             raise ValueError(f'Unreal Engine sources are missing: {name}')
+    if not (directory / 'Engine/Programs/UnrealHeaderTool/Config/DefaultEngine.ini').is_file():
+        raise ValueError('UnrealHeaderTool configuration is missing')
     return directory
 
 
