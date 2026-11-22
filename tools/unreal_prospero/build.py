@@ -23,8 +23,17 @@ def require_dotnet(engine, executable):
 
 def build_managed(engine, dotnet, work):
     programs = Path(engine) / 'Engine/Source/Programs'
-    for name, project in (('ubt', programs / 'UnrealBuildTool/UnrealBuildTool.csproj'), ('automation', Path(engine) / 'Engine/Platforms/UnrealProspero/Source/Programs/AutomationTool/UnrealProspero.Automation.csproj')):
-        run([dotnet, 'build', project, '-c', 'Development', '-p:NoWarn=1591', '-v:minimal'], engine, work, Path(work) / ('logs/' + name + '-build.log'), {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
+    child_environment = {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'}
+    for name, project, output, properties in (
+        ('ubt', programs / 'UnrealBuildTool/UnrealBuildTool.csproj', 'UnrealBuildTool', []),
+        ('uat', programs / 'AutomationTool/AutomationTool.csproj', 'AutomationTool', ['-p:AutomationToolProjectOnly=true']),
+        ('automation', Path(engine) / 'Engine/Platforms/UnrealProspero/Source/Programs/AutomationTool/UnrealProspero.Automation.csproj', None, [])
+    ):
+        arguments = [project, '-c', 'Development', '-p:NoWarn=1591', '-v:minimal', *properties]
+        run([dotnet, 'build', *arguments], engine, work, Path(work) / ('logs/' + name + '-build.log'), child_environment)
+        if output is not None:
+            destination = Path(engine) / 'Engine/Binaries/DotNET' / output
+            run([dotnet, 'publish', *arguments, '--no-build', '--output', destination], engine, work, Path(work) / ('logs/' + name + '-publish.log'), child_environment)
 
 
 def host_project(work):
