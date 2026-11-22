@@ -24,12 +24,12 @@ jobs:
         id: sdk-cache
         with:
           path: build/sdk
-          key: ps5-sdk-linux-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py') }}
+          key: ps5-sdk-linux-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py') }}
       - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
         id: ports-cache
         with:
           path: build/ports
-          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
+          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
       - name: Install build tools
         run: |
           set -euo pipefail

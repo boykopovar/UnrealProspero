@@ -8,7 +8,7 @@ def require_tool(name):
     path = shutil.which(name)
     if path is None:
         raise FileNotFoundError(f'Required tool is not on PATH: {name}')
-    return str(Path(path).resolve(strict=True))
+    return str(Path(path).absolute())
 
 
 def environment(work):

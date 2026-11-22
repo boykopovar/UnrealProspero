@@ -39,7 +39,7 @@ jobs:
         id: sdk-cache
         with:
           path: build/sdk
-          key: ps5-sdk-windows-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py') }}
+          key: ps5-sdk-windows-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py') }}
       - name: Install Linux build tools
         if: runner.os == 'Linux'
         run: |
