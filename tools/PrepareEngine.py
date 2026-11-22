@@ -18,7 +18,7 @@ def main():
         vendor = name.startswith(('Engine/Source/ThirdParty/', 'Engine/Plugins/', 'Engine/Source/Runtime/BinkAudioDecoder/SDK/', 'Engine/Source/Runtime/RadAudioCodec/SDK/', 'Engine/Source/Runtime/OodleDataCompression/Sdks/'))
         managed = name in ('Directory.Build.props', 'Directory.Build.targets') or name.startswith('Engine/Source/Programs/') and name.endswith(('.props', '.targets', '.proto')) or name.startswith('Engine/Binaries/DotNET/EpicGames.Perforce.Native/')
         headers = vendor and name.endswith(('.h', '.hh', '.hpp', '.hxx', '.inl', '.inc', '.ipp'))
-        sources = vendor and name.endswith(('.c', '.cpp', '.cc', '.cxx', '.S', '.s', '.tar.gz', '.tgz', '.tar.xz', '.zip', '.cmake', '.txt', '.in', '.raw', '.ac', '.am', '.def'))
+        sources = vendor and name.endswith(('.c', '.cpp', '.cc', '.cxx', '.S', '.s', '.cmake', '.txt', '.in', '.raw', '.ac', '.am', '.def'))
         oodle = name in (
             'Engine/Source/Runtime/OodleDataCompression/Sdks/2.9.16/lib/Linux/liboo2corelinux64.a',
             'Engine/Source/Runtime/OodleDataCompression/Sdks/2.9.16/lib/Linux/liboo2corelinux64_dbg.a',

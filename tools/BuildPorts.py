@@ -105,6 +105,12 @@ class Ports:
         arguments = [require_tool('bash'), script, prepared, self.work / 'openssl-build', self.platform / 'Source/ThirdParty/OpenSSL/AnyPS5', self.dependencies / 'ps5/sysroot', self.dependencies / 'include/anyps5', self.dependencies / 'ps5/anycxx', self.jobs]
         run([value.as_posix() if isinstance(value, Path) else value for value in arguments], self.root, self.work, self.work / 'logs/OpenSsl-build.log')
 
+    def write_manifest(self):
+        files = {path.relative_to(self.output).as_posix(): digest(path) for path in sorted(self.output.rglob('*')) if path.is_file() and (path.suffix == '.a' or 'include' in path.relative_to(self.output).parts)}
+        if not files:
+            raise ValueError('No PS5 libraries were produced')
+        (self.output / 'PortsManifest.json').write_text(json.dumps({'schemaVersion': 1, 'files': files}, indent=2) + '\n', encoding='utf-8')
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -126,8 +132,7 @@ def main():
     ports.third_party_ports()
     ports.runtime_ports()
     ports.network_ports()
-    files = {path.relative_to(output).as_posix(): digest(path) for path in sorted(output.rglob('*')) if path.is_file()}
-    (output / 'PortsManifest.json').write_text(json.dumps({'schemaVersion': 1, 'files': files}, indent=2) + '\n', encoding='utf-8')
+    ports.write_manifest()
 
 
 if __name__ == '__main__':

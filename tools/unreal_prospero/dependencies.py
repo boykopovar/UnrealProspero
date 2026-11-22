@@ -66,11 +66,12 @@ class Dependencies:
         pending = None
         unpacked = self.cache / (digest + '.' + uuid4().hex + '.unpacked')
         if not compressed.exists():
+            print(f'Downloading Unreal pack {digest}: {pack["CompressedSize"]} bytes, {len(entries)} files', flush=True)
             pending = self.cache / (digest + '.' + uuid4().hex + '.download')
             url = '/'.join((self.base_url, pack['RemotePath'], digest))
             try:
                 with urlopen(Request(url, headers={'User-Agent': 'UnrealProspero'}), timeout=60) as response, pending.open('xb') as stream:
-                    while chunk := response.read(1024 * 1024):
+                    while chunk := response.read1(1024 * 1024):
                         stream.write(chunk)
                 if pending.stat().st_size != int(pack['CompressedSize']):
                     raise ValueError(f'Compressed dependency size mismatch: {digest}')
