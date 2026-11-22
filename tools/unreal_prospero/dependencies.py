@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 from urllib.request import Request, urlopen
+from uuid import uuid4
 from xml.etree import ElementTree
 
 from .engine import contained_path
@@ -62,8 +63,10 @@ class Dependencies:
         digest, entries = group
         pack = self.packs[digest]
         compressed = self.cache / (digest + '.gz')
+        pending = None
+        unpacked = self.cache / (digest + '.' + uuid4().hex + '.unpacked')
         if not compressed.exists():
-            pending = self.cache / (digest + '.download')
+            pending = self.cache / (digest + '.' + uuid4().hex + '.download')
             url = '/'.join((self.base_url, pack['RemotePath'], digest))
             try:
                 with urlopen(Request(url, headers={'User-Agent': 'UnrealProspero'}), timeout=60) as response, pending.open('xb') as stream:
@@ -74,14 +77,15 @@ class Dependencies:
             except BaseException:
                 pending.unlink(missing_ok=True)
                 raise
-            pending.replace(compressed)
-        unpacked = self.cache / (digest + '.unpacked')
-        with gzip.open(compressed, 'rb') as source, unpacked.open('xb') as output:
-            while chunk := source.read(1024 * 1024):
-                output.write(chunk)
         try:
+            with gzip.open(pending if pending is not None else compressed, 'rb') as source, unpacked.open('xb') as output:
+                while chunk := source.read(1024 * 1024):
+                    output.write(chunk)
             if unpacked.stat().st_size != int(pack['Size']) or self.digest(unpacked) != digest:
                 raise ValueError(f'Dependency pack hash mismatch: {digest}')
+            if pending is not None:
+                pending.replace(compressed)
+                pending = None
             with unpacked.open('rb') as source:
                 for name, blob in entries:
                     source.seek(int(blob['PackOffset']))
@@ -90,9 +94,18 @@ class Dependencies:
                         raise ValueError(f'Dependency hash mismatch: {name}')
                     destination = contained_path(self.engine, name)
                     destination.parent.mkdir(parents=True, exist_ok=True)
-                    with destination.open('xb') as output:
-                        output.write(data)
+                    created = False
+                    try:
+                        with destination.open('xb') as output:
+                            created = True
+                            output.write(data)
+                    except BaseException:
+                        if created:
+                            destination.unlink()
+                        raise
                     if self.files[name].get('IsExecutable') == 'true' and os.name != 'nt':
                         destination.chmod(destination.stat().st_mode | 0o111)
         finally:
-            unpacked.unlink()
+            unpacked.unlink(missing_ok=True)
+            if pending is not None:
+                pending.unlink(missing_ok=True)
