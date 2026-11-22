@@ -35,6 +35,11 @@ class Ports:
         run(install, self.root, self.work, self.work / ('logs/' + name + '-install.log'))
 
     def third_party_ports(self):
+        self.base_ports()
+        self.font_ports()
+        self.media_ports()
+
+    def base_ports(self):
         source = self.third_party
         destination = self.platform / 'Source/ThirdParty'
         zlib = source / 'zlib/1.3'
@@ -47,10 +52,20 @@ class Ports:
         self.move_library(destination / 'libPNG/libPNG-1.6.44/lib/libpng.a', destination / 'libPNG/libPNG-1.6.44/lib/AnyPS5/libpng.a')
         self.build('ICU', destination / 'ICU/icu4c-64_1', {'ICU_SOURCE_DIRECTORY': source / 'ICU/icu4c-64_1/source'})
         self.move_library(destination / 'ICU/icu4c-64_1/lib/libicu.a', destination / 'ICU/icu4c-64_1/lib/AnyPS5/libicu.a')
+
+    def font_ports(self):
+        source = self.third_party
+        destination = self.platform / 'Source/ThirdParty'
+        zlib = source / 'zlib/1.3'
+        png = source / 'libPNG/libPNG-1.6.44'
         freetype = destination / 'FreeType2/FreeType2-2.14.1/AnyPS5'
         self.build('FreeType', freetype, {'FREETYPE_SOURCE_DIRECTORY': source / 'FreeType2/FreeType2-2.14.1', 'PNG_PNG_INCLUDE_DIR': png, 'PNG_LIBRARY': destination / 'libPNG/libPNG-1.6.44/lib/AnyPS5/libpng.a', 'ZLIB_INCLUDE_DIR': zlib, 'ZLIB_LIBRARY': destination / 'zlib/1.3/lib/AnyPS5/libz.a'})
         self.build('HarfBuzz', destination / 'HarfBuzz/harfbuzz-2.4.0', {'HARFBUZZ_SOURCE_DIRECTORY': source / 'HarfBuzz/harfbuzz-2.4.0/src', 'FREETYPE_INCLUDE_DIRECTORY': freetype / 'include/freetype2', 'ICU_INCLUDE_DIRECTORY': source / 'ICU/icu4c-64_1/include'})
         self.move_library(destination / 'HarfBuzz/harfbuzz-2.4.0/lib/libharfbuzz.a', destination / 'HarfBuzz/harfbuzz-2.4.0/lib/AnyPS5/libharfbuzz.a')
+
+    def media_ports(self):
+        source = self.third_party
+        destination = self.platform / 'Source/ThirdParty'
         self.build('MikkTSpace', destination / 'MikkTSpace', {'MIKKTSPACE_SOURCE_DIRECTORY': source / 'MikkTSpace'})
         self.move_library(destination / 'MikkTSpace/lib/libMikkTSpace.a', destination / 'MikkTSpace/lib/AnyPS5/libMikkTSpace.a')
         self.build('Opus', destination / 'libOpus/opus-1.1/AnyPS5', {'OPUS_SOURCE_DIRECTORY': source / 'libOpus/opus-1.1'})
