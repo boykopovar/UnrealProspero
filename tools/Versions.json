@@ -16,5 +16,13 @@
   },
   "anyps5": {
     "version": "v0.1.4"
+  },
+  "nghttp2": {
+    "repository": "https://github.com/nghttp2/nghttp2.git",
+    "revision": "85e300c79fb6dbcfa9c1013215c8710c1c2cd3d2"
+  },
+  "openssl": {
+    "repository": "https://github.com/openssl/openssl.git",
+    "revision": "45e844fa2a14ec92d146bd8f5778ac130b6625fb"
   }
 }
