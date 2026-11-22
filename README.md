@@ -6,7 +6,7 @@ Unreal Engine platform extension for PS5 via [AnyDevKit](https://github.com/boyk
 
 Unreal Engine 5.8.0 (source build).
 
-PS5 rendering works. Installation and CI are in progress.
+PS5 rendering and installation work. CI validation is in progress.
 
 ## License
 
