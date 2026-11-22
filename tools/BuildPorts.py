@@ -102,7 +102,8 @@ class Ports:
         prepared = self.work / 'openssl-source'
         shutil.copytree(openssl, prepared, ignore=shutil.ignore_patterns('.git'))
         script = self.root / 'Engine/Platforms/UnrealProspero/Build/OpenSsl/Build.sh'
-        run([require_tool('bash'), script, prepared, self.work / 'openssl-build', self.platform / 'Source/ThirdParty/OpenSSL/AnyPS5', self.dependencies / 'ps5/sysroot', self.dependencies / 'include/anyps5', self.dependencies / 'ps5/anycxx', self.jobs], self.root, self.work, self.work / 'logs/OpenSsl-build.log')
+        arguments = [require_tool('bash'), script, prepared, self.work / 'openssl-build', self.platform / 'Source/ThirdParty/OpenSSL/AnyPS5', self.dependencies / 'ps5/sysroot', self.dependencies / 'include/anyps5', self.dependencies / 'ps5/anycxx', self.jobs]
+        run([value.as_posix() if isinstance(value, Path) else value for value in arguments], self.root, self.work, self.work / 'logs/OpenSsl-build.log')
 
 
 def main():
