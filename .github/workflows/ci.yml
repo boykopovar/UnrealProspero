@@ -18,8 +18,7 @@ jobs:
   managed:
     uses: ./.github/workflows/managed-build.yml
   extension:
-    needs: ports
+    needs: [managed, ports]
     uses: ./.github/workflows/extension-build.yml
   ports:
-    needs: managed
     uses: ./.github/workflows/ports-build.yml
