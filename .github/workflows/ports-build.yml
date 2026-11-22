@@ -1,0 +1,48 @@
+name: ps5 libraries
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - name: Install build tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv perl make
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      - name: Prepare pinned public sources
+        run: python tools/PrepareSources.py --directory build/sources --work build/work
+      - name: Restore verified vendor inputs
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group sources
+      - name: Build PS5 SDK
+        run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - name: Build PS5 libraries
+        run: python tools/BuildPorts.py --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --output build/ports --work build/ports-work
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ps5-libraries
+          path: build/ports
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ps5-library-logs
+          path: |
+            build/work/logs
+            build/sdk-work/logs
+            build/ports-work/logs
+          if-no-files-found: error

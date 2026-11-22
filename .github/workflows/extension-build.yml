@@ -1,0 +1,95 @@
+name: platform extension
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+          - os: windows-2022
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      - name: Install Windows build tools
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-llvm-tools
+            mingw-w64-ucrt-x86_64-lld
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Prepare pinned public sources
+        run: python tools/PrepareSources.py --directory build/sources --work build/work
+      - name: Restore engine dependencies
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }}
+      - name: Build Linux SDK
+        if: runner.os == 'Linux'
+        run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - name: Build Windows SDK
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          "$(cygpath -u "$pythonLocation")/python.exe" tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - name: Install platform source and SDK configuration
+        run: python tools/Install.py --source --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --skip-build
+      - name: Prepare native Linux editor toolchain
+        if: runner.os == 'Linux'
+        run: bash build/sources/unreal/Engine/Build/BatchFiles/Linux/SetupToolchain.sh
+      - name: Compile editor integration
+        run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --no-link
+      - name: Compile PS5 RHI and verify platform discovery
+        run: python tools/Test.py --engine build/sources/unreal --work build/work --dotnet dotnet --sdk build/sdk/sdk --deps build/sdk/dependencies
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ps5-libraries
+          path: build/ports
+      - name: Package extension
+        run: python tools/Package.py --sdk build/sdk --ports build/ports --output build/packages --work build/archive-work --version "${GITHUB_SHA:0:12}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unrealprospero-${{ matrix.platform }}
+          path: build/packages/*
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: extension-logs-${{ matrix.platform }}
+          path: |
+            build/work/logs
+            build/sdk-work/logs
+          if-no-files-found: error

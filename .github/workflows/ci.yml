@@ -1,0 +1,21 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  managed:
+    uses: ./.github/workflows/managed-build.yml
+  extension:
+    needs: ports
+    uses: ./.github/workflows/extension-build.yml
+  ports:
+    needs: managed
+    uses: ./.github/workflows/ports-build.yml

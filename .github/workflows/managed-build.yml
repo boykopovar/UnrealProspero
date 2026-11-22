@@ -1,0 +1,43 @@
+name: managed tools
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare public engine source
+        run: python tools/PrepareSources.py --directory build/sources --work build/work --engine-only
+      - name: Restore verified engine dependencies
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group managed
+      - name: Build platform tools
+        run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --install-source --managed-only
+      - name: Verify platform discovery
+        run: python tools/Test.py --engine build/sources/unreal --work build/work --dotnet dotnet
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: managed-logs-${{ runner.os }}
+          path: build/work/logs
+          if-no-files-found: error

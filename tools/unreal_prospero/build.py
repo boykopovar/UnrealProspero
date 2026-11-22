@@ -63,5 +63,5 @@ def build_host(engine, dotnet, work, jobs, no_link=False):
     arguments = [dotnet, ubt, 'UnrealProsperoHostEditor', platform, 'Development', '-project=' + str(project), '-NoUBA', '-NoXGE', '-MaxParallelActions=' + str(jobs), '-UBARootDir=' + str(Path(work) / 'uba'), '-Log=' + str(Path(work) / 'logs/editor-modules.log')]
     arguments += ['-Module=' + name for name in HOST_MODULES]
     if no_link:
-        arguments.append('-NoLink')
+        arguments += ['-NoLink', '-NoPCH']
     run(arguments, engine, work, Path(work) / 'logs/editor-build.log', {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
