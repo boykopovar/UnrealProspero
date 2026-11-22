@@ -26,7 +26,7 @@ internal sealed class StagingChecks : BuildCommand
         initialize.Invoke(null, null);
         PlatformExports.Initialize(Array.Empty<string>(), NullLogger.Instance);
         SdkInstallation sdk = new(sdkRoot, dependencies);
-        foreach (UnrealTargetPlatform platformType in new[] { UnrealTargetPlatform.AnyWin64, UnrealTargetPlatform.AnyLinux, UnrealTargetPlatform.AnyPS5 })
+        foreach (UnrealTargetPlatform platformType in new[] { UnrealTargetPlatform.AnyPS5 })
         {
             Platform platform = Platform.GetPlatform(platformType);
             string projectDirectory = Path.Combine(output, platformType.ToString(), "StagingProbe");
@@ -81,14 +81,6 @@ internal sealed class StagingChecks : BuildCommand
                 if (new FileInfo(image).Length == 0 || context.ArchivedFiles.Count != 1 || new FileReference(context.ArchivedFiles.Keys.Single()) != new FileReference(image)) throw new InvalidOperationException("PS5 archive does not contain its image");
             }
             else if (context.ArchivedFiles.Count != context.FilesToStage.NonUFSFiles.Count) throw new InvalidOperationException("Archive does not contain all staged runtime files");
-            if (platformType == UnrealTargetPlatform.AnyWin64 && OperatingSystem.IsWindows())
-            {
-                string stagedExecutable = Path.Combine(context.StageDirectory.FullName, context.GetStagedFileLocation(executable).Name);
-                using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
-                new ToolCommand(stagedExecutable, context.StageDirectory.FullName, Array.Empty<string>()).ExecuteAsync(timeout.Token).GetAwaiter().GetResult();
-                string videoProbe = SdkInstallation.RequireFile(Path.Combine(probes, platformType.ToString(), "video", "VideoOutputProbe.exe"));
-                new ToolCommand(videoProbe, context.StageDirectory.FullName, Array.Empty<string>()).ExecuteAsync(timeout.Token).GetAwaiter().GetResult();
-            }
             Console.WriteLine("Staged and packaged " + platformType);
         }
     }

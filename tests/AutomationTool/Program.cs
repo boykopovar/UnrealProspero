@@ -10,11 +10,9 @@ internal static class Program
     private static void Main(string[] args)
     {
         MethodInfo initialize = typeof(Platform).GetMethod("InitializePlatforms", BindingFlags.Static | BindingFlags.NonPublic) ?? throw new MissingMethodException("AutomationTool platform discovery is unavailable");
-        initialize.Invoke(null, new object[] { new HashSet<Assembly> { typeof(AnyWin64Platform).Assembly } });
+        initialize.Invoke(null, new object[] { new HashSet<Assembly> { typeof(AnyPS5Platform).Assembly } });
         (UnrealTargetPlatform Platform, Type Implementation, string Extension)[] targets =
         {
-            (UnrealTargetPlatform.AnyWin64, typeof(AnyWin64Platform), ".exe"),
-            (UnrealTargetPlatform.AnyLinux, typeof(AnyLinuxPlatform), ""),
             (UnrealTargetPlatform.AnyPS5, typeof(AnyPS5Platform), ".elf")
         };
         foreach (var target in targets)

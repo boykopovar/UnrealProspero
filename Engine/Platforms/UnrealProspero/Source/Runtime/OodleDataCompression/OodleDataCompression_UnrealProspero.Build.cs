@@ -9,7 +9,7 @@ public sealed class OodleDataCompression_UnrealProspero : OodleDataCompression
 
     public OodleDataCompression_UnrealProspero(ReadOnlyTargetRules target) : base(target)
     {
-        if (target.Platform != UnrealTargetPlatform.AnyWin64 && target.Platform != UnrealTargetPlatform.AnyLinux && target.Platform != UnrealTargetPlatform.AnyPS5) throw new BuildException("Oodle requires an UnrealProspero target");
+        if (target.Platform != UnrealTargetPlatform.AnyPS5) throw new BuildException("Oodle requires the PS5 target");
         PublicDependencyModuleNames.Add("UnrealProsperoOodleRuntime");
         foreach (string library in PublicAdditionalLibraries)
         {

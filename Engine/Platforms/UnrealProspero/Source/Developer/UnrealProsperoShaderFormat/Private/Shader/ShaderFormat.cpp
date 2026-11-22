@@ -13,14 +13,10 @@ namespace UnrealProspero::Shader
 {
     namespace
     {
-        const FName windowsFormat(TEXT("SF_AGC_ANYWIN64"));
-        const FName linuxFormat(TEXT("SF_AGC_ANYLINUX"));
         const FName ps5Format(TEXT("SF_AGC_ANYPS5"));
 
         AgcTarget getTarget(FName format)
         {
-            if (format == windowsFormat) return AgcTarget::Windows;
-            if (format == linuxFormat) return AgcTarget::Linux;
             if (format == ps5Format) return AgcTarget::Ps5;
             throw std::invalid_argument("Unknown UnrealProspero shader format");
         }
@@ -60,8 +56,6 @@ namespace UnrealProspero::Shader
 
     void ShaderFormat::GetSupportedFormats(TArray<FName>& formats) const
     {
-        formats.Add(windowsFormat);
-        formats.Add(linuxFormat);
         formats.Add(ps5Format);
     }
 

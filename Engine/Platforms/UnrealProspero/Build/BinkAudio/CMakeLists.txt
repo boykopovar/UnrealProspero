@@ -6,8 +6,8 @@ cmake_path(CONVERT "${BINK_AUDIO_SDK_DIRECTORY}" TO_CMAKE_PATH_LIST BINK_AUDIO_S
 if(NOT EXISTS "${BINK_AUDIO_SDK_DIRECTORY}/Include/binka_ue_decode.h")
     message(FATAL_ERROR "Set BINK_AUDIO_SDK_DIRECTORY to the Bink Audio SDK supplied with Unreal")
 endif()
-if(NOT BINK_AUDIO_PLATFORM MATCHES "^(AnyPS5|AnyLinux|AnyWin64)$")
-    message(FATAL_ERROR "Set BINK_AUDIO_PLATFORM to AnyPS5, AnyLinux or AnyWin64")
+if(NOT BINK_AUDIO_PLATFORM STREQUAL "AnyPS5")
+    message(FATAL_ERROR "Set BINK_AUDIO_PLATFORM to AnyPS5")
 endif()
 
 add_library(binka_ue_decode STATIC

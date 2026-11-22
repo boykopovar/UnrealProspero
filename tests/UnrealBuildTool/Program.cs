@@ -28,8 +28,8 @@ internal static class Program
         {
         }
         UnrealProsperoSettings settings = new() { SdkRoot = args[0], Dependencies = args[1], CMake = args[2] };
-        UnrealTargetPlatform[] platforms = { UnrealTargetPlatform.AnyWin64, UnrealTargetPlatform.AnyLinux, UnrealTargetPlatform.AnyPS5 };
-        Target[] targets = { Target.Windows, Target.Linux, Target.Ps5 };
+        UnrealTargetPlatform[] platforms = { UnrealTargetPlatform.AnyPS5 };
+        Target[] targets = { Target.Ps5 };
         if (new HashSet<UnrealTargetPlatform>(platforms).Count != platforms.Length) throw new InvalidOperationException("Platform identities collide");
         foreach (UnrealTargetPlatform platform in platforms)
         {

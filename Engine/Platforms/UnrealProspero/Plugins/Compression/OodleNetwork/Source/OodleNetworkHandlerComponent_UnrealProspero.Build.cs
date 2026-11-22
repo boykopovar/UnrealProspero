@@ -9,7 +9,7 @@ public sealed class OodleNetworkHandlerComponent_UnrealProspero : OodleNetworkHa
 
     public OodleNetworkHandlerComponent_UnrealProspero(ReadOnlyTargetRules target) : base(target)
     {
-        if (target.Platform != UnrealTargetPlatform.AnyWin64 && target.Platform != UnrealTargetPlatform.AnyLinux && target.Platform != UnrealTargetPlatform.AnyPS5) throw new BuildException("Oodle Network requires an UnrealProspero target");
+        if (target.Platform != UnrealTargetPlatform.AnyPS5) throw new BuildException("Oodle Network requires the PS5 target");
         PublicDependencyModuleNames.Add("UnrealProsperoOodleRuntime");
         foreach (string library in PublicAdditionalLibraries)
         {
