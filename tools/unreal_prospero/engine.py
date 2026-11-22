@@ -34,5 +34,5 @@ def contained_path(root, relative):
         raise ValueError(f'Invalid relative path: {relative}')
     target = (root / relative).resolve()
     if not target.is_relative_to(root):
-        raise ValueError(f'Path escapes its directory: {relative}')
+        raise ValueError(f'Path escapes its directory: {relative}; root={root!s}; resolved={target!s}')
     return target
