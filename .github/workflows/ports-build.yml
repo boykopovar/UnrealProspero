@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -31,6 +34,14 @@ jobs:
         run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
       - name: Build PS5 libraries
         run: python tools/BuildPorts.py --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --output build/ports --work build/ports-work
+      - name: Archive Linux SDK
+        run: tar -czf build/linux-sdk.tar.gz -C build/sdk sdk dependencies
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-sdk
+          path: build/linux-sdk.tar.gz
+          if-no-files-found: error
+          compression-level: 0
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ps5-libraries
