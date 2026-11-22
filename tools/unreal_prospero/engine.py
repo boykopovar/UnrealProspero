@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 
@@ -27,12 +28,23 @@ def require_engine(directory):
     return directory
 
 
+def canonical_path(path, strict=False):
+    path = Path(path).resolve(strict=strict)
+    if os.name == 'nt':
+        value = str(path)
+        if value.startswith('\\\\?\\UNC\\'):
+            return Path('\\\\' + value[8:])
+        if value.startswith('\\\\?\\') and len(path.drive) == 6 and path.drive[4].isalpha() and path.drive[5] == ':':
+            return Path(value[4:])
+    return path
+
+
 def contained_path(root, relative):
-    root = Path(root).resolve(strict=True)
+    root = canonical_path(root, strict=True)
     relative = Path(relative)
     if relative.is_absolute() or '..' in relative.parts or not relative.parts:
         raise ValueError(f'Invalid relative path: {relative}')
-    target = (root / relative).resolve()
+    target = canonical_path(root / relative)
     if not target.is_relative_to(root):
         raise ValueError(f'Path escapes its directory: {relative}; root={root!s}; resolved={target!s}')
     return target
