@@ -7,7 +7,7 @@
   },
   "anydevkit": {
     "repository": "https://github.com/boykopovar/AnyDevKit.git",
-    "revision": "b7c902677f7cd18bf97c0c224eb215fedb393519"
+    "revision": "93efb282f31f3fe9273505280b2d39c191763fc8"
   },
   "anycxx": {
     "repository": "https://github.com/boykopovar/llvm-cxx-ps.git",
