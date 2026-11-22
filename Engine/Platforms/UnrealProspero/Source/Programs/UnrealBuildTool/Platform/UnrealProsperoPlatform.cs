@@ -14,7 +14,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     private readonly UnrealProsperoPlatformSdk sdk;
     private readonly Target target;
 
-    public UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, ILogger logger) : this(platform, settings, new UnrealProsperoPlatformSdk(logger, UnrealProsperoPlatformNames.GetTarget(platform), settings.IsConfigured ? settings.CreateInstallation() : null), logger) { }
+    public UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, ILogger logger) : this(platform, settings, new UnrealProsperoPlatformSdk(logger, UnrealProsperoPlatformNames.GetTarget(platform), settings), logger) { }
 
     private UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, UnrealProsperoPlatformSdk sdk, ILogger logger) : base(platform, sdk, new UnrealArchitectureConfig(UnrealArch.X64), logger)
     {
