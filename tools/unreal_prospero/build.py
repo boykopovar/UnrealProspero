@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import sys
 
-from .process import run
+from .process import require_tool, run
 
 
 HOST_MODULES = ('BuildSettings', 'RHI', 'UnrealProsperoShaderCommon', 'UnrealProsperoShaderCompiler', 'UnrealProsperoShaderFormat', 'UnrealProsperoShaderCooker', 'UnrealProsperoTargetPlatformCommon', 'AnyPS5TargetPlatform', 'AnyPS5TargetPlatformSettings', 'AnyPS5TargetPlatformControls')
@@ -15,6 +15,8 @@ def require_dotnet(engine, executable):
     if executable is None:
         host = 'win-x64/dotnet.exe' if os.name == 'nt' else 'linux-x64/dotnet'
         executable = Path(engine) / 'Engine/Binaries/ThirdParty/DotNet/10.0' / host
+    elif len(Path(executable).parts) == 1:
+        executable = require_tool(str(executable))
     executable = Path(executable).resolve(strict=True)
     if not executable.is_file():
         raise FileNotFoundError(executable)
