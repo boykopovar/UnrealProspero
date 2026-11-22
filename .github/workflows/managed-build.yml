@@ -30,7 +30,7 @@ jobs:
       - name: Prepare public engine source
         run: python tools/PrepareSources.py --directory build/sources --work build/work --engine-only
       - name: Restore verified engine dependencies
-        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group managed
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group managed --discard-cache
       - name: Build platform tools
         run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --install-source --managed-only
       - name: Verify platform discovery
