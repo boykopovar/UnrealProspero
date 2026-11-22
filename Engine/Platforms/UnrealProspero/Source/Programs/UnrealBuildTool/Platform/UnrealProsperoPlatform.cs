@@ -31,9 +31,11 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     public override void ModifyModuleRulesForOtherPlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
     {
         if (targetRules.Platform == Platform) return;
-        if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (targetRules.Platform != UnrealTargetPlatform.Win64 && targetRules.Platform != UnrealTargetPlatform.Linux) return;
+        if (targetRules.Type != TargetType.Editor && targetRules.Type != TargetType.Program) return;
         if (targetRules.bBuildRequiresCookedData) return;
+        if (targetRules.Type == TargetType.Program && !targetRules.bNeedsExtraShaderFormats && !targetRules.bForceBuildShaderFormats && !targetRules.bForceBuildTargetPlatforms) return;
+        if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if ((moduleName == "Engine" && targetRules.bBuildDeveloperTools) || (moduleName == "TargetPlatform" && targetRules.bForceBuildTargetPlatforms))
         {
             string settingsModule = Platform + "TargetPlatformSettings";
