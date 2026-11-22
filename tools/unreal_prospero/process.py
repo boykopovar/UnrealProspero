@@ -25,13 +25,16 @@ def environment(work):
     return result
 
 
-def run(arguments, directory, work, log):
+def run(arguments, directory, work, log, overrides=None):
     arguments = [str(value) for value in arguments]
     print(subprocess.list2cmdline(arguments), flush=True)
     log = Path(log)
     log.parent.mkdir(parents=True, exist_ok=True)
+    child_environment = environment(work)
+    if overrides is not None:
+        child_environment.update(overrides)
     with log.open('wb') as output:
-        result = subprocess.run(arguments, cwd=directory, env=environment(work), stdout=output, stderr=subprocess.STDOUT)
+        result = subprocess.run(arguments, cwd=directory, env=child_environment, stdout=output, stderr=subprocess.STDOUT)
     if result.returncode != 0:
         print(log.read_text(encoding='utf-8', errors='replace')[-16000:], flush=True)
         raise subprocess.CalledProcessError(result.returncode, arguments)
