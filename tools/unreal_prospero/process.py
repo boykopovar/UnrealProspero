@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 
 def require_tool(name):
@@ -36,8 +37,18 @@ def run(arguments, directory, work, log, overrides=None):
     if overrides is not None:
         child_environment.update(overrides)
     with log.open('wb') as output:
-        result = subprocess.run(arguments, cwd=directory, env=child_environment, stdout=output, stderr=subprocess.STDOUT)
-    if result.returncode != 0:
-        print(log.read_text(encoding='utf-8', errors='replace')[-16000:], flush=True)
-        raise subprocess.CalledProcessError(result.returncode, arguments)
+        with subprocess.Popen(arguments, cwd=directory, env=child_environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
+            try:
+                while chunk := process.stdout.read1(65536):
+                    output.write(chunk)
+                    output.flush()
+                    sys.stdout.buffer.write(chunk)
+                    sys.stdout.buffer.flush()
+                result = process.wait()
+            except BaseException:
+                process.kill()
+                process.wait()
+                raise
+    if result != 0:
+        raise subprocess.CalledProcessError(result, arguments)
     return log
