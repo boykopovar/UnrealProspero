@@ -72,14 +72,24 @@ jobs:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-v1-${{ runner.os }}-extension-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ccache-v1-${{ runner.os }}-extension-
-      - name: Initialize compiler cache
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Initialize Linux compiler cache
+        if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           ccache --version
           ccache --zero-stats
           cache=$(command -v ccache)
-          if [ "$RUNNER_OS" = Windows ]; then cache=$(cygpath -m "$cache"); fi
+          echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+      - name: Initialize Windows compiler cache
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --zero-stats
+          cache=$(cygpath -m "$(command -v ccache)")
           echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
           echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
           echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
