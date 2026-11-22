@@ -79,3 +79,38 @@ def build_host(engine, dotnet, work, jobs, no_link=False):
     if no_link:
         arguments.append('-NoLink')
     run(arguments, engine, work, Path(work) / 'logs/editor-build.log', {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
+    if not no_link:
+        write_host_metadata(engine, dotnet, work, project, platform)
+
+
+def write_host_metadata(engine, dotnet, work, project, platform):
+    candidates = []
+    for path in (project.parent / 'Intermediate/Build').rglob('TargetMetadata.json'):
+        document = json.loads(path.read_text(encoding='utf-8'))
+        receipt = document['Receipt']
+        if Path(document['ProjectFile']).resolve() == project.resolve() and receipt['Platform'] == platform and receipt['Configuration'] == 'Development':
+            candidates.append(path)
+    if len(candidates) != 1:
+        raise ValueError('Expected one editor metadata description')
+    target = candidates[0]
+    engine_metadata = target.with_name('EngineMetadata.json')
+    document = json.loads(engine_metadata.read_text(encoding='utf-8'))
+    ubt = Path(engine) / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'
+    for name, path in (('engine', engine_metadata), ('target', target)):
+        run([dotnet, ubt, '-Mode=WriteMetadata', '-Input=' + str(path), '-Version=2'], engine, work, Path(work) / ('logs/' + name + '-metadata.log'), {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})
+    version = json.loads(Path(document['VersionFile']).read_text(encoding='utf-8'))
+    build_id = version['BuildId']
+    if not build_id:
+        raise ValueError('Editor build identifier is empty')
+    modules = {}
+    for name in document['FileToManifest']:
+        manifest = Path(name)
+        data = json.loads(manifest.read_text(encoding='utf-8'))
+        for module, filename in data['Modules'].items():
+            if module not in HOST_MODULES:
+                continue
+            if module in modules or data['BuildId'] != build_id or not (manifest.parent / filename).is_file():
+                raise ValueError(f'Editor module was not installed consistently: {module}')
+            modules[module] = filename
+    if set(modules) != set(HOST_MODULES):
+        raise ValueError('Editor module manifest is incomplete')
