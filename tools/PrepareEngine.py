@@ -35,7 +35,7 @@ def main():
             'Engine/Plugins/Compression/OodleNetwork/Sdks/2.9.16/lib/Linux/liboo2netlinux64.a',
             'Engine/Plugins/Compression/OodleNetwork/Sdks/2.9.16/lib/Linux/liboo2netlinux64_dbg.a'
         )
-        windows = name.startswith(('Engine/Source/ThirdParty/', 'Engine/Plugins/')) and (name.lower().endswith('.lib') or name.lower().endswith('.dll') and any(part in name for part in ('/Win64/', '/Windows/', '/win-x64/')))
+        windows = name.startswith(('Engine/Source/ThirdParty/', 'Engine/Plugins/')) and name.lower().endswith(('.lib', '.dll'))
         native_runtime = name.startswith('Engine/Binaries/ThirdParty/FBX/') and '/' + host_binary + '/' in name and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes) or name.startswith('Engine/Source/ThirdParty/astcenc/Thunks/' + astc)
         editor_resources = name.startswith('Engine/Binaries/ThirdParty/CEF3/' + host_binary + '/') and '/Resources/' in name or name.startswith('Engine/Binaries/ThirdParty/svn/' + host_binary + '/')
         editor_libraries = name.startswith('Engine/Plugins/Interchange/Runtime/Source/ThirdParty/Draco/lib/' + host_binary + '/') or name.startswith('Engine/Source/ThirdParty/Boost/') and ('/x64/lib/' in name if os.name == 'nt' else '/Unix/x86_64-unknown-linux-gnu/lib/' in name)
