@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from unreal_prospero.build import require_dotnet
+from unreal_prospero.build import managed_workspace, require_dotnet
 from unreal_prospero.engine import require_engine
 from unreal_prospero.process import require_tool, run
 
@@ -21,6 +21,7 @@ def main():
     engine = require_engine(options.engine)
     dotnet = require_dotnet(engine, options.dotnet)
     work = options.work.resolve()
+    directory = managed_workspace(work)
     cases = [('AutomationTool', 'UnrealProspero.AutomationTool.Tests', ['-rootdirectory=' + str(engine)])]
     if options.sdk is not None:
         cmake = options.cmake.resolve(strict=True) if options.cmake is not None else require_tool('cmake')
@@ -28,7 +29,7 @@ def main():
     for name, assembly, arguments in cases:
         project = root / 'tests' / name / ('UnrealProspero.' + name + '.Tests.csproj')
         destination = work / 'tests' / name
-        run([dotnet, 'build', project, '-c', 'Development', '-p:UnrealRoot=' + str(engine), '-p:NoWarn=1591', '--output', destination], root, work, work / ('logs/' + name + '-test-build.log'))
+        run([dotnet, 'build', project, '-c', 'Development', '-p:UnrealRoot=' + str(engine), '-p:NoWarn=1591', '--output', destination], directory, work, work / ('logs/' + name + '-test-build.log'))
         run([dotnet, destination / (assembly + '.dll'), *arguments], root, work, work / ('logs/' + name + '-test.log'))
 
 

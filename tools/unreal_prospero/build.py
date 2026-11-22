@@ -24,6 +24,7 @@ def require_dotnet(engine, executable):
 
 
 def build_managed(engine, dotnet, work):
+    directory = managed_workspace(work)
     programs = Path(engine) / 'Engine/Source/Programs'
     child_environment = {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'}
     for name, project, output, properties in (
@@ -32,10 +33,23 @@ def build_managed(engine, dotnet, work):
         ('automation', Path(engine) / 'Engine/Platforms/UnrealProspero/Source/Programs/AutomationTool/UnrealProspero.Automation.csproj', None, [])
     ):
         arguments = [project, '-c', 'Development', '-p:NoWarn=1591', '-v:minimal', *properties]
-        run([dotnet, 'build', *arguments], engine, work, Path(work) / ('logs/' + name + '-build.log'), child_environment)
+        run([dotnet, 'build', *arguments], directory, work, Path(work) / ('logs/' + name + '-build.log'), child_environment)
         if output is not None:
             destination = Path(engine) / 'Engine/Binaries/DotNET' / output
-            run([dotnet, 'publish', *arguments, '--no-build', '--output', destination], engine, work, Path(work) / ('logs/' + name + '-publish.log'), child_environment)
+            run([dotnet, 'publish', *arguments, '--no-build', '--output', destination], directory, work, Path(work) / ('logs/' + name + '-publish.log'), child_environment)
+
+
+def managed_workspace(work):
+    work = Path(work).resolve()
+    work.mkdir(parents=True, exist_ok=True)
+    source = Path(__file__).resolve().parents[1] / 'global.json'
+    configuration = source.read_text(encoding='utf-8')
+    destination = work / 'global.json'
+    if destination.exists() and destination.read_text(encoding='utf-8') != configuration:
+        raise ValueError(f'Managed SDK selection was modified: {destination}')
+    if not destination.exists():
+        destination.write_text(configuration, encoding='utf-8')
+    return work
 
 
 def host_project(work):
@@ -60,8 +74,8 @@ def build_host(engine, dotnet, work, jobs, no_link=False):
     project = host_project(work)
     ubt = Path(engine) / 'Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll'
     platform = 'Win64' if os.name == 'nt' else 'Linux'
-    arguments = [dotnet, ubt, 'UnrealProsperoHostEditor', platform, 'Development', '-project=' + str(project), '-NoUBA', '-NoXGE', '-MaxParallelActions=' + str(jobs), '-UBARootDir=' + str(Path(work) / 'uba'), '-Log=' + str(Path(work) / 'logs/editor-modules.log')]
+    arguments = [dotnet, ubt, 'UnrealProsperoHostEditor', platform, 'Development', '-project=' + str(project), '-NoUBA', '-NoXGE', '-NoPCH', '-MaxParallelActions=' + str(jobs), '-UBARootDir=' + str(Path(work) / 'uba'), '-Log=' + str(Path(work) / 'logs/editor-modules.log')]
     arguments += ['-Module=' + name for name in HOST_MODULES]
     if no_link:
-        arguments += ['-NoLink', '-NoPCH']
+        arguments.append('-NoLink')
     run(arguments, engine, work, Path(work) / 'logs/editor-build.log', {'DOTNET_ROOT': str(dotnet.parent), 'DOTNET_MULTILEVEL_LOOKUP': '0'})

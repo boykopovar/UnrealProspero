@@ -57,7 +57,7 @@ jobs:
       - name: Prepare pinned public sources
         run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ runner.os == 'Linux' && '--engine-only' || '' }}
       - name: Restore engine dependencies
-        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }}
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }} --host-tools
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         if: runner.os == 'Linux'
         with:
