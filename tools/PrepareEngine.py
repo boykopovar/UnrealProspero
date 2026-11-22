@@ -39,7 +39,8 @@ def main():
         editor_resources = name.startswith('Engine/Binaries/ThirdParty/CEF3/' + host_binary + '/') and '/Resources/' in name or name.startswith('Engine/Binaries/ThirdParty/svn/' + host_binary + '/')
         editor_libraries = name.startswith('Engine/Plugins/Interchange/Runtime/Source/ThirdParty/Draco/lib/' + host_binary + '/') or name.startswith('Engine/Source/ThirdParty/Boost/') and ('/x64/lib/' in name if os.name == 'nt' else '/Unix/x86_64-unknown-linux-gnu/lib/' in name)
         texture_codec = name.startswith('Engine/Source/Developer/TextureFormatOodle/Sdks/') and ('/redist/' + host_binary + '/' in name or '/include/' in name)
-        tools = options.host_tools and (native_runtime or editor_resources or editor_libraries or texture_codec or name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
+        shared_library = (vendor or name.startswith('Engine/Binaries/ThirdParty/')) and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes) and (any(part in name for part in ('/Win64/', '/Windows/', '/win-x64/')) or '-Win64-' in name if os.name == 'nt' else any(part in name for part in ('/Linux/', '/Unix/x86_64-unknown-linux-gnu/', '/linux-x86_64/')) or '-Linux-' in name)
+        tools = options.host_tools and (native_runtime or shared_library or editor_resources or editor_libraries or texture_codec or name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
         if tools or managed or options.group in ('headers', 'sources', 'windows-tools') and headers or options.group in ('sources', 'windows-tools') and (sources or oodle) or options.group == 'windows-tools' and windows:
             selected.append(name)
     if not selected:

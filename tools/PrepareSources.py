@@ -15,7 +15,7 @@ def main():
     specification = versions()
     directory = options.directory.resolve()
     work = options.work.resolve()
-    checkout(specification['unreal'], directory / 'unreal', ['Engine/Source', 'Engine/Plugins', 'Engine/Platforms', 'Engine/Build', 'Engine/Config', 'Engine/Shaders', 'Templates/TP_Blank', 'Templates/TemplateResources'], work)
+    checkout(specification['unreal'], directory / 'unreal', ['Engine/Source', 'Engine/Programs/UnrealHeaderTool/Config', 'Engine/Plugins', 'Engine/Platforms', 'Engine/Build', 'Engine/Config', 'Engine/Shaders', 'Templates/TP_Blank', 'Templates/TemplateResources'], work)
     if options.engine_only:
         return
     sdk = checkout(specification['anydevkit'], directory / 'anydevkit', [], work)
