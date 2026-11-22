@@ -23,7 +23,7 @@ namespace UnrealProspero::RHI
         return (size + pageSize - 1) & ~(pageSize - 1);
     }
 
-    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, AllocationUsage usage) : allocation(CalculateAllocationSize(size), addressHigh, alignment, (size + 255) & ~std::size_t{255}), size(size), usage(usage)
+    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, AllocationUsage usage, AllocationInitialization initialization) : allocation(CalculateAllocationSize(size), addressHigh, alignment, (size + 255) & ~std::size_t{255}, initialization), size(size), usage(usage)
     {
         if (usage != AllocationUsage::Buffer && usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Invalid GPU allocation usage");
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());

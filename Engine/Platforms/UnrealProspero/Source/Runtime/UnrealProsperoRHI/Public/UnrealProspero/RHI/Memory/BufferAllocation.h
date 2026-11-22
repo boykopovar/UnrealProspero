@@ -19,7 +19,7 @@ namespace UnrealProspero::RHI
         static std::uint64_t GetTextureAllocationBytes();
         static std::uint64_t GetNonStreamingTextureAllocationBytes();
         static std::size_t CalculateAllocationSize(std::size_t size);
-        BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, AllocationUsage usage = AllocationUsage::Buffer);
+        BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment = Kernel::DirectAllocation::PageSize, AllocationUsage usage = AllocationUsage::Buffer, AllocationInitialization initialization = AllocationInitialization::Zeroed);
         ~BufferAllocation() noexcept(false);
         BufferAllocation(const BufferAllocation&) = delete;
         BufferAllocation& operator=(const BufferAllocation&) = delete;

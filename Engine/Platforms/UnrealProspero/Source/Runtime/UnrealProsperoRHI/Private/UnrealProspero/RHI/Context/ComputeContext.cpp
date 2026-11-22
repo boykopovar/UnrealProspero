@@ -287,7 +287,7 @@ namespace UnrealProspero::RHI
         {
             if (allocation->Size() == size) return allocation.get();
         }
-        scratchAllocations.push_back(std::make_unique<BufferAllocation>(size, addressHigh));
+        scratchAllocations.push_back(std::make_unique<BufferAllocation>(size, addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Buffer, AllocationInitialization::Uninitialized));
         return scratchAllocations.back().get();
     }
 

@@ -42,8 +42,9 @@ namespace UnrealProspero::RHI
         }
     }
 
-    ReusableAllocation::ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize) : addressHigh(addressHigh), alignment(alignment), writableSize(writableSize)
+    ReusableAllocation::ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize, AllocationInitialization initialization) : addressHigh(addressHigh), alignment(alignment), writableSize(writableSize)
     {
+        if (initialization != AllocationInitialization::Zeroed && initialization != AllocationInitialization::Uninitialized) throw std::invalid_argument("Invalid GPU allocation initialization");
         if (addressHigh > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
         if (size == 0 || size % Kernel::DirectAllocation::PageSize != 0 || size > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Invalid reusable GPU allocation size");
         if (writableSize == 0 || writableSize > size) throw std::invalid_argument("GPU writable extent exceeds its allocation");
@@ -70,10 +71,16 @@ namespace UnrealProspero::RHI
         {
 #if UNREALPROSPERO_WITH_UE_TRACKING
             CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationCacheHits, 1, ECsvCustomStatOp::Accumulate);
-            CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoClearGpuAllocation);
-            CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationClearedBytes, static_cast<double>(clearSize), ECsvCustomStatOp::Accumulate);
 #endif
-            std::memset(allocation->Data(), 0, clearSize);
+            if (initialization == AllocationInitialization::Zeroed)
+            {
+#if UNREALPROSPERO_WITH_UE_TRACKING
+                CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoClearGpuAllocation);
+                CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoGpuAllocationClearedBytes, static_cast<double>(clearSize), ECsvCustomStatOp::Accumulate);
+#endif
+                std::memset(allocation->Data(), 0, clearSize);
+            }
+            else this->writableSize = std::max(writableSize, clearSize);
         }
         else
         {

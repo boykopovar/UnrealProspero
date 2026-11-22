@@ -6,10 +6,12 @@
 
 namespace UnrealProspero::RHI
 {
+    enum class AllocationInitialization { Zeroed, Uninitialized };
+
     class ReusableAllocation final
     {
     public:
-        ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize);
+        ReusableAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, std::size_t writableSize, AllocationInitialization initialization);
         ~ReusableAllocation() noexcept(false);
         ReusableAllocation(const ReusableAllocation&) = delete;
         ReusableAllocation& operator=(const ReusableAllocation&) = delete;
