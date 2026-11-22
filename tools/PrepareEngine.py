@@ -19,6 +19,7 @@ def main():
     if options.host_tools and os.name != 'nt' and sys.platform != 'linux':
         raise ValueError('The editor host must be Windows or Linux')
     host = 'Windows' if os.name == 'nt' else 'Linux'
+    host_binary = 'Win64' if os.name == 'nt' else 'Linux'
     uba = 'Win64/UnrealBuildAccelerator/x64/' if os.name == 'nt' else 'Linux/UnrealBuildAccelerator/'
     selected = []
     for name in dependencies.files:
@@ -33,7 +34,8 @@ def main():
             'Engine/Plugins/Compression/OodleNetwork/Sdks/2.9.16/lib/Linux/liboo2netlinux64_dbg.a'
         )
         windows = name.startswith(('Engine/Source/ThirdParty/', 'Engine/Plugins/')) and name.endswith(('.lib', '.dll')) and any(part in name for part in ('/Win64/', '/Windows/', '/win-x64/'))
-        tools = options.host_tools and (name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
+        native_runtime = name.startswith('Engine/Binaries/ThirdParty/FBX/') and '/' + host_binary + '/' in name and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes)
+        tools = options.host_tools and (native_runtime or name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
         if tools or managed or options.group in ('headers', 'sources', 'windows-tools') and headers or options.group in ('sources', 'windows-tools') and (sources or oodle) or options.group == 'windows-tools' and windows:
             selected.append(name)
     if not selected:
