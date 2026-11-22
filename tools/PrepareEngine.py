@@ -13,9 +13,10 @@ def main():
     parser.add_argument('--cache', required=True, type=Path)
     parser.add_argument('--group', required=True, choices=['managed', 'headers', 'sources', 'windows-tools'])
     parser.add_argument('--host-tools', action='store_true')
+    parser.add_argument('--discard-cache', action='store_true')
     options = parser.parse_args()
     engine = require_engine(options.engine)
-    dependencies = Dependencies(engine, options.cache)
+    dependencies = Dependencies(engine, options.cache, keep_cache=not options.discard_cache)
     if options.host_tools and os.name != 'nt' and sys.platform != 'linux':
         raise ValueError('The editor host must be Windows or Linux')
     host = 'Windows' if os.name == 'nt' else 'Linux'

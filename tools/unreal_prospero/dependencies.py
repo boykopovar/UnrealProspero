@@ -13,10 +13,11 @@ from .engine import contained_path
 
 
 class Dependencies:
-    def __init__(self, engine, cache):
+    def __init__(self, engine, cache, keep_cache=True):
         self.engine = Path(engine).resolve(strict=True)
         self.cache = Path(cache).resolve()
         self.cache.mkdir(parents=True, exist_ok=True)
+        self.keep_cache = keep_cache
         manifest = ElementTree.parse(self.engine / 'Engine/Build/Commit.gitdeps.xml').getroot()
         self.base_url = manifest.attrib['BaseUrl']
         if not self.base_url.startswith('https://cdn.unrealengine.com/'):
@@ -64,7 +65,6 @@ class Dependencies:
         pack = self.packs[digest]
         compressed = self.cache / (digest + '.gz')
         pending = None
-        unpacked = self.cache / (digest + '.' + uuid4().hex + '.unpacked')
         if not compressed.exists():
             print(f'Downloading Unreal pack {digest}: {pack["CompressedSize"]} bytes, {len(entries)} files', flush=True)
             pending = self.cache / (digest + '.' + uuid4().hex + '.download')
@@ -79,34 +79,51 @@ class Dependencies:
                 pending.unlink(missing_ok=True)
                 raise
         try:
-            with gzip.open(pending if pending is not None else compressed, 'rb') as source, unpacked.open('xb') as output:
+            pack_hash = hashlib.sha1()
+            pack_size = 0
+            with gzip.open(pending if pending is not None else compressed, 'rb') as source:
                 while chunk := source.read(1024 * 1024):
-                    output.write(chunk)
-            if unpacked.stat().st_size != int(pack['Size']) or self.digest(unpacked) != digest:
+                    pack_size += len(chunk)
+                    if pack_size > int(pack['Size']):
+                        raise ValueError(f'Dependency pack exceeds its declared size: {digest}')
+                    pack_hash.update(chunk)
+            if pack_size != int(pack['Size']) or pack_hash.hexdigest() != digest:
                 raise ValueError(f'Dependency pack hash mismatch: {digest}')
             if pending is not None:
                 pending.replace(compressed)
                 pending = None
-            with unpacked.open('rb') as source:
-                for name, blob in entries:
-                    source.seek(int(blob['PackOffset']))
-                    data = source.read(int(blob['Size']))
-                    if len(data) != int(blob['Size']) or hashlib.sha1(data).hexdigest() != blob['Hash']:
-                        raise ValueError(f'Dependency hash mismatch: {name}')
+            with gzip.open(compressed, 'rb') as source:
+                for name, blob in sorted(entries, key=lambda entry: int(entry[1]['PackOffset'])):
+                    offset = int(blob['PackOffset'])
+                    size = int(blob['Size'])
+                    if offset < 0 or size < 0 or offset + size > pack_size:
+                        raise ValueError(f'Dependency blob exceeds its pack: {name}')
+                    source.seek(offset)
                     destination = contained_path(self.engine, name)
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     created = False
                     try:
                         with destination.open('xb') as output:
                             created = True
-                            output.write(data)
+                            blob_hash = hashlib.sha1()
+                            remaining = size
+                            while remaining:
+                                data = source.read(min(remaining, 1024 * 1024))
+                                if not data:
+                                    raise ValueError(f'Truncated dependency blob: {name}')
+                                blob_hash.update(data)
+                                output.write(data)
+                                remaining -= len(data)
+                            if blob_hash.hexdigest() != blob['Hash']:
+                                raise ValueError(f'Dependency hash mismatch: {name}')
                     except BaseException:
                         if created:
                             destination.unlink()
                         raise
                     if self.files[name].get('IsExecutable') == 'true' and os.name != 'nt':
                         destination.chmod(destination.stat().st_mode | 0o111)
+            if not self.keep_cache:
+                compressed.unlink()
         finally:
-            unpacked.unlink(missing_ok=True)
             if pending is not None:
                 pending.unlink(missing_ok=True)
