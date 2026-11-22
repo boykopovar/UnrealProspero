@@ -13,11 +13,13 @@ def require_tool(name):
 
 def environment(work):
     work = Path(work).resolve()
-    directories = {name: work / name for name in ('temp', 'dotnet', 'nuget', 'logs', 'ddc', 'zen')}
+    directories = {name: work / name for name in ('temp', 'dotnet', 'nuget', 'logs', 'ddc', 'zen', 'pip', 'cache')}
     for directory in directories.values():
         directory.mkdir(parents=True, exist_ok=True)
     result = dict(os.environ)
     result.update(TEMP=str(directories['temp']), TMP=str(directories['temp']), TMPDIR=str(directories['temp']), DOTNET_CLI_HOME=str(directories['dotnet']), NUGET_PACKAGES=str(directories['nuget']), UE_LogFolder=str(directories['logs']))
+    result['PIP_CACHE_DIR'] = str(directories['pip'])
+    result['XDG_CACHE_HOME'] = str(directories['cache'])
     result['UE-LocalDataCachePath'] = str(directories['ddc'])
     result['UE-ZenDataPath'] = str(directories['zen'])
     return result
