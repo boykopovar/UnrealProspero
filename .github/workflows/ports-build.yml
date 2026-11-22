@@ -20,6 +20,16 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.11'
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: sdk-cache
+        with:
+          path: build/sdk
+          key: ps5-sdk-linux-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py') }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: ports-cache
+        with:
+          path: build/ports
+          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
       - name: Install build tools
         run: |
           set -euo pipefail
@@ -27,13 +37,25 @@ jobs:
           sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv perl make
           echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
       - name: Prepare pinned public sources
-        run: python tools/PrepareSources.py --directory build/sources --work build/work
+        run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ steps.sdk-cache.outputs.cache-hit == 'true' && '--engine-only' || '' }}
       - name: Restore verified vendor inputs
         run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group sources
       - name: Build PS5 SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/sdk
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
       - name: Build PS5 libraries
+        if: steps.ports-cache.outputs.cache-hit != 'true'
         run: python tools/BuildPorts.py --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --output build/ports --work build/ports-work
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.ports-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/ports
+          key: ${{ steps.ports-cache.outputs.cache-primary-key }}
       - name: Archive Linux SDK
         run: tar -czf build/linux-sdk.tar.gz -C build/sdk sdk dependencies
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
