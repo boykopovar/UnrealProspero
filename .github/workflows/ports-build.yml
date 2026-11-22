@@ -8,6 +8,10 @@ permissions:
 
 env:
   GITHUB_TOKEN: ${{ github.token }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPILERCHECK: content
+  CCACHE_MAXSIZE: 3G
 
 jobs:
   build:
@@ -34,8 +38,23 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv perl make
+          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv perl make ccache
           echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: compiler-cache
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-v1-linux-ports-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-v1-linux-ports-
+      - name: Initialize compiler cache
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --zero-stats
+          cache=$(command -v ccache)
+          echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
       - name: Prepare pinned public sources
         run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ steps.sdk-cache.outputs.cache-hit == 'true' && '--engine-only' || '' }}
       - name: Restore verified vendor inputs
@@ -79,3 +98,11 @@ jobs:
             build/sdk-work/logs
             build/ports-work/logs
           if-no-files-found: error
+      - name: Compiler cache statistics
+        if: always() && env.UNREALPROSPERO_CCACHE != ''
+        run: '"$UNREALPROSPERO_CCACHE" --show-stats'
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: always() && !cancelled() && steps.compiler-cache.outcome == 'success'
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}

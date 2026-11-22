@@ -43,7 +43,8 @@ def main():
     sdk = output / 'sdk'
     dependencies = output / 'dependencies'
     sdk_build = work / 'sdk'
-    run([cmake, '-S', sdk_source, '-B', sdk_build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_C_COMPILER=' + cc, '-DCMAKE_CXX_COMPILER=' + cxx, '-DPython3_EXECUTABLE=' + str(python), '-DBUILD_TESTING=OFF', '-DANYDEVKIT_BUILD_DESKTOP_STARTUP=OFF', '-DANYDEVKIT_PACKAGE_VERSION=source-' + specification['anydevkit']['revision'][:12]], sources, work, logs / 'sdk-configure.log')
+    cache_options = ['-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON'] if os.environ.get('UNREALPROSPERO_CCACHE') is not None else []
+    run([cmake, '-S', sdk_source, '-B', sdk_build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_C_COMPILER=' + cc, '-DCMAKE_CXX_COMPILER=' + cxx, '-DPython3_EXECUTABLE=' + str(python), '-DBUILD_TESTING=OFF', '-DANYDEVKIT_BUILD_DESKTOP_STARTUP=OFF', '-DANYDEVKIT_PACKAGE_VERSION=source-' + specification['anydevkit']['revision'][:12], *cache_options], sources, work, logs / 'sdk-configure.log')
     run([cmake, '--build', sdk_build, '--parallel', options.jobs], sources, work, logs / 'sdk-build.log')
     run([cmake, '--install', sdk_build, '--component', 'sdk', '--prefix', sdk], sources, work, logs / 'sdk-install.log')
     run([python, sdk / 'tools/setup.py', dependencies, '--target', 'ps5', '--compiler', 'clang', '--anyps5-version', specification['anyps5']['version'], '--anycxx-version', specification['anycxx']['version'], '--cache', work / 'downloads'], sources, work, logs / 'sdk-dependencies.log')

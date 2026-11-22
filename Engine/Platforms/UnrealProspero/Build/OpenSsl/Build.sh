@@ -31,14 +31,21 @@ fi
 python -B "$script_directory/Prepare.py" "$source_directory"
 cd "$build_directory"
 target_flags=(--target=x86_64-unknown-linux-gnu "--sysroot=$sysroot" "-isystem$sysroot/usr/include/x86_64-linux-gnu" -fPIC -fno-stack-protector -fno-builtin -D__errno_location=__error)
-CC=clang AR=llvm-ar RANLIB=llvm-ranlib perl "$source_directory/Configure" linux-x86_64 \
+c_compiler=(clang)
+cxx_compiler=(clang++)
+if [[ -n ${UNREALPROSPERO_CCACHE:-} ]]; then
+    c_compiler=("$UNREALPROSPERO_CCACHE" clang)
+    cxx_compiler=("$UNREALPROSPERO_CCACHE" clang++)
+fi
+printf -v openssl_compiler '%q ' "${c_compiler[@]}"
+CC="$openssl_compiler" AR=llvm-ar RANLIB=llvm-ranlib perl "$source_directory/Configure" linux-x86_64 \
     no-shared no-apps no-tests no-engine no-dso no-module no-asm no-sock no-stdio \
     no-secure-memory no-async no-thread-pool no-argon2 no-ui-console no-autoload-config \
     --with-rand-seed=getrandom "${target_flags[@]}"
 make -j "$jobs" build_libs
 
 for bridge in Directory Entropy Environment FileStatus Once Time; do
-    clang++ "${target_flags[@]}" -nostdinc++ -isystem "$anycxx/include/c++/v1" \
+    "${cxx_compiler[@]}" "${target_flags[@]}" -nostdinc++ -isystem "$anycxx/include/c++/v1" \
         -isystem "$anycxx/include/anyps5" -isystem "$headers" -std=c++20 \
         -Wall -Wextra -Wpedantic -Werror -c "$script_directory/src/$bridge.cpp" -o "$bridge.o"
 done
