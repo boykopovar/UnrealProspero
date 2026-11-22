@@ -38,7 +38,8 @@ def main():
         native_runtime = name.startswith('Engine/Binaries/ThirdParty/FBX/') and '/' + host_binary + '/' in name and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes) or name.startswith('Engine/Source/ThirdParty/astcenc/Thunks/' + astc)
         editor_resources = name.startswith('Engine/Binaries/ThirdParty/CEF3/' + host_binary + '/') and '/Resources/' in name or name.startswith('Engine/Binaries/ThirdParty/svn/' + host_binary + '/')
         editor_libraries = name.startswith('Engine/Plugins/Interchange/Runtime/Source/ThirdParty/Draco/lib/' + host_binary + '/') or name.startswith('Engine/Source/ThirdParty/Boost/') and ('/x64/lib/' in name if os.name == 'nt' else '/Unix/x86_64-unknown-linux-gnu/lib/' in name)
-        tools = options.host_tools and (native_runtime or editor_resources or editor_libraries or name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
+        texture_codec = name.startswith('Engine/Source/Developer/TextureFormatOodle/Sdks/') and ('/redist/' + host_binary + '/' in name or '/include/' in name)
+        tools = options.host_tools and (native_runtime or editor_resources or editor_libraries or texture_codec or name.startswith('Engine/Source/ThirdParty/Intel/ISPC/bin/' + host + '/') or name.startswith('Engine/Binaries/' + uba) and not name.endswith(('.pdb', '.debug', '.sym')))
         if tools or managed or options.group in ('headers', 'sources', 'windows-tools') and headers or options.group in ('sources', 'windows-tools') and (sources or oodle) or options.group == 'windows-tools' and windows:
             selected.append(name)
     if not selected:
