@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "unreal": {
+    "version": "5.8.0",
+    "repository": "https://github.com/unicorn2022/UE5.8.0.git",
+    "revision": "bbba9c6afb546b9053ce9eafa2d4973a71aefaa0"
+  },
+  "anydevkit": {
+    "repository": "https://github.com/boykopovar/AnyDevKit.git",
+    "revision": "b7c902677f7cd18bf97c0c224eb215fedb393519"
+  },
+  "anycxx": {
+    "repository": "https://github.com/boykopovar/llvm-cxx-ps.git",
+    "revision": "896f759654e13a00967cfd3f9827019d3e91cfba",
+    "version": "v0.1.9"
+  },
+  "anyps5": {
+    "version": "v0.1.4"
+  }
+}
