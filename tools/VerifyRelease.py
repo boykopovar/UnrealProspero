@@ -5,6 +5,8 @@ import re
 import tarfile
 import zipfile
 
+from unreal_prospero.runtime_ports import verify_distributed_files
+
 
 def verify(packages, tag, assets=None):
     if not tag.startswith('v') or re.fullmatch('[A-Za-z0-9][A-Za-z0-9._-]*', tag[1:]) is None:
@@ -18,8 +20,10 @@ def verify(packages, tag, assets=None):
         if path.suffix == '.zip':
             with zipfile.ZipFile(path) as archive, archive.open('PackageManifest.json') as stream:
                 manifest = json.load(stream)
+                verify_distributed_files(archive.namelist())
         else:
             with tarfile.open(path, 'r:gz') as archive:
+                verify_distributed_files(member.name for member in archive if member.isfile())
                 member = archive.getmember('PackageManifest.json')
                 if not member.isfile():
                     raise ValueError('The package manifest must be a regular file')

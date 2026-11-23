@@ -7,6 +7,7 @@ from unreal_prospero.build import build_host, build_managed, require_dotnet
 from unreal_prospero.engine import require_engine
 from unreal_prospero.install import configure_sdk, install_files, source_files
 from unreal_prospero.process import require_tool
+from unreal_prospero.runtime_ports import prepare_runtime_ports, verify_distributed_files
 
 
 def require_sdk(sdk, dependencies):
@@ -44,9 +45,11 @@ def main():
     dotnet = None if options.skip_build else require_dotnet(engine, options.dotnet)
     work = options.work.resolve() if options.work is not None else engine / 'Engine/Intermediate/UnrealProspero'
     files = source_files(root, options.source)
+    verify_distributed_files(files)
     if options.sdk is not None:
         files = {name: digest for name, digest in files.items() if not Path(name).is_relative_to(bundled)}
-    install_files(root, engine, files)
+    runtime_sources = prepare_runtime_ports(engine, sdk, dependencies, work, cmake, options.jobs)
+    install_files(root, engine, files, runtime_sources)
     if options.sdk is None:
         sdk = engine / bundled / 'sdk'
         dependencies = engine / bundled / 'dependencies'

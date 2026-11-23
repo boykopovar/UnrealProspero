@@ -10,6 +10,7 @@ import zipfile
 
 from unreal_prospero.engine import contained_path, versions
 from unreal_prospero.install import digest, source_files
+from unreal_prospero.runtime_ports import verify_distributed_files
 
 
 def copy_tree(source, destination):
@@ -49,6 +50,7 @@ def main():
     port_manifest = json.loads((ports / 'PortsManifest.json').read_text(encoding='utf-8'))
     if port_manifest['schemaVersion'] != 1 or not port_manifest['files']:
         raise ValueError('Invalid PS5 library manifest')
+    verify_distributed_files(port_manifest['files'])
     for name, expected in port_manifest['files'].items():
         if not name.startswith('Engine/Platforms/UnrealProspero/') or name in files:
             raise ValueError(f'PS5 library file conflicts with extension source: {name}')
@@ -65,6 +67,7 @@ def main():
     copy_tree(sdk, stage / 'Engine/Platforms/UnrealProspero/SDK')
     payload = stage / 'Engine/Platforms'
     files = {path.relative_to(stage).as_posix(): digest(path) for path in sorted(payload.rglob('*')) if path.is_file()}
+    verify_distributed_files(files)
     manifest = {'schemaVersion': 1, 'version': options.version, 'sources': versions(), 'files': files}
     (stage / 'PackageManifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     host = 'windows' if os.name == 'nt' else 'linux'

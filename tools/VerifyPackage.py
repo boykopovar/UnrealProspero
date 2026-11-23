@@ -9,6 +9,7 @@ import zipfile
 
 from unreal_prospero.engine import contained_path, require_engine
 from unreal_prospero.process import require_tool, run
+from unreal_prospero.runtime_ports import verify_distributed_files
 
 
 def extract(archive, destination):
@@ -60,6 +61,7 @@ def main():
     if destination.exists():
         raise FileExistsError(destination)
     extract(packages[0], destination)
+    verify_distributed_files(path.relative_to(destination).as_posix() for path in destination.rglob('*') if path.is_file())
     before = native_changes(engine)
     cmake = options.cmake.resolve(strict=True) if options.cmake is not None else require_tool('cmake')
     command = [sys.executable, destination / 'tools/Install.py', '--engine', engine, '--cmake', cmake, '--skip-build']

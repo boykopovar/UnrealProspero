@@ -33,7 +33,7 @@ jobs:
         id: ports-cache
         with:
           path: build/ports
-          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
+          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'tools/unreal_prospero/ports.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
       - name: Install build tools
         run: |
           set -euo pipefail

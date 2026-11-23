@@ -51,9 +51,17 @@ def write_state(path, files, pending_files):
         pending.unlink(missing_ok=True)
 
 
-def install_files(root, engine, files):
+def install_files(root, engine, files, additional_sources=None):
     root = Path(root).resolve(strict=True)
     engine = Path(engine).resolve(strict=True)
+    sources = {name: contained_path(root, name) for name in files}
+    files = dict(files)
+    if additional_sources is not None:
+        for name, source in additional_sources.items():
+            if name in sources:
+                raise ValueError(f'Locally generated component conflicts with the package: {name}')
+            sources[name] = Path(source).resolve(strict=True)
+            files[name] = digest(sources[name])
     state = engine / 'Engine/Platforms/UnrealProspero/InstallManifest.json'
     previous = {}
     interrupted = {}
@@ -87,7 +95,7 @@ def install_files(root, engine, files):
         destination.parent.mkdir(parents=True, exist_ok=True)
         pending = destination.with_name(destination.name + '.' + uuid4().hex + '.install')
         try:
-            shutil.copy2(contained_path(root, name), pending)
+            shutil.copy2(sources[name], pending)
             if digest(pending) != expected:
                 raise ValueError(f'Copied extension file hash mismatch: {name}')
             pending.replace(destination)
