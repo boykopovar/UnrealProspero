@@ -10,6 +10,12 @@ Adds PS5 as a build target without modifying Unreal Engine source. A custom RHI 
 
 [UnrealGame](https://github.com/unicorn2022/UE5.8.0/blob/bbba9c6afb546b9053ce9eafa2d4973a71aefaa0/Engine/Source/UnrealGame.Target.cs) built with this extension runs on PS5 12.02.
 
+## Disclaimer
+
+UnrealProspero is an independent project and is not affiliated with, authorized or endorsed by Sony Interactive Entertainment or Epic Games.
+
+It does not include proprietary SDK, firmware or cryptographic keys.
+
 ## License
 
-This project is licensed under the GNU General Public License version 2 only.
+This project is licensed under the [GNU General Public License version 2 only](LICENSE).
