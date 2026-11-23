@@ -10,6 +10,18 @@ Adds PS5 as a build target without modifying Unreal Engine source. A custom RHI 
 
 [UnrealGame](https://github.com/unicorn2022/UE5.8.0/blob/bbba9c6afb546b9053ce9eafa2d4973a71aefaa0/Engine/Source/UnrealGame.Target.cs) built with this extension runs on PS5 12.02.
 
+## Installation
+
+Requires Unreal Engine 5.8.0 source with its dependencies restored, Python 3.11 or newer, CMake 3.24 or newer, Ninja, Clang/LLVM 20 and .NET 10. Add the build tools to `PATH`.
+
+Extract the release archive and run from its directory:
+
+```sh
+python tools/Install.py --engine "path/to/UnrealEngine"
+```
+
+Oodle, Bink Audio and RAD Audio are prepared locally from your Unreal Engine installation. They are excluded from releases because permission to redistribute them under their licenses has not been established.
+
 ## Disclaimer
 
 UnrealProspero is an independent project and is not affiliated with, authorized or endorsed by Sony Interactive Entertainment or Epic Games.
