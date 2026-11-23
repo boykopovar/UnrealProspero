@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--work', type=Path)
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--source', action='store_true')
-    parser.add_argument('--skip-build', action='store_true')
+    parser.add_argument('--skip-build', action='store_true', help='Skip editor and managed tool builds; prepare UE runtime components')
     options = parser.parse_args()
     if options.jobs < 1:
         raise ValueError('Job count must be positive')
@@ -57,7 +57,7 @@ def main():
     if not options.skip_build:
         build_managed(engine, dotnet, work)
         build_host(engine, dotnet, work, options.jobs)
-    print('Installed UnrealProspero for Unreal Engine 5.8.0' + ('; build skipped' if options.skip_build else ''), flush=True)
+    print('Installed UnrealProspero for Unreal Engine 5.8.0' + ('; editor and managed tool builds skipped' if options.skip_build else ''), flush=True)
 
 
 if __name__ == '__main__':

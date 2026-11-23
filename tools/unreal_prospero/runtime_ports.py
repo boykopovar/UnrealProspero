@@ -1,5 +1,6 @@
+import hashlib
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from .engine import contained_path
 from .install import digest
@@ -44,7 +45,10 @@ def prepare_runtime_ports(engine, sdk, dependencies, work, cmake, jobs):
             if not path.is_file():
                 raise FileNotFoundError('Required Oodle archive is missing from the Unreal Engine installation: ' + str(path))
     output = work / 'runtime-ports'
-    ports = Ports(engine, sdk, dependencies, work / 'runtime-build', output, str(cmake), jobs)
+    root = Path(__file__).resolve().parents[2]
+    identity = '\0'.join(str(path.resolve()) for path in (root, engine, sdk, dependencies))
+    build = work / 'runtime-build' / hashlib.sha256(identity.encode('utf-8')).hexdigest()[:16]
+    ports = Ports(engine, sdk, dependencies, build, output, str(cmake), jobs)
     ports.runtime_ports()
     ports.write_manifest()
     manifest = json.loads((output / 'PortsManifest.json').read_text(encoding='utf-8'))
