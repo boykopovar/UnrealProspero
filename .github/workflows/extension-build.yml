@@ -97,8 +97,20 @@ jobs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
       - name: Prepare pinned public sources
         run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ (runner.os == 'Linux' || steps.sdk-cache.outputs.cache-hit == 'true') && '--engine-only' || '' }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: engine-inputs
+        with:
+          path: build/downloads
+          key: unreal-packs-v1-${{ runner.os }}-editor-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-${{ hashFiles('tools/PrepareEngine.py') }}
+          restore-keys: unreal-packs-v1-${{ runner.os }}-editor-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-
       - name: Restore engine dependencies
-        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }} --host-tools --discard-cache
+        id: engine-dependencies
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }} --host-tools
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.engine-inputs.outputs.cache-hit != 'true'
+        with:
+          path: build/downloads
+          key: ${{ steps.engine-inputs.outputs.cache-primary-key }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         if: runner.os == 'Linux'
         with:
@@ -123,9 +135,20 @@ jobs:
           key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
       - name: Install platform source and SDK configuration
         run: python tools/Install.py --source --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --skip-build
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Linux'
+        id: linux-toolchain
+        with:
+          path: build/sources/unreal/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64
+          key: unreal-toolchain-v1-Linux-${{ hashFiles('build/sources/unreal/Engine/Config/Linux/Linux_SDK.json') }}
       - name: Prepare native Linux editor toolchain
         if: runner.os == 'Linux'
         run: bash build/sources/unreal/Engine/Build/BatchFiles/Linux/SetupToolchain.sh
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Linux' && steps.linux-toolchain.outputs.cache-hit != 'true'
+        with:
+          path: build/sources/unreal/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64
+          key: ${{ steps.linux-toolchain.outputs.cache-primary-key }}
       - name: Compile editor integration
         run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --no-link
       - name: Compile PS5 RHI and verify platform discovery

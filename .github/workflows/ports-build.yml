@@ -59,8 +59,19 @@ jobs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
       - name: Prepare pinned public sources
         run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ steps.sdk-cache.outputs.cache-hit == 'true' && '--engine-only' || '' }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: engine-inputs
+        with:
+          path: build/downloads
+          key: unreal-packs-v1-Linux-ports-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-${{ hashFiles('tools/PrepareEngine.py') }}
+          restore-keys: unreal-packs-v1-Linux-ports-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-
       - name: Restore verified vendor inputs
-        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group sources --discard-cache
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group sources
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.engine-inputs.outputs.cache-hit != 'true'
+        with:
+          path: build/downloads
+          key: ${{ steps.engine-inputs.outputs.cache-primary-key }}
       - name: Build PS5 SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++

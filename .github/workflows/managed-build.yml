@@ -29,8 +29,19 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Prepare public engine source
         run: python tools/PrepareSources.py --directory build/sources --work build/work --engine-only
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: engine-inputs
+        with:
+          path: build/downloads
+          key: unreal-packs-v1-${{ runner.os }}-managed-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-${{ hashFiles('tools/PrepareEngine.py') }}
+          restore-keys: unreal-packs-v1-${{ runner.os }}-managed-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-
       - name: Restore verified engine dependencies
-        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group managed --discard-cache
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group managed
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.engine-inputs.outputs.cache-hit != 'true'
+        with:
+          path: build/downloads
+          key: ${{ steps.engine-inputs.outputs.cache-primary-key }}
       - name: Build platform tools
         run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --install-source --managed-only
       - name: Verify platform discovery
