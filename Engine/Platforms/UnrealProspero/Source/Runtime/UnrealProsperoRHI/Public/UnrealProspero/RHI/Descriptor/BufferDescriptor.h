@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_DESCRIPTOR_BUFFER_H
 #define UNREALPROSPERO_RHI_DESCRIPTOR_BUFFER_H
 
+#include "CoreTypes.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>

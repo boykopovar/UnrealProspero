@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_DEVICE_MODULE_H
 #define UNREALPROSPERO_RHI_DEVICE_MODULE_H
 
+#include "CoreTypes.h"
 #include <DynamicRHI.h>
 
 namespace UnrealProspero::RHI

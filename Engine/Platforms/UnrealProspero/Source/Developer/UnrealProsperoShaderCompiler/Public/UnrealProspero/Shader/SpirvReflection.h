@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_SPIRV_REFLECTION_H
 #define UNREALPROSPERO_SHADER_SPIRV_REFLECTION_H
 
+#include "CoreTypes.h"
 #include "spirv_reflect.h"
 #include <cstdint>
 #include <span>

@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_COOK_GEOMETRY_INTERFACE_H
 #define UNREALPROSPERO_SHADER_COOK_GEOMETRY_INTERFACE_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 #include <span>
 #include <string>

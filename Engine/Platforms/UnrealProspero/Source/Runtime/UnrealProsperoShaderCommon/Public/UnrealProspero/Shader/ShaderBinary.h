@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_BINARY_H
 #define UNREALPROSPERO_SHADER_BINARY_H
 
+#include "CoreTypes.h"
 #include <array>
 #include <cstdint>
 #include <span>

@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_VERTEX_INPUT_LOCATIONS_H
 #define UNREALPROSPERO_SHADER_VERTEX_INPUT_LOCATIONS_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 #include <span>
 #include <string>

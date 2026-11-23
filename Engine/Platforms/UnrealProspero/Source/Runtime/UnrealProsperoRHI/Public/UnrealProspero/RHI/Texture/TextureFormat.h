@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_TEXTURE_FORMAT_H
 #define UNREALPROSPERO_RHI_TEXTURE_FORMAT_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 
 namespace UnrealProspero::RHI

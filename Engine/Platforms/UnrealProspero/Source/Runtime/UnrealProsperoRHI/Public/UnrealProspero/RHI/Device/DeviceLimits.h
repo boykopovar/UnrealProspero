@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_DEVICE_LIMITS_H
 #define UNREALPROSPERO_RHI_DEVICE_LIMITS_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 
 namespace UnrealProspero::RHI

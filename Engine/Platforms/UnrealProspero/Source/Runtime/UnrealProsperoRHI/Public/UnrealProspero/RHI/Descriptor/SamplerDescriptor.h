@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_SAMPLER_DESCRIPTOR_H
 #define UNREALPROSPERO_RHI_SAMPLER_DESCRIPTOR_H
 
+#include "CoreTypes.h"
 #include <array>
 #include <cstdint>
 
