@@ -37,7 +37,7 @@ def main():
         )
         windows = name.startswith(('Engine/Source/', 'Engine/Plugins/')) and name.lower().endswith(('.lib', '.dll'))
         native_runtime = name.startswith('Engine/Binaries/ThirdParty/FBX/') and '/' + host_binary + '/' in name and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes) or name.startswith('Engine/Source/ThirdParty/astcenc/Thunks/' + astc)
-        editor_resources = name.startswith('Engine/Binaries/ThirdParty/CEF3/' + host_binary + '/') and '/Resources/' in name or name.startswith('Engine/Binaries/ThirdParty/svn/' + host_binary + '/')
+        editor_resources = os.name == 'nt' and name.startswith('Engine/Build/Windows/Resources/') or name.startswith('Engine/Binaries/ThirdParty/CEF3/' + host_binary + '/') and '/Resources/' in name or name.startswith('Engine/Binaries/ThirdParty/svn/' + host_binary + '/')
         editor_libraries = name.startswith('Engine/Plugins/Interchange/Runtime/Source/ThirdParty/Draco/lib/' + host_binary + '/') or name.startswith('Engine/Source/ThirdParty/Boost/') and ('/x64/lib/' in name if os.name == 'nt' else '/Unix/x86_64-unknown-linux-gnu/lib/' in name)
         texture_codec = name.startswith('Engine/Source/Developer/TextureFormatOodle/Sdks/') and ('/redist/' + host_binary + '/' in name or '/include/' in name)
         shared_library = name.startswith(('Engine/Source/', 'Engine/Plugins/', 'Engine/Binaries/ThirdParty/')) and (name.endswith('.dll') if os.name == 'nt' else '.so' in Path(name).suffixes) and (any(part in name for part in ('/Win64/', '/Windows/', '/win-x64/')) or '-Win64-' in name if os.name == 'nt' else any(part in name for part in ('/Linux/', '/Unix/x86_64-unknown-linux-gnu/', '/linux-x86_64/')) or '-Linux-' in name)
