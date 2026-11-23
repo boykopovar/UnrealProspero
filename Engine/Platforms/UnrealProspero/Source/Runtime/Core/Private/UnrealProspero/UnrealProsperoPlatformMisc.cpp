@@ -2,15 +2,21 @@
 #include "UnrealProspero/UnrealProsperoPlatformProcess.h"
 #include "UnrealProspero/Kernel/SystemConfiguration.h"
 #include "UnrealProspero/Kernel/Debug.h"
+#include "UnrealProspero/Kernel/Result.h"
 #include "UnrealProspero/Text/Encoding.h"
 #include "prx/libkernel/File/include/File.hpp"
+#include "prx/libkernel/include/Api.hpp"
 #include <atomic>
 #include <stdexcept>
 #include <string>
 
 bool FUnrealProsperoPlatformMisc::IsDebuggerPresent()
 {
+#if UNREALPROSPERO_TARGET_PS5
+    return UnrealProspero::Kernel::IsDebuggerAttached();
+#else
     throw std::runtime_error("Debugger detection is not implemented for UnrealProspero");
+#endif
 }
 
 void FUnrealProsperoPlatformMisc::DebugBreak()
@@ -18,8 +24,14 @@ void FUnrealProsperoPlatformMisc::DebugBreak()
     UnrealProspero::Kernel::DebugBreak();
 }
 
-void FUnrealProsperoPlatformMisc::PromptForRemoteDebugging(bool)
+void FUnrealProsperoPlatformMisc::PromptForRemoteDebugging(bool isEnsure)
 {
+#if !UE_BUILD_SHIPPING
+    if (!bShouldPromptForRemoteDebugging || (isEnsure && !bPromptForRemoteDebugOnEnsure)) return;
+#else
+    static_cast<void>(isEnsure);
+    return;
+#endif
     throw std::runtime_error("Remote debugger attachment is not implemented");
 }
 
@@ -32,6 +44,9 @@ void FUnrealProsperoPlatformMisc::LowLevelOutputDebugString(const TCHAR* message
 {
     if (message == nullptr) throw std::invalid_argument("Null debug message");
     std::string text = UnrealProspero::Text::EncodeUtf8(message);
+#if UNREALPROSPERO_TARGET_PS5
+    UnrealProspero::Kernel::CheckResult(sceKernelDebugOutText(0, text.c_str()), "sceKernelDebugOutText");
+#else
     std::size_t offset = 0;
     while (offset < text.size())
     {
@@ -39,6 +54,7 @@ void FUnrealProsperoPlatformMisc::LowLevelOutputDebugString(const TCHAR* message
         if (written <= 0 || static_cast<std::uint64_t>(written) > text.size() - offset) throw std::runtime_error("Debug output write failed: " + std::to_string(written));
         offset += static_cast<std::size_t>(written);
     }
+#endif
 }
 
 int32 FUnrealProsperoPlatformMisc::NumberOfCoresIncludingHyperthreads()
@@ -49,7 +65,7 @@ int32 FUnrealProsperoPlatformMisc::NumberOfCoresIncludingHyperthreads()
 #if UNREALPROSPERO_TARGET_PS5
 const TCHAR* FUnrealProsperoPlatformMisc::RootDir()
 {
-    return FUnrealProsperoPlatformProcess::BaseDir();
+    return TEXT("/app0/");
 }
 
 const TCHAR* FUnrealProsperoPlatformMisc::EngineDir()

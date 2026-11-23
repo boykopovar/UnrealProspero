@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_HLSL_COMPILER_H
 #define UNREALPROSPERO_SHADER_HLSL_COMPILER_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 #include <string_view>
 #include <vector>

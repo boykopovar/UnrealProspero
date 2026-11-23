@@ -21,7 +21,6 @@ namespace UnrealProspero::File
         std::replace(value.begin(), value.end(), '\\', '/');
         std::string_view relative(value);
         const bool absolute = relative.front() == '/';
-        if (!absolute && relative.starts_with("../../../")) relative.remove_prefix(9);
         std::vector<std::string_view> components;
         const auto append = [&](std::string_view input, std::size_t floor)
         {
@@ -40,7 +39,7 @@ namespace UnrealProspero::File
             }
         };
         if (!absolute) append(root, 0);
-        const auto floor = components.size();
+        const std::size_t floor = absolute ? 0 : 1;
         append(relative, floor);
         std::string result = "/";
         for (const auto component : components)

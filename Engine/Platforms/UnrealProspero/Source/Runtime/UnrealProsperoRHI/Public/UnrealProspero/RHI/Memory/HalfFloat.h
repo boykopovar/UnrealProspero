@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_MEMORY_HALF_FLOAT_H
 #define UNREALPROSPERO_RHI_MEMORY_HALF_FLOAT_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 
 namespace UnrealProspero::RHI

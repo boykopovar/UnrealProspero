@@ -1,9 +1,12 @@
 #include "UnrealProspero/RHI/Pipeline/GraphicsPipeline.h"
+#include "UnrealProspero/RHI/Pipeline/ColorExportFormat.h"
 #include "UnrealProspero/RHI/Command/ColorBlend.h"
 #include "UnrealProspero/RHI/Command/DepthStencil.h"
 #include "UnrealProspero/RHI/Command/DepthBias.h"
 #include "UnrealProspero/RHI/Command/Rasterization.h"
+#include "UnrealProspero/RHI/Command/SampleCoverage.h"
 #include "prx/libSceAgc/DcbState/include/Registers.hpp"
+#include <array>
 #include <bit>
 #include <cmath>
 #include <limits>
@@ -49,7 +52,11 @@ namespace UnrealProspero::RHI
         depthStencil = static_cast<DepthStencilState*>(initializer.DepthStencilState);
         rasterizer = static_cast<RasterizerState*>(initializer.RasterizerState);
         auto& vertex = *static_cast<VertexShader*>(stages.VertexShaderRHI);
-        shaders = std::make_unique<GraphicsShaders>(vertex, static_cast<PixelShader*>(stages.PixelShaderRHI), static_cast<GeometryShader*>(stages.GetGeometryShader()), primitiveType);
+        auto* pixel = static_cast<PixelShader*>(stages.PixelShaderRHI);
+        std::array<EPixelFormat, MaxSimultaneousRenderTargets> targetFormats;
+        for (uint32 index = 0; index < description.RenderTargetsEnabled; ++index) targetFormats[index] = static_cast<EPixelFormat>(description.RenderTargetFormats[index]);
+        const auto colorExportFormat = pixel ? ResolveColorExportFormat(pixel->GetCode().GetBinary().ColorExportFormat, std::span(targetFormats.data(), description.RenderTargetsEnabled)) : 0;
+        shaders = std::make_unique<GraphicsShaders>(vertex, pixel, static_cast<GeometryShader*>(stages.GetGeometryShader()), primitiveType, colorExportFormat);
         if (!declaration && shaders->GetVertexInputLayout().GetVertexBufferUsageMask() != 0) throw std::invalid_argument("Vertex inputs require a vertex declaration");
     }
 
@@ -90,9 +97,13 @@ namespace UnrealProspero::RHI
 
     void GraphicsPipeline::RecordColorState(CommandBuffer& commands, uint32 stencilReference, const FLinearColor& blendFactor) const
     {
-        if (description.DepthStencilTargetFormat != PF_Unknown && description.DepthStencilTargetFormat != PF_ShadowDepth) throw std::runtime_error("Graphics depth format is not implemented");
-        const bool hasDepth = description.DepthStencilTargetFormat == PF_ShadowDepth && description.DepthStencilAccess.IsUsingDepth();
-        if (description.DepthStencilAccess.IsUsingStencil()) throw std::invalid_argument("Graphics pipeline has no stencil plane");
+        if (description.DepthStencilTargetFormat != PF_Unknown && description.DepthStencilTargetFormat != PF_ShadowDepth && description.DepthStencilTargetFormat != PF_DepthStencil) throw std::runtime_error("Graphics depth format is not implemented");
+        const bool hasDepth = description.DepthStencilTargetFormat != PF_Unknown && description.DepthStencilAccess.IsUsingDepth();
+        const bool hasStencil = description.DepthStencilTargetFormat == PF_DepthStencil && description.DepthStencilAccess.IsUsingStencil();
+        if (description.DepthStencilAccess.IsUsingStencil() && description.DepthStencilTargetFormat != PF_DepthStencil) throw std::invalid_argument("Graphics pipeline has no stencil plane");
+        const auto& stencil = depthStencil->GetDescription();
+        const bool writesStencil = stencil.StencilWriteMask != 0 && ((stencil.bEnableFrontFaceStencil && (stencil.FrontFaceStencilFailStencilOp != SO_Keep || stencil.FrontFacePassStencilOp != SO_Keep || stencil.FrontFaceDepthFailStencilOp != SO_Keep)) || (stencil.bEnableBackFaceStencil && (stencil.BackFaceStencilFailStencilOp != SO_Keep || stencil.BackFacePassStencilOp != SO_Keep || stencil.BackFaceDepthFailStencilOp != SO_Keep)));
+        if (hasStencil && writesStencil && !description.DepthStencilAccess.IsStencilWrite()) throw std::invalid_argument("Stencil write is enabled on a read-only attachment");
         if (hasDepth && depthStencil->GetDescription().bEnableDepthWrite && !description.DepthStencilAccess.IsDepthWrite()) throw std::invalid_argument("Depth write is enabled on a read-only attachment");
         const auto& raster = rasterizer->GetDescription();
         const bool depthBias = hasDepth && (raster.DepthBias != 0 || raster.SlopeScaleDepthBias != 0);
@@ -110,12 +121,13 @@ namespace UnrealProspero::RHI
         {
             if (!std::isfinite(factor)) throw std::invalid_argument("Blend factor must be finite");
         }
+        WriteSampleCoverage(commands, description.NumSamples);
         WriteColorBlendRegisters(commands, *blend, description.RenderTargetsEnabled);
-        WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, hasDepth, false, description.bDepthBounds);
+        WriteDepthStencilRegisters(commands, *depthStencil, stencilReference, hasDepth, hasStencil, description.bDepthBounds);
         if (hasDepth) WriteDepthBias(commands, raster.DepthBias, raster.SlopeScaleDepthBias);
         WriteRasterizationRegisters(commands, *rasterizer, 0x240, 0x1080000, depthBias);
         const std::array registers{
-            ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0010u : 0u},
+            ShaderRegister{0x202, description.RenderTargetsEnabled ? 0xcc0011u : 1u},
             ShaderRegister{0x206, 0x43f}, ShaderRegister{0x292, 0x22}, ShaderRegister{0x2f9, 0x2d},
             ShaderRegister{0x2fa, 0x3f800000}, ShaderRegister{0x2fb, 0x3f800000},
             ShaderRegister{0x2fc, 0x3f800000}, ShaderRegister{0x2fd, 0x3f800000}

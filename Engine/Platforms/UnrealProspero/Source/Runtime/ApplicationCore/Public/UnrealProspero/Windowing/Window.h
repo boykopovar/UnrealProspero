@@ -5,6 +5,7 @@
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "UnrealProspero/Video/Output.h"
 #include <memory>
+#include <optional>
 #include <atomic>
 
 namespace UnrealProspero::Windowing
@@ -18,6 +19,7 @@ namespace UnrealProspero::Windowing
         std::shared_ptr<Video::Output> GetOutput() const;
         std::shared_ptr<const std::atomic<bool>> CaptureVisibility() const;
         bool IsDestroyed() const;
+        bool PollActivation();
         void ReshapeWindow(int32 x, int32 y, int32 width, int32 height) override;
         bool GetFullScreenInfo(int32& x, int32& y, int32& width, int32& height) const override;
         void MoveWindowTo(int32 x, int32 y) override;
@@ -49,11 +51,16 @@ namespace UnrealProspero::Windowing
 
     private:
         void requireInitialized() const;
+        void setRestoredPosition(int32 x, int32 y);
         std::shared_ptr<Video::Output> output;
         TWeakPtr<FGenericApplicationMessageHandler> messageHandler;
+        EWindowMode::Type windowMode = UNREALPROSPERO_TARGET_PS5 ? EWindowMode::Fullscreen : EWindowMode::Windowed;
+        int32 restoredX = 0;
+        int32 restoredY = 0;
         int32 width = 0;
         int32 height = 0;
         std::shared_ptr<std::atomic<bool>> visible = std::make_shared<std::atomic<bool>>(false);
+        std::optional<bool> active;
         bool destroyed = false;
     };
 }

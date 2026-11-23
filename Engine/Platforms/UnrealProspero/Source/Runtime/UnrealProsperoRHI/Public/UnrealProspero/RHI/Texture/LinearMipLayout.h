@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_LINEAR_MIP_LAYOUT_H
 #define UNREALPROSPERO_RHI_LINEAR_MIP_LAYOUT_H
 
+#include "CoreTypes.h"
 #include <cstddef>
 #include <cstdint>
 #include <vector>

@@ -2,6 +2,7 @@
 #define UNREALPROSPERO_MEMORY_VIRTUAL_MEMORY_BLOCK_H
 
 #include "GenericPlatform/GenericPlatformMemory.h"
+#include "UnrealProspero/Kernel/MemoryConstants.h"
 #include <cstddef>
 
 namespace UnrealProspero::Memory
@@ -11,7 +12,7 @@ namespace UnrealProspero::Memory
     public:
         VirtualMemoryBlock() = default;
         VirtualMemoryBlock(void* address, uint32 pageCount);
-        static constexpr std::size_t GetCommitAlignment() { return 16384; }
+        static constexpr std::size_t GetCommitAlignment() { return UnrealProspero::Kernel::MemoryPageSize; }
         static constexpr std::size_t GetVirtualSizeAlignment() { return GetCommitAlignment(); }
         static VirtualMemoryBlock AllocateVirtual(std::size_t size, std::size_t alignment = GetVirtualSizeAlignment());
         std::size_t GetActualSize() const;

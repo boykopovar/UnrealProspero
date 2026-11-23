@@ -15,7 +15,7 @@ namespace UnrealProspero::RHI
         switch (type)
         {
         case Type::Texture:
-            if (!EnumHasAnyFlags(ResolveTextureResource(resource).GetDesc().Flags, ETextureCreateFlags::ShaderResource)) throw std::invalid_argument("Texture was not created for shader access");
+            if (!ResolveTextureResource(resource).SupportsShaderAccess()) throw std::invalid_argument("Texture does not support shader access");
             break;
         case Type::Sampler:
             if (resource->GetType() != RRT_SamplerState) throw std::invalid_argument("Sampler parameter has the wrong resource type");

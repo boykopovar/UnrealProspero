@@ -22,7 +22,7 @@
 #include "UnrealProspero/RHI/Command/BufferCopy.h"
 #include "UnrealProspero/RHI/Memory/Readback.h"
 #include "UnrealProspero/RHI/Memory/Upload.h"
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 #include "UnrealProspero/RHI/Texture/LinearTexture3D.h"
 #include "UnrealProspero/RHI/Memory/HalfFloat.h"
 #include "UnrealProspero/RHI/Command/DepthTarget.h"
@@ -66,7 +66,7 @@ namespace
         return result;
     }
 
-    void uploadCompressed(UnrealProspero::RHI::LinearTexture2D& texture, std::string_view operation)
+    void uploadCompressed(UnrealProspero::RHI::Texture2D& texture, std::string_view operation)
     {
         const auto blockBytes = UnrealProspero::RHI::DescribeTextureFormat(texture.GetFormat()).BlockBytes;
         std::vector<std::byte> blocks(4 * blockBytes);
@@ -290,10 +290,10 @@ int main()
     constexpr std::size_t inputOffset = 256;
     auto* input = reinterpret_cast<std::uint32_t*>(secondMemory.GetRange(inputOffset, 64 * sizeof(std::uint32_t)).data());
     std::vector<Shaders::RuntimeBinding> bindings;
-    std::unique_ptr<RHI::LinearTexture2D> texture;
+    std::unique_ptr<RHI::Texture2D> texture;
     if (withTexture)
     {
-        texture = std::make_unique<RHI::LinearTexture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, compressed ? *compressed : integerTexture ? (sintTexture ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), UnrealProspero::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
+        texture = std::make_unique<RHI::Texture2D>(mipView ? 16u : 8u, mipView ? 16u : 8u, compressed ? *compressed : integerTexture ? (sintTexture ? RHI::TextureFormat::R32Sint : RHI::TextureFormat::R32Uint) : textureView ? RHI::TextureFormat::Rgba8Srgb : halfRead ? RHI::TextureFormat::Rgba16Float : RHI::TextureFormat::R32Float, layout.GetAddressHigh(), UnrealProspero::Kernel::DirectAllocation::PageSize, mipView ? 5u : mipRead ? 4u : 1u, RHI::AllocationUsage::Texture, cubeArray ? 18u : cubeRead ? 12u : (arrayRead || layerRead) ? 5u : 1u);
         std::array<float, 64> texels;
         for (unsigned index = 0; index < texels.size(); ++index) texels[index] = static_cast<float>(textureWrite ? index * 7 + 1000 : index * 3 + 1);
         if (compressed) uploadCompressed(*texture, operation);

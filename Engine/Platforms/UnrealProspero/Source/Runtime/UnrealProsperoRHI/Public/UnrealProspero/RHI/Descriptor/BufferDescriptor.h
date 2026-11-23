@@ -1,13 +1,14 @@
 #ifndef UNREALPROSPERO_RHI_DESCRIPTOR_BUFFER_H
 #define UNREALPROSPERO_RHI_DESCRIPTOR_BUFFER_H
 
+#include "CoreTypes.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
 namespace UnrealProspero::RHI
 {
-    enum class BufferFormat { Untyped, Float1, Float2, Float3, Float4, Byte4Snorm, Byte4Uint, Byte4Unorm, Bgra8Unorm, Short2Sint, Short4Sint, Short2Snorm, Half2, Half4, Short4Snorm, Short2Uint, Short4Uint, Short2Unorm, Short4Unorm, Rgb10A2Unorm, Uint1 };
+    enum class BufferFormat { Untyped, Float1, Float2, Float3, Float4, Byte4Snorm, Byte4Uint, Byte4Unorm, Bgra8Unorm, Short2Sint, Short4Sint, Short2Snorm, Half2, Half4, Short4Snorm, Short2Uint, Short4Uint, Short2Unorm, Short4Unorm, Rgb10A2Unorm, Uint1, Uint2, Uint3, Uint4, Sint1, Sint3, Half1, Short1Uint, Short1Sint };
 
     UNREALPROSPERORHI_API std::uint32_t GetBufferElementSize(BufferFormat format);
     UNREALPROSPERORHI_API std::array<std::uint32_t, 4> CreateTypedBufferDescriptor(const void* address, std::size_t size, BufferFormat format);

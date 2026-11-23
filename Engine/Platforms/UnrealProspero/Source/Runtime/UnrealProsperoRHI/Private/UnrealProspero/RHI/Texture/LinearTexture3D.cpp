@@ -25,7 +25,7 @@ namespace UnrealProspero::RHI
         return size;
     }
 
-    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount) : width(width), height(height), depth(depth), format(format), mipLayouts(calculateMipLayout(width, height, depth, format, mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, AllocationUsage::Texture) {}
+    LinearTexture3D::LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount, AllocationUsage usage) : width(width), height(height), depth(depth), format(format), mipLayouts(calculateMipLayout(width, height, depth, format, mipCount)), rowPitch(mipLayouts.front().RowPitch), slicePitch(mipLayouts.front().Offset + mipLayouts.front().Size), storage(CalculateDataSize(width, height, depth, format, mipCount), addressHigh, Kernel::DirectAllocation::PageSize, usage) {}
 
     std::size_t LinearTexture3D::validateLayout(std::size_t size, std::size_t dataRowPitch, std::size_t dataSlicePitch, const LinearMipLayout& mip) const
     {
@@ -74,7 +74,7 @@ namespace UnrealProspero::RHI
         if (firstMip >= mipLayouts.size()) throw std::out_of_range("Volume view selects an unavailable mip");
         if (mipCount == 0) mipCount = GetMipCount() - firstMip;
         if (mipCount > GetMipCount() - firstMip) throw std::out_of_range("Volume view exceeds its mip chain");
-        auto result = LinearTexture2D::CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
+        auto result = Texture2D::CreateDescriptor(width, height, format, storage.Data(), disableSrgb);
         result[3] = (result[3] & 0x0fffffffu) | (10u << 28);
         result[3] |= (firstMip << 12) | ((firstMip + mipCount - 1) << 16);
         result[4] = depth - 1;

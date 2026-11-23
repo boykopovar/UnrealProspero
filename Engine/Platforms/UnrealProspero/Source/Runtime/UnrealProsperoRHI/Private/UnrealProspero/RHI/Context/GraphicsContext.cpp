@@ -1,4 +1,5 @@
 #include "UnrealProspero/RHI/Context/GraphicsContext.h"
+#include "UnrealProspero/RHI/Presentation/ViewportResource.h"
 #include "UnrealProspero/RHI/Command/Viewport.h"
 #include "UnrealProspero/RHI/Command/DepthBounds.h"
 #include "UnrealProspero/RHI/Command/IndirectDraw.h"
@@ -19,6 +20,13 @@
 namespace UnrealProspero::RHI
 {
     static_assert(!std::is_abstract_v<GraphicsContext>);
+    void GraphicsContext::PresentViewport(FRHIViewport* viewport, const FRHIPresentArgs& arguments)
+    {
+        if (!viewport || activeRenderPass) throw std::invalid_argument("Presentation requires a viewport outside a render pass");
+        presentedSwapChains.push_back(static_cast<ViewportResource*>(viewport)->CaptureSwapChain());
+        RecordCommands([&](CommandBuffer& commands) { static_cast<ViewportResource*>(viewport)->EndFrame(commands, arguments); });
+    }
+
     void GraphicsContext::RHIBeginRenderQuery(FRHIRenderQuery* query)
     {
         RecordCommands([&](CommandBuffer& commands)
@@ -118,7 +126,7 @@ namespace UnrealProspero::RHI
         });
     }
 
-    void GraphicsContext::UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer)
+    void GraphicsContext::UploadTexture(std::shared_ptr<const Texture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer)
     {
         RecordCommands([&](CommandBuffer& commands)
         {

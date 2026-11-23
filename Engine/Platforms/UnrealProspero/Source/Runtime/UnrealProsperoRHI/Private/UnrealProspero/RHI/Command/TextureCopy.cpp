@@ -51,7 +51,7 @@ namespace UnrealProspero::RHI
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
         const auto info = DescribeTextureFormat(source.GetFormat());
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Extent[0], source.GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Extent[0], source.GetFormat());
         const auto rows = (region.Extent[1] + info.BlockHeight - 1) / info.BlockHeight;
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
@@ -68,8 +68,9 @@ namespace UnrealProspero::RHI
         }
     }
 
-    void ValidateTextureCopy(const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
+    void ValidateTextureCopy(const Texture2D& destination, const Texture2D& source, const TextureCopyRegion& region)
     {
+        if (destination.GetLayout() != Texture2DLayout::Linear || source.GetLayout() != Texture2DLayout::Linear) throw std::runtime_error("GPU copies of tiled color textures are not implemented");
         if (region.SourceLayer >= source.GetArrayLayers() || region.DestinationLayer >= destination.GetArrayLayers()) throw std::out_of_range("Texture copy selects an unavailable array layer");
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
         const auto& destinationMip = destination.GetMipLayout(region.DestinationMip);
@@ -85,7 +86,7 @@ namespace UnrealProspero::RHI
         if (sourceStorage.Data() == destinationStorage.Data() && region.SourceMip == region.DestinationMip && region.SourceLayer == region.DestinationLayer && region.SourceX < region.DestinationX + region.Width && region.DestinationX < region.SourceX + region.Width && region.SourceY < region.DestinationY + region.Height && region.DestinationY < region.SourceY + region.Height) throw std::invalid_argument("Texture copy regions overlap");
     }
 
-    std::vector<TextureCopyRegion> BuildTextureCopyRegions(const LinearTexture2D& destination, const LinearTexture2D& source, TextureCopyRegion firstRegion, std::uint32_t mipCount, std::uint32_t layerCount)
+    std::vector<TextureCopyRegion> BuildTextureCopyRegions(const Texture2D& destination, const Texture2D& source, TextureCopyRegion firstRegion, std::uint32_t mipCount, std::uint32_t layerCount)
     {
         if (mipCount == 0 || firstRegion.SourceMip >= source.GetMipCount() || firstRegion.DestinationMip >= destination.GetMipCount() || mipCount > source.GetMipCount() - firstRegion.SourceMip || mipCount > destination.GetMipCount() - firstRegion.DestinationMip) throw std::out_of_range("Texture copy exceeds its mip chain");
         if (layerCount == 0 || firstRegion.SourceLayer >= source.GetArrayLayers() || firstRegion.DestinationLayer >= destination.GetArrayLayers() || layerCount > source.GetArrayLayers() - firstRegion.SourceLayer || layerCount > destination.GetArrayLayers() - firstRegion.DestinationLayer) throw std::out_of_range("Texture copy exceeds its array layers");
@@ -116,7 +117,7 @@ namespace UnrealProspero::RHI
         return regions;
     }
 
-    void WriteTextureCopy(CommandBuffer& commands, const LinearTexture2D& destination, const LinearTexture2D& source, const TextureCopyRegion& region)
+    void WriteTextureCopy(CommandBuffer& commands, const Texture2D& destination, const Texture2D& source, const TextureCopyRegion& region)
     {
         ValidateTextureCopy(destination, source, region);
         const auto& sourceMip = source.GetMipLayout(region.SourceMip);
@@ -124,7 +125,7 @@ namespace UnrealProspero::RHI
         const auto& sourceStorage = source.GetStorage();
         const auto& destinationStorage = destination.GetStorage();
         const auto info = DescribeTextureFormat(source.GetFormat());
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, source.GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Width, source.GetFormat());
         const auto rows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const GpuMemoryRange ranges[]{{sourceStorage.Data(), sourceStorage.Size()}, {destinationStorage.Data(), destinationStorage.Size()}};
         WriteMemoryAcquire(commands, ranges);

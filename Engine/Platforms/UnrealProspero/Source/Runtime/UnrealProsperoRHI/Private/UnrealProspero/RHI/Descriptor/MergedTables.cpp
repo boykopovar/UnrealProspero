@@ -7,17 +7,28 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        DescriptorStorage mergeTables(std::span<const DescriptorTables* const> sources, std::uint32_t addressHigh)
+        std::vector<std::vector<DescriptorRange>> collectRanges(std::span<const DescriptorTables* const> sources)
         {
-            if (sources.empty()) throw std::invalid_argument("No descriptor tables to merge");
-            std::vector<DescriptorRange> ranges;
-            std::array<std::size_t, 4> sizes{};
+            std::vector<std::vector<DescriptorRange>> result;
+            result.reserve(sources.size());
             for (std::size_t index = 0; index < sources.size(); ++index)
             {
                 const auto* source = sources[index];
                 if (!source) throw std::invalid_argument("Null descriptor table");
                 if (std::find(sources.begin(), sources.begin() + index, source) != sources.begin() + index) throw std::invalid_argument("Duplicate descriptor table");
-                for (const auto& range : source->GetRanges())
+                result.push_back(source->GetRanges());
+            }
+            return result;
+        }
+
+        DescriptorStorage mergeTables(std::span<const std::vector<DescriptorRange>> sources, std::uint32_t addressHigh)
+        {
+            if (sources.empty()) throw std::invalid_argument("No descriptor tables to merge");
+            std::vector<DescriptorRange> ranges;
+            std::array<std::size_t, 4> sizes{};
+            for (const auto& source : sources)
+            {
+                for (const auto& range : source)
                 {
                     const auto end = static_cast<std::uint64_t>(range.Offset) + range.Bytes.size();
                     if (range.Set >= sizes.size() || range.Bytes.empty() || end > std::numeric_limits<std::uint32_t>::max()) throw std::invalid_argument("Invalid descriptor range");
@@ -36,7 +47,8 @@ namespace UnrealProspero::RHI
         }
     }
 
-    MergedDescriptorTables::MergedDescriptorTables(std::span<const DescriptorTables* const> sources, std::uint32_t addressHigh) : storage(mergeTables(sources, addressHigh)) {}
+    MergedDescriptorTables::MergedDescriptorTables(std::span<const DescriptorTables* const> sources, std::uint32_t addressHigh) : storage(mergeTables(collectRanges(sources), addressHigh)) {}
+    MergedDescriptorTables::MergedDescriptorTables(std::span<const std::vector<DescriptorRange>> sources, std::uint32_t addressHigh) : storage(mergeTables(sources, addressHigh)) {}
     void MergedDescriptorTables::Apply(Shader::UserDataInputs& inputs) const { storage.Apply(inputs); }
     std::vector<GpuMemoryRange> MergedDescriptorTables::GetMemoryRanges() const { return storage.GetMemoryRanges(); }
 }

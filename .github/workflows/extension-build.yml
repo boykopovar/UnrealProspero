@@ -1,0 +1,186 @@
+name: platform extension
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPILERCHECK: content
+  CCACHE_MAXSIZE: 3G
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+          - os: windows-2022
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Windows'
+        id: sdk-cache
+        with:
+          path: build/sdk
+          key: ps5-sdk-windows-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py') }}
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo rm -rf -- /usr/local/lib/android
+          df -h "$GITHUB_WORKSPACE"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv ccache
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      - name: Install Windows build tools
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-llvm-tools
+            mingw-w64-ucrt-x86_64-lld
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-ccache
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: compiler-cache
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-v1-${{ runner.os }}-extension-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-v1-${{ runner.os }}-extension-
+      - name: Initialize Linux compiler cache
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --zero-stats
+          cache=$(command -v ccache)
+          echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+      - name: Initialize Windows compiler cache
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --zero-stats
+          cache=$(cygpath -m "$(command -v ccache)")
+          echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+      - name: Prepare pinned public sources
+        run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ (runner.os == 'Linux' || steps.sdk-cache.outputs.cache-hit == 'true') && '--engine-only' || '' }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: engine-inputs
+        with:
+          path: build/downloads
+          key: unreal-packs-v1-${{ runner.os }}-editor-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-${{ hashFiles('tools/PrepareEngine.py') }}
+          restore-keys: unreal-packs-v1-${{ runner.os }}-editor-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-
+      - name: Restore engine dependencies
+        id: engine-dependencies
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group ${{ runner.os == 'Windows' && 'windows-tools' || 'sources' }} --host-tools
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.engine-inputs.outputs.cache-hit != 'true'
+        with:
+          path: build/downloads
+          key: ${{ steps.engine-inputs.outputs.cache-primary-key }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: runner.os == 'Linux'
+        with:
+          name: linux-sdk
+          path: build
+      - name: Extract Linux SDK
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          mkdir -p build/sdk
+          tar -xzf build/linux-sdk.tar.gz -C build/sdk
+      - name: Build Windows SDK
+        if: runner.os == 'Windows' && steps.sdk-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          "$(cygpath -u "$pythonLocation")/python.exe" tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Windows' && steps.sdk-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/sdk
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+      - name: Install platform source and SDK configuration
+        run: python tools/Install.py --source --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --skip-build
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Linux'
+        id: linux-toolchain
+        with:
+          path: build/sources/unreal/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64
+          key: unreal-toolchain-v1-Linux-${{ hashFiles('build/sources/unreal/Engine/Config/Linux/Linux_SDK.json') }}
+      - name: Prepare native Linux editor toolchain
+        if: runner.os == 'Linux'
+        run: bash build/sources/unreal/Engine/Build/BatchFiles/Linux/SetupToolchain.sh
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: runner.os == 'Linux' && steps.linux-toolchain.outputs.cache-hit != 'true'
+        with:
+          path: build/sources/unreal/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64
+          key: ${{ steps.linux-toolchain.outputs.cache-primary-key }}
+      - name: Compile editor integration
+        run: python tools/Build.py --engine build/sources/unreal --work build/work --dotnet dotnet --no-link
+      - name: Compile PS5 RHI and verify platform discovery
+        run: python tools/Test.py --engine build/sources/unreal --work build/work --dotnet dotnet --sdk build/sdk/sdk --deps build/sdk/dependencies
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ps5-libraries
+          path: build/ports
+      - name: Package extension
+        run: python tools/Package.py --sdk build/sdk --ports build/ports --output build/packages --work build/archive-work --version "${GITHUB_SHA:0:12}"
+      - name: Verify archive installation
+        run: python tools/VerifyPackage.py --packages build/packages --engine build/sources/unreal --work build/installed-work
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unrealprospero-${{ matrix.platform }}
+          path: build/packages/*
+          if-no-files-found: error
+          compression-level: 0
+      - name: Compiler cache statistics
+        if: always() && env.UNREALPROSPERO_CCACHE != ''
+        run: '"$UNREALPROSPERO_CCACHE" --show-stats --verbose'
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: always() && !cancelled() && steps.compiler-cache.outcome == 'success'
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: extension-logs-${{ matrix.platform }}
+          path: |
+            build/work/logs
+            build/sdk-work/logs
+            build/installed-work/logs
+          if-no-files-found: error

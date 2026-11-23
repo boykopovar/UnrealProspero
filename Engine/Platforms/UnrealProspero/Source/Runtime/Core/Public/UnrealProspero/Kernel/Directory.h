@@ -3,8 +3,8 @@
 
 #include "UnrealProspero/Kernel/Descriptor.h"
 #include "prx/libc/include/GuestDirectory.hpp"
-#include <array>
 #include <optional>
+#include <vector>
 
 namespace UnrealProspero::Kernel
 {
@@ -19,7 +19,7 @@ namespace UnrealProspero::Kernel
 
     private:
         Descriptor descriptor;
-        std::array<char, 4096> buffer{};
+        std::vector<char> buffer;
         std::size_t offset = 0;
         std::size_t available = 0;
         bool finished = false;

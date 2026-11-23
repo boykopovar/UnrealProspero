@@ -2,7 +2,6 @@
 #include <limits>
 #include <cstring>
 #include <stdexcept>
-#include <algorithm>
 #include <atomic>
 #if UNREALPROSPERO_WITH_UE_TRACKING
 #include "HAL/LowLevelMemTracker.h"
@@ -15,12 +14,6 @@ namespace UnrealProspero::RHI
     {
         std::atomic<std::uint64_t> textureAllocationBytes{0};
         std::atomic<std::uint64_t> streamingTextureAllocationBytes{0};
-        void* addressHint(std::uint32_t high, std::size_t alignment)
-        {
-            if (high > 0x7fff) throw std::invalid_argument("GPU buffer aperture exceeds user address space");
-            const auto base = static_cast<std::uint64_t>(high) << 32;
-            return reinterpret_cast<void*>(static_cast<std::uintptr_t>(base == 0 ? std::max<std::uint64_t>(65536, alignment) : base));
-        }
     }
 
     std::size_t BufferAllocation::CalculateAllocationSize(std::size_t size)
@@ -30,7 +23,7 @@ namespace UnrealProspero::RHI
         return (size + pageSize - 1) & ~(pageSize - 1);
     }
 
-    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, AllocationUsage usage) : allocation(CalculateAllocationSize(size), alignment, Kernel::DirectMemoryAccess::CpuGpu, addressHint(addressHigh, alignment)), size(size), usage(usage)
+    BufferAllocation::BufferAllocation(std::size_t size, std::uint32_t addressHigh, std::size_t alignment, AllocationUsage usage, AllocationInitialization initialization) : allocation(CalculateAllocationSize(size), addressHigh, alignment, (size + 255) & ~std::size_t{255}, initialization), size(size), usage(usage)
     {
         if (usage != AllocationUsage::Buffer && usage != AllocationUsage::Texture && usage != AllocationUsage::StreamingTexture) throw std::invalid_argument("Invalid GPU allocation usage");
         const auto address = reinterpret_cast<std::uintptr_t>(allocation.Data());

@@ -2,9 +2,11 @@
 #include "UnrealProspero/Kernel/DirectAllocation.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libkernel/include/Api.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::Kernel
 {
@@ -30,8 +32,8 @@ namespace UnrealProspero::Kernel
             const int result = sceKernelDirectMemoryQuery(cursor, 1, &range, sizeof(range));
             if (result == SCE_KERNEL_ERROR_EACCES) break;
             CheckResult(result, "sceKernelDirectMemoryQuery");
-            if (range.Start < cursor || range.End <= range.Start || static_cast<std::uint64_t>(range.End) > budget.Direct.Capacity || range.Start % DirectAllocation::PageSize != 0 || range.End % DirectAllocation::PageSize != 0) throw std::runtime_error("Invalid direct memory range");
-            budget.Direct.Available -= static_cast<std::uint64_t>(range.End - range.Start);
+            if (range.Start < 0 || range.End <= cursor || range.End <= range.Start || static_cast<std::uint64_t>(range.End) > budget.Direct.Capacity || range.Start % DirectAllocation::PageSize != 0 || range.End % DirectAllocation::PageSize != 0) throw std::runtime_error("Invalid direct memory range: cursor=" + std::to_string(cursor) + ", start=" + std::to_string(range.Start) + ", end=" + std::to_string(range.End) + ", capacity=" + std::to_string(budget.Direct.Capacity) + ", type=" + std::to_string(range.Type));
+            budget.Direct.Available -= static_cast<std::uint64_t>(range.End - std::max(cursor, range.Start));
             cursor = range.End;
         }
         std::size_t configured = 0;

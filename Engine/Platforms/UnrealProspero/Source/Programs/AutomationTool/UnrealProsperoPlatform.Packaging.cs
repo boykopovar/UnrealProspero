@@ -35,6 +35,8 @@ public abstract partial class UnrealProsperoPlatform
             }
             return;
         }
+        string commandLine = Path.Combine(context.StageDirectory.FullName, "UECommandLine.txt");
+        if (!File.Exists(commandLine) || string.IsNullOrWhiteSpace(File.ReadAllText(commandLine))) throw new AutomationException("A PS5 image requires a staged UECommandLine.txt");
         if (context.StageTargets.Count != 1) throw new AutomationException("A PS5 image requires exactly one target receipt");
         TargetReceipt receipt = context.StageTargets[0].Receipt;
         BuildProduct[] executables = receipt.BuildProducts.Where(product => product.Type == BuildProductType.Executable).ToArray();

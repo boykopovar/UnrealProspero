@@ -5,7 +5,7 @@
 
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;
-struct FShaderPreprocessOutput;
+class FShaderPreprocessOutput;
 
 namespace UnrealProspero::Shader
 {

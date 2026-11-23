@@ -6,6 +6,6 @@ public class UnrealProsperoShaderCommon : ModuleRules
     {
         CppStandard = CppStandardVersion.Cpp20;
         bEnableExceptions = true;
-        PrivateDependencyModuleNames.Add("Core");
+        PublicDependencyModuleNames.AddRange(new[] { "Core", "RHI" });
     }
 }

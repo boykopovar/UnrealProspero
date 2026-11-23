@@ -1,0 +1,24 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  managed:
+    uses: ./.github/workflows/managed-build.yml
+  extension:
+    needs: [managed, ports]
+    uses: ./.github/workflows/extension-build.yml
+  ports:
+    uses: ./.github/workflows/ports-build.yml

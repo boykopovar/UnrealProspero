@@ -45,6 +45,8 @@ public sealed class SdkInstallation
         if (targets.Count == 0) throw new InvalidDataException("No dependency targets installed");
     }
 
+    public bool HasTarget(Target target) => targets.Contains(target);
+
     public static string GetTargetName(Target target) => target switch
     {
         Target.Windows => "windows",

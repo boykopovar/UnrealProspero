@@ -45,10 +45,11 @@ internal sealed partial class UnrealProsperoToolChain
         }
         List<string> options = new(CommandLineArguments.Split(environment.AdditionalArguments));
         if (environment.bAllowLTCG) options.Add(Options.HasFlag(ClangToolChainOptions.EnableThinLTO) ? "-flto=thin" : "-flto");
-        if (environment.bCreateMapFile)
+        if (environment.bCreateMapFile || target == Target.Ps5)
         {
             string mapFile = output.AbsolutePath + ".map";
             options.Add("-Wl,-Map," + mapFile);
+            if (target == Target.Ps5) options.Add("-Wl,--cref");
             action.ProducedItems.Add(FileItem.GetItemByPath(mapFile));
         }
         string configuration = environment.Configuration switch { CppConfiguration.Debug => "Debug", CppConfiguration.Development => "RelWithDebInfo", CppConfiguration.Shipping => "Release", _ => throw new BuildException("Unknown linker configuration") };

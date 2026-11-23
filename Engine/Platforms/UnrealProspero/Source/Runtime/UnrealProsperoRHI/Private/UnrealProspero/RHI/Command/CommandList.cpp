@@ -1,4 +1,5 @@
 #include "UnrealProspero/RHI/Command/CommandList.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgcDriver/Submit/include/Dcb.hpp"
 #include <atomic>
@@ -21,17 +22,25 @@ namespace UnrealProspero::RHI
 
     void CommandList::Submit()
     {
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoSubmitCommands);
         if (submitted) throw std::runtime_error("Command list has already been submitted");
         submitted = true;
         std::atomic_thread_fence(std::memory_order_seq_cst);
         Kernel::CheckResult(sceAgcDriverSubmitDcb(&packet), "sceAgcDriverSubmitDcb");
+        CSV_CUSTOM_STAT_GLOBAL(UnrealProsperoSubmittedLists, 1, ECsvCustomStatOp::Accumulate);
     }
 
-    bool CommandList::IsComplete() const { return submitted && context->completion.IsComplete(); }
+    bool CommandList::IsComplete() const { return submitted && context->completion->IsComplete(); }
+
+    std::shared_ptr<const Completion> CommandList::CaptureCompletion() const
+    {
+        if (!submitted) throw std::runtime_error("Command list has not been submitted");
+        return context->completion;
+    }
 
     void CommandList::Wait(std::uint64_t timeoutMicroseconds) const
     {
         if (!submitted) throw std::runtime_error("Command list has not been submitted");
-        context->completion.Wait(timeoutMicroseconds);
+        context->completion->Wait(timeoutMicroseconds);
     }
 }

@@ -1,4 +1,5 @@
 #include "UnrealProspero/UnrealProsperoPlatformFile.h"
+#include "UnrealProspero/File/Path.h"
 #include <stdexcept>
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
@@ -18,7 +19,8 @@ void FUnrealProsperoPlatformFile::SetLowerLevel(IPlatformFile*)
     throw std::logic_error("Physical file system cannot wrap another file system");
 }
 
-FString FUnrealProsperoPlatformFile::GetFilenameOnDisk(const TCHAR*)
+FString FUnrealProsperoPlatformFile::GetFilenameOnDisk(const TCHAR* filename)
 {
-    throw std::runtime_error("Canonical on-disk file paths are not implemented");
+    const auto path = UnrealProspero::File::ViewPath(filename);
+    return FString(static_cast<int32>(path.size()), path.data());
 }

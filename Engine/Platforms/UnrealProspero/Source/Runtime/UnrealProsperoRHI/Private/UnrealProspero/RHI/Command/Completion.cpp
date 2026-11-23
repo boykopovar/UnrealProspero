@@ -1,4 +1,7 @@
 #include "UnrealProspero/RHI/Command/Completion.h"
+#if UNREALPROSPERO_WITH_UE_TRACKING
+#include "ProfilingDebugging/CsvProfiler.h"
+#endif
 #include "UnrealProspero/Kernel/Result.h"
 #include "prx/libSceAgc/Cb/include/Sync.hpp"
 #include "prx/libkernel/Time/include/Time.hpp"
@@ -17,7 +20,7 @@ namespace UnrealProspero::RHI
     {
         if (written) throw std::runtime_error("GPU completion marker has already been recorded");
         written = true;
-        sceAgcCbReleaseMem(&commands, 0x2d, 0x70f, 0, 0, static_cast<Label*>(storage.Data()), 2, 1, 0, 0, 3, 0);
+        sceAgcCbReleaseMem(&commands, 0x14, 0x70f, 0, 0, static_cast<Label*>(storage.Data()), 2, 1, 0, 0, 3, 0);
     }
 
     bool Completion::IsComplete() const
@@ -27,6 +30,9 @@ namespace UnrealProspero::RHI
 
     void Completion::Wait(std::uint64_t timeoutMicroseconds) const
     {
+#if UNREALPROSPERO_WITH_UE_TRACKING
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoWaitForGpuCompletion);
+#endif
         if (!written || timeoutMicroseconds == 0) throw std::invalid_argument("GPU completion wait requires a recorded marker and a positive timeout");
         const auto start = sceKernelGetProcessTime();
         while (!IsComplete())

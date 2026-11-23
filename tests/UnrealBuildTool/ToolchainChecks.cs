@@ -118,14 +118,32 @@ internal static class ToolchainChecks
         }
         foreach (IExternalAction action in makefile.Actions)
         {
-            if (rhiOnly && !action.ProducedItems.Any(item => item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "rhi")))) continue;
+            if (rhiOnly && !action.ProducedItems.Any(item => item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "rhi")) || item.Location.IsUnderDirectory(DirectoryReference.Combine(intermediate, "platform")))) continue;
             foreach (FileItem input in action.PrerequisiteItems)
             {
                 if (!File.Exists(input.AbsolutePath)) throw new FileNotFoundException("Missing action prerequisite", input.AbsolutePath);
             }
             Directory.CreateDirectory(action.WorkingDirectory.FullName);
             foreach (FileItem product in action.ProducedItems) Directory.CreateDirectory(Path.GetDirectoryName(product.AbsolutePath)!);
-            await new ToolCommand(action.CommandPath.FullName, action.WorkingDirectory.FullName, CommandLineArguments.Split(action.CommandArguments)).ExecuteAsync(CancellationToken.None);
+            string executablePath = action.CommandPath.FullName;
+            IEnumerable<string> commandArguments = CommandLineArguments.Split(action.CommandArguments);
+            string? cache = Environment.GetEnvironmentVariable("UNREALPROSPERO_CCACHE");
+            if (cache != null && action.ActionType == ActionType.Compile)
+            {
+                if (!File.Exists(cache)) throw new FileNotFoundException("Missing compiler cache launcher", cache);
+                if (OperatingSystem.IsWindows() && Path.GetFileName(executablePath).StartsWith("clang", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string argument in commandArguments.Where(value => value.StartsWith('@')))
+                    {
+                        string response = Path.GetFullPath(argument[1..], action.WorkingDirectory.FullName);
+                        string[] lines = File.ReadAllLines(response);
+                        if (lines.Contains("-fdiagnostics-format=msvc", StringComparer.Ordinal)) File.WriteAllLines(response, lines.Where(line => line != "-fdiagnostics-format=msvc"));
+                    }
+                }
+                commandArguments = new[] { executablePath }.Concat(commandArguments);
+                executablePath = cache;
+            }
+            await new ToolCommand(executablePath, action.WorkingDirectory.FullName, commandArguments).ExecuteAsync(CancellationToken.None);
             if (action.ProducedItems.Any(item => !File.Exists(item.AbsolutePath))) throw new InvalidDataException("Action did not produce its declared outputs");
         }
         if (rhiOnly)

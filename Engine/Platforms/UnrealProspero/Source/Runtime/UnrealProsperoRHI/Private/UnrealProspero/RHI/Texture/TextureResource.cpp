@@ -6,11 +6,22 @@
 #include "Misc/ScopeLock.h"
 #include <stdexcept>
 #include <algorithm>
+#include <string>
 
 namespace UnrealProspero::RHI
 {
     namespace
     {
+        AllocationUsage allocationUsage(const FRHITextureDesc& description)
+        {
+            return EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Streamable) && !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking) ? AllocationUsage::StreamingTexture : AllocationUsage::Texture;
+        }
+
+        bool isDepthTarget(const FRHITextureDesc& description)
+        {
+            return description.Format == PF_DepthStencil || (description.Format == PF_ShadowDepth && EnumHasAnyFlags(description.Flags, ETextureCreateFlags::DepthStencilTargetable));
+        }
+
         void validateDescription(const FRHITextureDesc& description)
         {
             const bool volume = description.Dimension == ETextureDimension::Texture3D;
@@ -21,36 +32,42 @@ namespace UnrealProspero::RHI
             if (cube && description.Extent.X != description.Extent.Y) throw std::invalid_argument("Cube texture faces must be square");
             if (volume && (description.Depth == 0 || description.Depth > DeviceLimits::Texture3D || description.Extent.X > static_cast<int32>(DeviceLimits::Texture3D) || description.Extent.Y > static_cast<int32>(DeviceLimits::Texture3D))) throw std::invalid_argument("Volume texture extent exceeds hardware limits");
             if (description.Extent.X <= 0 || description.Extent.Y <= 0 || description.Extent.X > static_cast<int32>(DeviceLimits::Texture2D) || description.Extent.Y > static_cast<int32>(DeviceLimits::Texture2D)) throw std::invalid_argument("Texture extent exceeds hardware limits");
-            if (description.GPUMask.GetNative() != 1 || !description.AliasableFormats.IsEmpty() || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture creation requires an unimplemented allocation or format mode");
+            if (description.GPUMask.GetNative() != 1 || description.ExtData != 0 || description.UAVFormat != PF_Unknown) throw std::runtime_error("Texture allocation mode is not implemented: gpu=" + std::to_string(description.GPUMask.GetNative()) + ", aliases=" + std::to_string(description.AliasableFormats.Num()) + ", ext=" + std::to_string(description.ExtData) + ", uav=" + std::to_string(static_cast<int>(description.UAVFormat)) + ", format=" + std::to_string(static_cast<int>(description.Format)));
+            for (const auto format : description.AliasableFormats)
+            {
+                if (format != description.Format && !(description.Format == PF_DepthStencil && format == PF_X24_G8)) throw std::runtime_error("Texture alias format is not implemented: " + std::to_string(static_cast<int>(format)) + ", base=" + std::to_string(static_cast<int>(description.Format)));
+            }
             using Flags = ETextureCreateFlags;
+            if (description.Format == PF_ShadowDepth && !isDepthTarget(description) && EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::UAV | Flags::Presentable | Flags::SRGB)) throw std::invalid_argument("Shader-only depth texture flags are incompatible with its format");
             if ((description.Format == PF_R32_UINT || description.Format == PF_R32_SINT) && EnumHasAnyFlags(description.Flags, Flags::RenderTargetable)) throw std::runtime_error("Integer render targets are not implemented");
-            if (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::Presentable))
+            if (isDepthTarget(description) || EnumHasAnyFlags(description.Flags, Flags::Presentable))
             {
                 if (description.NumMips != 1) throw std::runtime_error("Depth and presentable mip chains are not implemented");
             }
             else if (volume) LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
-            else LinearTexture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
-            if ((array || cube) && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Array depth and presentable targets are not implemented");
-            if (volume && (description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, Flags::RenderTargetable | Flags::DepthStencilTargetable | Flags::Presentable))) throw std::runtime_error("Volume render targets are not implemented");
-            if (description.Format == PF_ShadowDepth)
+            else Texture2D::CalculateMipLayout(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)), description.NumMips);
+            if ((array || cube) && EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Array depth and presentable targets are not implemented");
+            if (volume && EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable | Flags::Presentable)) throw std::runtime_error("Volume depth and presentable targets are not implemented");
+            if (isDepthTarget(description))
             {
-                constexpr auto depthFlags = Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
-                if (!EnumHasAnyFlags(description.Flags, Flags::DepthStencilTargetable)) throw std::invalid_argument("Depth texture requires depth target usage");
-                if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior");
+                if (description.Dimension != ETextureDimension::Texture2D) throw std::runtime_error("Tiled depth storage requires a 2D texture");
+                constexpr auto depthFlags = Flags::InputAttachmentRead | Flags::TargetArraySlicesIndependently | Flags::ForceIntoNonStreamingMemoryTracking | Flags::NoFastClearFinalize | Flags::ShaderResource | Flags::DepthStencilTargetable | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore;
+                if (EnumHasAnyFlags(description.Flags, ~depthFlags)) throw std::runtime_error("Depth texture flags require unimplemented behavior: " + std::to_string(static_cast<std::uint64_t>(description.Flags & ~depthFlags)));
                 return;
             }
             const auto formatInfo = DescribeTextureFormat(ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, Flags::SRGB)));
+            if (description.Format == PF_A8 && EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable)) throw std::invalid_argument("Alpha-only textures do not support render target or unordered access usage");
+            if (EnumHasAnyFlags(description.Flags, Flags::AtomicCompatible) && description.Format != PF_R32_UINT && description.Format != PF_R32_SINT) throw std::runtime_error("Texture atomics require a supported 32-bit integer format: " + std::to_string(static_cast<int>(description.Format)));
             if (formatInfo.BlockWidth > 1 && EnumHasAnyFlags(description.Flags, Flags::UAV | Flags::RenderTargetable | Flags::Presentable)) throw std::invalid_argument("Compressed textures do not support render target or unordered access usage");
-            if ((volume || array || cube) && EnumHasAnyFlags(description.Flags, Flags::Streamable)) throw std::invalid_argument("Only 2D textures can use the streaming pool");
-            constexpr auto supported = Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
-            if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8) throw std::invalid_argument("Presentable texture format is not supported");
-            if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior");
+            constexpr auto supported = Flags::AtomicCompatible | Flags::Tiling3D | Flags::ReduceMemoryWithTilingMode | Flags::InputAttachmentRead | Flags::NoFastClearFinalize | Flags::TargetArraySlicesIndependently | Flags::OfflineProcessed | Flags::Streamable | Flags::ForceIntoNonStreamingMemoryTracking | Flags::ShaderResource | Flags::UAV | Flags::RenderTargetable | Flags::SRGB | Flags::NoTiling | Flags::NoFastClear | Flags::DisableDCC | Flags::FastVRAM | Flags::HideInVisualizeTexture | Flags::MultiGPUGraphIgnore | Flags::CPUReadback | Flags::Presentable;
+            if (EnumHasAnyFlags(description.Flags, Flags::Presentable) && description.Format != PF_B8G8R8A8 && description.Format != PF_R8G8B8A8 && description.Format != PF_A2B10G10R10) throw std::invalid_argument("Presentable texture format is not supported");
+            if (EnumHasAnyFlags(description.Flags, ~supported)) throw std::runtime_error("Texture flags require unimplemented behavior: " + std::to_string(static_cast<std::uint64_t>(description.Flags & ~supported)));
         }
 
         const FRHITextureCreateDesc& validate(const FRHITextureCreateDesc& description)
         {
             validateDescription(description);
-            if (description.Format == PF_ShadowDepth && description.InitAction != ERHITextureInitAction::Default) throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
+            if (isDepthTarget(description) && description.InitAction != ERHITextureInitAction::Default) throw std::runtime_error("CPU initialization of tiled depth textures is not implemented");
             switch (description.InitAction)
             {
             case ERHITextureInitAction::Default:
@@ -77,23 +94,23 @@ namespace UnrealProspero::RHI
     std::size_t TextureResource::CalculateAlignment(const FRHITextureDesc& description)
     {
         validateDescription(description);
-        return description.Format == PF_ShadowDepth || EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Presentable) ? 65536 : Kernel::DirectAllocation::PageSize;
+        return isDepthTarget(description) || EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Presentable) ? 65536 : Kernel::DirectAllocation::PageSize;
     }
 
     std::size_t TextureResource::CalculateAllocationSize(const FRHITextureDesc& description, std::uint32_t firstMip)
     {
         validateDescription(description);
         if (firstMip >= description.NumMips) throw std::out_of_range("Texture size selects an unavailable mip");
-        if (description.Format == PF_ShadowDepth) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y);
+        if (isDepthTarget(description)) return DepthTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Format == PF_DepthStencil);
         if (description.Dimension == ETextureDimension::Texture3D) return BufferAllocation::CalculateAllocationSize(LinearTexture3D::CalculateDataSize(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip));
-        return BufferAllocation::CalculateAllocationSize(LinearTexture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip) * description.ArraySize * (description.IsTextureCube() ? 6 : 1));
+        return BufferAllocation::CalculateAllocationSize(Texture2D::CalculateDataSize(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), description.NumMips, firstMip) * description.ArraySize * (description.IsTextureCube() ? 6 : 1));
     }
 
     TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::uint32_t addressHigh) : FRHITexture(validate(description)), initialized(description.InitAction != ERHITextureInitAction::Initializer)
     {
-        if (description.Format == PF_ShadowDepth) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh);
-        else if (description.Dimension == ETextureDimension::Texture3D) volumeStorage = std::make_shared<LinearTexture3D>(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, description.NumMips);
-        else storage = std::make_shared<LinearTexture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description), description.NumMips, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::Streamable) && !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking) ? AllocationUsage::StreamingTexture : AllocationUsage::Texture, description.ArraySize * (description.IsTextureCube() ? 6 : 1));
+        if (isDepthTarget(description)) depthStorage = std::make_shared<DepthTexture2D>(description.Extent.X, description.Extent.Y, addressHigh, description.Format == PF_DepthStencil);
+        else if (description.Dimension == ETextureDimension::Texture3D) volumeStorage = std::make_shared<LinearTexture3D>(description.Extent.X, description.Extent.Y, description.Depth, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, description.NumMips, allocationUsage(description));
+        else storage = std::make_shared<Texture2D>(description.Extent.X, description.Extent.Y, ResolveTextureFormat(description.Format, EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB)), addressHigh, CalculateAlignment(description), description.NumMips, allocationUsage(description), description.ArraySize * (description.IsTextureCube() ? 6 : 1));
         if (volumeStorage && description.InitAction == ERHITextureInitAction::Initializer)
         {
             std::size_t size = 0;
@@ -125,7 +142,7 @@ namespace UnrealProspero::RHI
         }
     }
 
-    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<LinearTexture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
+    TextureResource::TextureResource(const FRHITextureCreateDesc& description, std::shared_ptr<Texture2D> externalStorage) : FRHITexture(validate(description)), storage(std::move(externalStorage)), initialized(true)
     {
         if (description.Dimension != ETextureDimension::Texture2D) throw std::invalid_argument("External 2D storage requires a 2D texture description");
         if (description.InitAction != ERHITextureInitAction::Default || description.BulkData) throw std::invalid_argument("External texture storage cannot be initialized again");
@@ -141,10 +158,10 @@ namespace UnrealProspero::RHI
         const auto texture = Capture();
         const auto& mip = texture->GetMipLayout(mipLevel);
         const auto range = texture->GetMipRange(mipLevel, arrayLayer);
-        LockedData next{mode, mipLevel, arrayLayer, mip.RowPitch, std::vector<std::byte>(mip.Size)};
+        LockedData next{mode, mipLevel, arrayLayer, mip.RowPitch, std::vector<std::byte>(range.size())};
         if (mode == RLM_ReadOnly)
         {
-            std::copy(range.begin(), range.end(), next.Data.begin());
+            texture->CopyRowsTo(next.Data, mip.RowPitch, mipLevel, arrayLayer);
         }
         auto& entry = lockedMips.emplace(std::pair{arrayLayer, mipLevel}, std::move(next)).first->second;
         size = entry.Data.size();
@@ -179,12 +196,11 @@ namespace UnrealProspero::RHI
         mappedData.reset();
     }
 
-    TextureResource::LockedData TextureResource::Unlock(EResourceLockMode mode, std::uint32_t mipLevel, std::uint32_t arrayLayer)
+    TextureResource::LockedData TextureResource::Unlock(std::uint32_t mipLevel, std::uint32_t arrayLayer)
     {
         FScopeLock lock(&lockMutex);
         const auto found = lockedMips.find({arrayLayer, mipLevel});
         if (found == lockedMips.end()) throw std::runtime_error("Texture mip is not locked");
-        if (found->second.Mode != mode) throw std::invalid_argument("Texture unlock does not match its lock mode");
         auto result = std::move(found->second);
         lockedMips.erase(found);
         return result;
@@ -200,8 +216,14 @@ namespace UnrealProspero::RHI
         return {storage, &allocation};
     }
 
-    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t firstLayer, std::uint32_t layerCount, FRHIViewDesc::EDimension viewDimension) const
+    bool TextureResource::SupportsShaderAccess() const
     {
+        return !EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::CPUReadback);
+    }
+
+    std::array<std::uint32_t, 8> TextureResource::CreateViewDescriptor(bool disableSrgb, std::uint32_t firstMip, std::uint32_t mipCount, std::uint32_t firstLayer, std::uint32_t layerCount, FRHIViewDesc::EDimension viewDimension, ERHITexturePlane plane) const
+    {
+        if (!SupportsShaderAccess()) throw std::invalid_argument("Texture does not support shader access");
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
         using Dimension = FRHIViewDesc::EDimension;
         if (viewDimension == Dimension::Unknown)
@@ -231,7 +253,7 @@ namespace UnrealProspero::RHI
         }
         if (viewDimension == Dimension::Texture2D && (layerCount == 0 ? GetDesc().ArraySize : layerCount) != 1) throw std::invalid_argument("2D view must select exactly one layer");
         if (depthStorage && (firstMip != 0 || mipCount > 1)) throw std::out_of_range("Texture view exceeds the available mip range");
-        if (depthStorage) return depthStorage->GetDescriptor();
+        if (depthStorage) return depthStorage->GetDescriptor(plane == ERHITexturePlane::Stencil);
         if (volumeStorage) return volumeStorage->CreateViewDescriptor(disableSrgb, firstMip, mipCount);
         return storage->CreateViewDescriptor(disableSrgb, firstMip, mipCount, firstLayer);
     }
@@ -335,7 +357,7 @@ namespace UnrealProspero::RHI
         return depthStorage;
     }
 
-    std::shared_ptr<const LinearTexture2D> TextureResource::Capture() const
+    std::shared_ptr<const Texture2D> TextureResource::Capture() const
     {
         if (!initialized) throw std::runtime_error("Texture initialization has not been finalized");
         if (!storage) throw std::runtime_error("This operation requires a linear color texture");

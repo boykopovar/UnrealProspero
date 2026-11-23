@@ -59,6 +59,7 @@ internal sealed partial class UnrealProsperoToolChain : ClangToolChain
 
     protected override Action CompileCPPFile(CppCompileEnvironment environment, FileItem source, DirectoryReference outputDirectory, string moduleName, IActionGraphBuilder graph, IReadOnlyCollection<string> globalArguments, CPPOutput result)
     {
+        if (moduleName is "Chaos" or "DataflowCore" or "BuildPatchServices" or "BandwidthMeasurementTool" or "DownlinkBandwidthManager") globalArguments = globalArguments.Append("-Wno-error=unused-result").ToArray();
         Action action = base.CompileCPPFile(environment, source, outputDirectory, moduleName, graph, globalArguments, result);
         action.bCanExecuteRemotely = false;
         action.bCanExecuteInUBA = false;

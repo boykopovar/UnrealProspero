@@ -30,7 +30,7 @@ int main()
         for (std::uint32_t frame = 0; frame < 12; ++frame)
         {
             const auto buffer = chain.Acquire();
-            if (chain.GetBufferIndex() != frame % 3 || chain.Acquire() != buffer) throw std::runtime_error("Swap chain acquisition changed its current buffer");
+            if (chain.GetBufferIndex() != frame % SwapChain::BufferCount || chain.Acquire() != buffer) throw std::runtime_error("Swap chain acquisition changed its current buffer");
             if (reinterpret_cast<std::uintptr_t>(buffer->GetStorage().Data()) % 65536 != 0) throw std::runtime_error("Swap chain buffer is not display aligned");
             if (frame == 0)
             {

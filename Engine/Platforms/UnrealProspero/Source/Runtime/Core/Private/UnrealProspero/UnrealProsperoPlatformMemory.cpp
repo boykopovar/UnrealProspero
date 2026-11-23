@@ -2,6 +2,7 @@
 #include "UnrealProspero/Kernel/MemoryBudget.h"
 #include "UnrealProspero/Kernel/ProcessMemory.h"
 #include "UnrealProspero/Kernel/SystemConfiguration.h"
+#include "HAL/MallocBinned2.h"
 #include <algorithm>
 #include <atomic>
 #include <limits>
@@ -24,6 +25,12 @@ namespace
         while (previous < value && !peak.compare_exchange_weak(previous, value, std::memory_order_relaxed)) {}
         return std::max(previous, value);
     }
+}
+
+FMalloc* FUnrealProsperoPlatformMemory::BaseAllocator()
+{
+    static FMalloc* const allocator = new FMallocBinned2();
+    return allocator;
 }
 
 const FPlatformMemoryConstants& FUnrealProsperoPlatformMemory::GetConstants()

@@ -14,6 +14,9 @@ namespace UnrealProspero::RHI
             const auto address = reinterpret_cast<std::uintptr_t>(range.Address);
             if (range.Size - 1 > std::numeric_limits<std::uintptr_t>::max() - address) throw std::invalid_argument("GPU memory range overflows its address");
         }
-        for (const auto& range : ranges) sceAgcDcbAcquireMem(&commands, 1, 0, 0x4381, range.Address, range.Size, 40);
+        if (ranges.empty()) return;
+        constexpr std::uint32_t globalCacheControl = 0x4381;
+        const auto& range = ranges.front();
+        sceAgcDcbAcquireMem(&commands, 1, 0, globalCacheControl, range.Address, range.Size, 40);
     }
 }

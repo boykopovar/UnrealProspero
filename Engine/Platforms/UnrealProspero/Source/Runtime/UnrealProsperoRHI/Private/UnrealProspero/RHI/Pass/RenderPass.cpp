@@ -17,12 +17,31 @@ namespace UnrealProspero::RHI
         {
             auto& texture = ResolveTextureResource(depth.DepthStencilTarget);
             const auto& description = texture.GetDesc();
-            if (description.Format != PF_ShadowDepth || !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::DepthStencilTargetable)) throw std::invalid_argument("Render pass requires a D32 depth target");
+            if ((description.Format != PF_ShadowDepth && description.Format != PF_DepthStencil) || !EnumHasAnyFlags(description.Flags, ETextureCreateFlags::DepthStencilTargetable)) throw std::invalid_argument("Render pass requires a depth target");
+            depthFormat = description.Format;
             depthAccess = depth.ExclusiveDepthStencil;
-            if (depthAccess.IsUsingStencil()) throw std::invalid_argument("D32 render pass has no stencil plane");
+            if (depthAccess.IsUsingStencil() && description.Format != PF_DepthStencil) throw std::invalid_argument("D32 render pass has no stencil plane");
             const auto action = GetDepthActions(depth.Action);
             const auto stencilAction = GetStencilActions(depth.Action);
-            if (GetLoadAction(stencilAction) != ERenderTargetLoadAction::ENoAction || GetStoreAction(stencilAction) != ERenderTargetStoreAction::ENoAction) throw std::invalid_argument("D32 render pass cannot load or store stencil");
+            if (description.Format != PF_DepthStencil && (GetLoadAction(stencilAction) != ERenderTargetLoadAction::ENoAction || GetStoreAction(stencilAction) != ERenderTargetStoreAction::ENoAction)) throw std::invalid_argument("D32 render pass cannot load or store stencil");
+            switch (GetLoadAction(stencilAction))
+            {
+            case ERenderTargetLoadAction::ENoAction:
+            case ERenderTargetLoadAction::ELoad: break;
+            case ERenderTargetLoadAction::EClear:
+                if (!depthAccess.IsStencilWrite()) throw std::invalid_argument("Stencil clear requires writable stencil access");
+                if (description.ClearValue.ColorBinding != EClearBinding::EDepthStencilBound) throw std::invalid_argument("Stencil clear requires a depth stencil clear binding");
+                if (texture.GetStencilClearValue() > 255) throw std::out_of_range("Stencil clear exceeds eight bits");
+                clearStencil = static_cast<std::uint8_t>(texture.GetStencilClearValue());
+                break;
+            default: throw std::invalid_argument("Invalid stencil load action");
+            }
+            switch (GetStoreAction(stencilAction))
+            {
+            case ERenderTargetStoreAction::ENoAction:
+            case ERenderTargetStoreAction::EStore: break;
+            default: throw std::runtime_error("Stencil store action is not implemented");
+            }
             switch (GetLoadAction(action))
             {
             case ERenderTargetLoadAction::ENoAction:
@@ -46,7 +65,6 @@ namespace UnrealProspero::RHI
             height = depthTarget->GetHeight();
         }
         if (info.ShadingRateTexture || info.MultiViewCount != 0 || info.SubpassHint != ESubpassHint::None) throw std::runtime_error("Render pass shading rate, multiview and subpasses are not implemented");
-        if (info.NumOcclusionQueries < 0 || (!info.bOcclusionQueries && info.NumOcclusionQueries != 0)) throw std::invalid_argument("Render pass occlusion query count is inconsistent");
         for (uint32 index = 0; index < targets.size(); ++index)
         {
             const auto& entry = info.ColorRenderTargets[index];
@@ -69,11 +87,17 @@ namespace UnrealProspero::RHI
             auto& texture = ResolveTextureResource(entry.RenderTarget);
             const auto& description = texture.GetDesc();
             if (!EnumHasAnyFlags(description.Flags, ETextureCreateFlags::RenderTargetable)) throw std::invalid_argument("Render pass texture is not render targetable");
-            targets[index] = texture.Capture();
-            const auto& mip = targets[index]->GetMipLayout(entry.MipIndex);
-            if (entry.ArraySlice < -1 || (entry.ArraySlice >= 0 && static_cast<std::uint32_t>(entry.ArraySlice) >= targets[index]->GetArrayLayers())) throw std::out_of_range("Color render pass array layer does not exist");
-            if (entry.ArraySlice == -1 && targets[index]->GetArrayLayers() > 1) throw std::runtime_error("Layered rendering to multiple array slices is not implemented");
+            const bool volume = description.Dimension == ETextureDimension::Texture3D;
+            const bool independentSlices = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::TargetArraySlicesIndependently) && (description.IsTextureArray() || description.IsTextureCube());
+            if (independentSlices && entry.ArraySlice < 0) throw std::invalid_argument("Independent array rendering requires an explicit slice");
+            if (volume) volumes[index] = texture.CaptureVolume();
+            else targets[index] = texture.Capture();
+            const auto& mip = volume ? volumes[index]->GetMipLayout(entry.MipIndex) : targets[index]->GetMipLayout(entry.MipIndex);
+            const auto availableLayers = volume ? mip.Depth : targets[index]->GetArrayLayers();
+            if (entry.ArraySlice < -1 || (entry.ArraySlice >= 0 && static_cast<std::uint32_t>(entry.ArraySlice) >= availableLayers)) throw std::out_of_range("Color render pass array layer does not exist");
+            if (!volume && entry.ArraySlice == -1 && availableLayers > 1) throw std::runtime_error("Layered rendering to multiple array slices is not implemented");
             layers[index] = entry.ArraySlice == -1 ? 0u : static_cast<std::uint32_t>(entry.ArraySlice);
+            layerCounts[index] = volume && entry.ArraySlice == -1 ? availableLayers : 1u;
             mips[index] = entry.MipIndex;
             if (GetLoadAction(entry.Action) == ERenderTargetLoadAction::EClear)
             {
@@ -83,7 +107,8 @@ namespace UnrealProspero::RHI
             }
             for (uint32 previous = 0; previous < index; ++previous)
             {
-                if (targets[previous] == targets[index] && mips[previous] == mips[index] && layers[previous] == layers[index]) throw std::invalid_argument("Render pass binds the same color subresource more than once");
+                const bool sameResource = (targets[index] && targets[previous] == targets[index]) || (volumes[index] && volumes[previous] == volumes[index]);
+                if (sameResource && mips[previous] == mips[index] && layers[previous] < layers[index] + layerCounts[index] && layers[index] < layers[previous] + layerCounts[previous]) throw std::invalid_argument("Render pass binds overlapping color subresources");
             }
             formats[index] = description.Format;
             srgb[index] = EnumHasAnyFlags(description.Flags, ETextureCreateFlags::SRGB);
@@ -101,6 +126,12 @@ namespace UnrealProspero::RHI
         {
             if (!target) continue;
             const auto& storage = target->GetStorage();
+            result.push_back({storage.Data(), storage.Size()});
+        }
+        for (const auto& volume : volumes)
+        {
+            if (!volume) continue;
+            const auto& storage = volume->GetStorage();
             result.push_back({storage.Data(), storage.Size()});
         }
         if (depthTarget)
@@ -123,12 +154,18 @@ namespace UnrealProspero::RHI
                 if (clearColors[index]) WriteColorClear(commands, *targets[index], *clearColors[index], mips[index], layers[index]);
                 WriteColorTarget(commands, index, *targets[index], mips[index], layers[index]);
             }
+            else if (volumes[index])
+            {
+                if (clearColors[index]) WriteColorClear(commands, *volumes[index], *clearColors[index], mips[index], layers[index], layerCounts[index]);
+                WriteColorTarget(commands, index, *volumes[index], mips[index], layers[index], layerCounts[index]);
+            }
             else DisableColorTarget(commands, index);
         }
         if (depthTarget)
         {
             WriteDepthTarget(commands, *depthTarget);
             if (clearDepth) WriteDepthClear(commands, *depthTarget, *clearDepth);
+            if (clearStencil) WriteStencilClear(commands, *depthTarget, *clearStencil);
         }
         else DisableDepthTarget(commands);
         sceAgcDcbSetCxRegisterDirect(&commands, {0xc, 0});
@@ -147,12 +184,12 @@ namespace UnrealProspero::RHI
     void RenderPass::ValidatePipeline(const FGraphicsPipelineStateInitializer& pipeline) const
     {
         if (!begun || ended) throw std::runtime_error("Draw requires an active render pass");
-        if (pipeline.RenderTargetsEnabled != targetCount || pipeline.NumSamples != 1 || pipeline.DepthStencilTargetFormat != (depthTarget ? PF_ShadowDepth : PF_Unknown)) throw std::invalid_argument("Graphics pipeline attachments do not match the render pass");
+        if (pipeline.RenderTargetsEnabled != targetCount || pipeline.NumSamples != 1 || pipeline.DepthStencilTargetFormat != depthFormat) throw std::invalid_argument("Graphics pipeline attachments do not match the render pass");
         if (depthTarget && pipeline.DepthStencilAccess != depthAccess) throw std::invalid_argument("Pipeline depth access does not match the render pass");
         for (uint32 index = 0; index < targetCount; ++index)
         {
             if (pipeline.RenderTargetFormats[index] != formats[index]) throw std::invalid_argument("Graphics pipeline color format does not match the render pass");
-            if (targets[index] && EnumHasAnyFlags(pipeline.RenderTargetFlags[index], ETextureCreateFlags::SRGB) != srgb[index]) throw std::invalid_argument("Graphics pipeline color encoding does not match the render pass");
+            if ((targets[index] || volumes[index]) && EnumHasAnyFlags(pipeline.RenderTargetFlags[index], ETextureCreateFlags::SRGB) != srgb[index]) throw std::invalid_argument("Graphics pipeline color encoding does not match the render pass");
         }
     }
 }

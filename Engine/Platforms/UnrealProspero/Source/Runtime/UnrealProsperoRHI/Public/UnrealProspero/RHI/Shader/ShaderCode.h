@@ -14,6 +14,7 @@ namespace UnrealProspero::RHI
         ShaderCode(const ShaderCode&) = delete;
         ShaderCode& operator=(const ShaderCode&) = delete;
         const Shader::ShaderBinaryView& GetBinary() const;
+        const Shader::ShaderIdentity& GetIdentity() const;
         void ValidateVertex(const ShaderCode& vertex) const;
         const FShaderResourceTable& GetResourceTable() const;
         const Shader::UserDataLayout& GetUserData() const;

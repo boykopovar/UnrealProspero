@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Text.Json;
 using UnrealProspero.Build.Sdk;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -7,27 +9,56 @@ namespace UnrealBuildTool;
 
 public sealed class UnrealProsperoPlatformSdk : UEBuildPlatformSDK
 {
-    private readonly SdkInstallation? installation;
+    private readonly UnrealProsperoSettings settings;
+    private SdkInstallation? installation;
     private readonly Target target;
 
-    public UnrealProsperoPlatformSdk(ILogger logger, Target target, SdkInstallation? installation) : base(logger)
+    public UnrealProsperoPlatformSdk(ILogger logger, Target target, UnrealProsperoSettings settings) : base(logger)
     {
         SdkInstallation.GetTargetName(target);
         this.target = target;
-        this.installation = installation;
+        this.settings = settings;
     }
 
     public SdkInstallation RequireInstallation()
     {
-        if (installation == null) throw new InvalidOperationException("Configure the UnrealProspero SDK and dependency directories before building");
+        if (!settings.IsConfigured) throw new InvalidOperationException("Configure the UnrealProspero SDK and dependency directories before building");
+        installation ??= settings.CreateInstallation();
         installation.ValidateTarget(target);
         return installation;
     }
 
     protected override string? GetInstalledSDKVersion()
     {
-        if (installation == null) return null;
-        return RequireInstallation().CxxVersion;
+        if (settings.Dependencies == null) return null;
+        string metadata = Path.Combine(settings.Dependencies, "dependencies.json");
+        if (!File.Exists(metadata)) return null;
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(metadata));
+            JsonElement root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
+            if (!root.TryGetProperty("schemaVersion", out JsonElement schema) || schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out int version) || version != 1) return null;
+            if (!root.TryGetProperty("anycxx", out JsonElement cxx) || cxx.ValueKind != JsonValueKind.String) return null;
+            if (!root.TryGetProperty("targets", out JsonElement targets) || targets.ValueKind != JsonValueKind.Array) return null;
+            foreach (JsonElement item in targets.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String && item.GetString() == SdkInstallation.GetTargetName(target)) return cxx.GetString();
+            }
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public override bool TryConvertVersionToInt(string? value, out ulong result, string? hint)

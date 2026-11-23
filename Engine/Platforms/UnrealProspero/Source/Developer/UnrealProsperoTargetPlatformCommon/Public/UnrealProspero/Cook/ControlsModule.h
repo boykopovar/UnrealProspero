@@ -5,6 +5,8 @@
 #include "UnrealProspero/Cook/SettingsModule.h"
 #include "Interfaces/ITargetPlatformControlsModule.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace UnrealProspero::Cook
 {
@@ -14,6 +16,13 @@ namespace UnrealProspero::Cook
     protected:
         void GetTargetPlatformControls(TArray<ITargetPlatformControls*>& platforms, FName& settingsModuleName) override
         {
+#if WITH_EDITOR
+            if constexpr (TTarget == EUnrealProsperoTarget::Ps5)
+            {
+                FString commandlet;
+                if (FParse::Value(FCommandLine::Get(), TEXT("run="), commandlet) && commandlet.Equals(TEXT("UnrealProsperoShaderCooker"), ESearchCase::IgnoreCase)) FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("UnrealProsperoShaderCooker"));
+            }
+#endif
             FString expected = FString(TUnrealProsperoPlatformProperties<TTarget>::IniPlatformName()) + TEXT("TargetPlatformSettings");
             if (settingsModuleName != FName(*expected)) throw std::invalid_argument("Target platform settings module does not match controls");
             auto* settings = FModuleManager::GetModulePtr<SettingsModule<TTarget>>(settingsModuleName);

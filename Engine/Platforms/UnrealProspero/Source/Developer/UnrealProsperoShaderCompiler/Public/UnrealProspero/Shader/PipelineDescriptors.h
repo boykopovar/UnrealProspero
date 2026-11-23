@@ -12,7 +12,13 @@ namespace UnrealProspero::Shader
         std::string EntryPoint;
     };
 
-    UNREALPROSPEROSHADERCOMPILER_API std::vector<DescriptorBinding> MergePipelineDescriptors(std::span<const PipelineStageDescriptors> stages);
+    enum class PipelineDescriptorLayout
+    {
+        ReindexStages,
+        PreserveFirstStage
+    };
+
+    UNREALPROSPEROSHADERCOMPILER_API std::vector<DescriptorBinding> MergePipelineDescriptors(std::span<const PipelineStageDescriptors> stages, PipelineDescriptorLayout layout = PipelineDescriptorLayout::ReindexStages);
 }
 
 #endif

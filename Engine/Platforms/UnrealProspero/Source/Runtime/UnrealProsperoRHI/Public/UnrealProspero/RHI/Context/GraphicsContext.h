@@ -11,10 +11,13 @@
 
 namespace UnrealProspero::RHI
 {
+    class SwapChain;
+
     class UNREALPROSPERORHI_API GraphicsContext : public ComputeContext
     {
     public:
         GraphicsContext(std::size_t initialCommandBytes, std::uint32_t addressHigh);
+        void PresentViewport(FRHIViewport* viewport, const FRHIPresentArgs& arguments);
         using ComputeContext::RHISetShaderParameters;
         void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* pipelineState, uint32 stencilRef, bool applyAdditionalState) override;
         void RHISetShaderParameters(FRHIGraphicsShader* shader, TConstArrayView<uint8> parametersData, TConstArrayView<FRHIShaderParameter> shaderParameters, TConstArrayView<FRHIShaderParameterResource> resourceParameters, TConstArrayView<FRHIShaderParameterResource> bindlessParameters) override;
@@ -26,7 +29,7 @@ namespace UnrealProspero::RHI
         void RHIEndRenderPass() override;
         void RHICopyTexture(FRHITexture* source, FRHITexture* destination, const FRHICopyTextureInfo& info) override;
         void UploadVolume(std::shared_ptr<const LinearTexture3D> destination, std::shared_ptr<VolumeUpload> upload, uint32 x, uint32 y, uint32 z, uint32 mipLevel);
-        void UploadTexture(std::shared_ptr<const LinearTexture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer = 0);
+        void UploadTexture(std::shared_ptr<const Texture2D> destination, std::shared_ptr<TextureUpload> upload, uint32 x, uint32 y, uint32 mipLevel, uint32 arrayLayer = 0);
         void RHISetBlendFactor(const FLinearColor& factor) override;
         void RHIDrawPrimitive(uint32 baseVertexIndex, uint32 primitiveCount, uint32 instanceCount) override;
         void RHIDrawPrimitiveIndirect(FRHIBuffer* argumentBuffer, uint32 argumentOffset) override;
@@ -57,7 +60,8 @@ namespace UnrealProspero::RHI
         void recordIndirectDraw(CommandBuffer& commands, FRHIBuffer* argumentBuffer, uint32 argumentOffset, std::shared_ptr<BufferAllocation> indices, uint32 indexStride);
         std::vector<std::shared_ptr<OcclusionSnapshot>> querySnapshots;
         std::vector<Draw> draws;
-        std::vector<std::shared_ptr<const LinearTexture2D>> copiedTextures;
+        std::vector<std::shared_ptr<SwapChain>> presentedSwapChains;
+        std::vector<std::shared_ptr<const Texture2D>> copiedTextures;
         std::vector<std::shared_ptr<TextureUpload>> textureUploads;
         std::vector<std::shared_ptr<VolumeUpload>> volumeUploads;
         std::vector<std::shared_ptr<const LinearTexture3D>> copiedVolumes;

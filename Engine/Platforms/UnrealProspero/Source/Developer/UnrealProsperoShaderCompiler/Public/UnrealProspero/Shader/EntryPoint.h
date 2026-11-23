@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_ENTRY_POINT_H
 #define UNREALPROSPERO_SHADER_ENTRY_POINT_H
 
+#include "CoreTypes.h"
 #include <cstdint>
 #include <span>
 #include <string_view>

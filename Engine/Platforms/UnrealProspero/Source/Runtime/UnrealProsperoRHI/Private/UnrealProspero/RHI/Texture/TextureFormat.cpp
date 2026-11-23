@@ -5,6 +5,8 @@ namespace UnrealProspero::RHI
 {
     TextureFormatInfo DescribeTextureFormat(TextureFormat format, bool disableSrgb)
     {
+        if (disableSrgb && format == TextureFormat::R8Srgb) format = TextureFormat::R8Unorm;
+        if (disableSrgb && format == TextureFormat::Rg8Srgb) format = TextureFormat::Rg8Unorm;
         if (disableSrgb && format == TextureFormat::Rgba8Srgb) format = TextureFormat::Rgba8Unorm;
         if (disableSrgb && format == TextureFormat::Bgra8Srgb) format = TextureFormat::Bgra8Unorm;
         if (disableSrgb && format == TextureFormat::Bc1Srgb) format = TextureFormat::Bc1Unorm;
@@ -13,19 +15,32 @@ namespace UnrealProspero::RHI
         if (disableSrgb && format == TextureFormat::Bc7Srgb) format = TextureFormat::Bc7Unorm;
         switch (format)
         {
+        case TextureFormat::R8Srgb: return {128, 1, 4 | (1 << 9)};
+        case TextureFormat::Rg8Srgb: return {129, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::R8Unorm: return {1, 1, 4 | (1 << 9)};
+        case TextureFormat::A8Unorm: return {1, 1, 4 << 9};
         case TextureFormat::Rg8Unorm: return {14, 2, 4 | (5 << 3) | (1 << 9)};
         case TextureFormat::Rgba8Unorm: return {56, 4, 0xfac};
+        case TextureFormat::Rgb10A2Unorm: return {50, 4, 0xfac};
+        case TextureFormat::Rgba8Uint: return {60, 4, 0xfac, 1, 1, true};
         case TextureFormat::Rgba8Srgb: return {130, 4, 0xfac};
         case TextureFormat::Bgra8Unorm: return {56, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
         case TextureFormat::Bgra8Srgb: return {130, 4, 6 | (5 << 3) | (4 << 6) | (7 << 9)};
         case TextureFormat::R16Float: return {13, 2, 4 | (1 << 9)};
         case TextureFormat::Rg16Float: return {29, 4, 4 | (5 << 3) | (1 << 9)};
-        case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9)};
-        case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9)};
+        case TextureFormat::R16Uint: return {11, 2, 4 | (1 << 9), 1, 1, true};
+        case TextureFormat::R16Sint: return {12, 2, 4 | (1 << 9), 1, 1, true};
+        case TextureFormat::Rg16Uint: return {27, 4, 4 | (5 << 3) | (1 << 9), 1, 1, true};
+        case TextureFormat::R32Uint: return {20, 4, 4 | (1 << 9), 1, 1, true};
+        case TextureFormat::R32Sint: return {21, 4, 4 | (1 << 9), 1, 1, true};
+        case TextureFormat::R11G11B10Float: return {36, 4, 0x3ac};
         case TextureFormat::R32Float: return {22, 4, 4 | (1 << 9)};
+        case TextureFormat::R16Unorm: return {7, 2, 4 | (1 << 9)};
+        case TextureFormat::Rg16Unorm: return {23, 4, 4 | (5 << 3) | (1 << 9)};
+        case TextureFormat::Rgba16Unorm: return {65, 8, 0xfac};
         case TextureFormat::Rgba16Float: return {71, 8, 0xfac};
         case TextureFormat::Rgba32Float: return {77, 16, 0xfac};
+        case TextureFormat::Rgba32Uint: return {75, 16, 0xfac, 1, 1, true};
         case TextureFormat::Bc1Unorm: return {169, 8, 0xfac, 4, 4};
         case TextureFormat::Bc1Srgb: return {170, 8, 0xfac, 4, 4};
         case TextureFormat::Bc2Unorm: return {171, 16, 0xfac, 4, 4};

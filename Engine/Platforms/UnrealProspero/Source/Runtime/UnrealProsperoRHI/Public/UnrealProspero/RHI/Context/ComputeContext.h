@@ -73,14 +73,17 @@ namespace UnrealProspero::RHI
         void recordTransitions(TArrayView<const FRHITransition*> transitions, bool begin);
         template<typename TValue> void clearView(FRHIUnorderedAccessView* view, const std::array<TValue, 4>& values);
         std::unique_ptr<ShaderBindings> createDispatchBindings() const;
+        const BufferAllocation* getComputeScratch();
         CommandStorage commandStorage;
-        Completion completion;
+        std::shared_ptr<Completion> completion;
         CommandBuffer& commands;
         TRefCountPtr<ComputePipeline> pipeline;
         std::unique_ptr<ShaderParameters> parameters;
         std::vector<Dispatch> dispatches;
+        std::vector<std::unique_ptr<BufferAllocation>> scratchAllocations;
         StaticUniformBuffers staticUniforms;
         std::vector<std::shared_ptr<const BufferAllocation>> clearedResources;
+        std::unique_ptr<BufferAllocation> clearPattern;
         std::vector<std::shared_ptr<ResourceTransition>> retainedTransitions;
         std::vector<std::shared_ptr<BufferAllocation>> copiedBuffers;
         std::vector<std::shared_ptr<Completion>> fenceMarkers;

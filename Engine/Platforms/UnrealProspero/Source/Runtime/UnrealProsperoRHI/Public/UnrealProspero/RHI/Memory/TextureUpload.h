@@ -10,10 +10,10 @@ namespace UnrealProspero::RHI
     {
     public:
         TextureUpload(std::uint32_t width, std::uint32_t height, TextureFormat format, std::span<const std::byte> source, std::size_t sourcePitch, std::uint32_t addressHigh);
-        void Record(CommandBuffer& commands, const LinearTexture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel = 0, std::uint32_t arrayLayer = 0);
+        void Record(CommandBuffer& commands, const Texture2D& destination, std::uint32_t x, std::uint32_t y, std::uint32_t mipLevel = 0, std::uint32_t arrayLayer = 0);
 
     private:
-        LinearTexture2D storage;
+        Texture2D storage;
         MemoryBarrier barrier;
         bool recorded = false;
     };

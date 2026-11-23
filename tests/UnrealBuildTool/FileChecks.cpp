@@ -40,7 +40,7 @@ namespace
 bool CheckFiles()
 {
     using UnrealProspero::File::ResolveStagedPath;
-    if (ResolveStagedPath("/app0/", "../../../Engine/Config/Base.ini") != "/app0/Engine/Config/Base.ini") return false;
+    if (ResolveStagedPath("/app0/Engine/Binaries/AnyPS5/", "../../../Engine/Config/Base.ini") != "/app0/Engine/Config/Base.ini") return false;
     if (ResolveStagedPath("/app0/", "Game/Content/../Config/./") != "/app0/Game/Config/") return false;
     if (ResolveStagedPath("/app0/", "Game\\Content\\Data.bin") != "/app0/Game/Content/Data.bin") return false;
     if (ResolveStagedPath("/app0/", "/savedata0/settings.bin") != "/savedata0/settings.bin") return false;

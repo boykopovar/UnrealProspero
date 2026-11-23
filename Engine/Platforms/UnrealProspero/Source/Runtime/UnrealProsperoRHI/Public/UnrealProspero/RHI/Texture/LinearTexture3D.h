@@ -1,7 +1,7 @@
 #ifndef UNREALPROSPERO_RHI_LINEAR_TEXTURE_3D_H
 #define UNREALPROSPERO_RHI_LINEAR_TEXTURE_3D_H
 
-#include "UnrealProspero/RHI/Texture/LinearTexture2D.h"
+#include "UnrealProspero/RHI/Texture/Texture2D.h"
 
 namespace UnrealProspero::RHI
 {
@@ -9,7 +9,7 @@ namespace UnrealProspero::RHI
     {
     public:
         static std::size_t CalculateDataSize(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t mipCount = 1, std::uint32_t firstMip = 0);
-        LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount = 1);
+        LinearTexture3D(std::uint32_t width, std::uint32_t height, std::uint32_t depth, TextureFormat format, std::uint32_t addressHigh, std::uint32_t mipCount = 1, AllocationUsage usage = AllocationUsage::Texture);
         void Upload(std::span<const std::byte> source, std::size_t sourceRowPitch, std::size_t sourceSlicePitch, std::uint32_t mipLevel = 0);
         void CopyTo(std::span<std::byte> destination, std::size_t destinationRowPitch, std::size_t destinationSlicePitch, std::uint32_t mipLevel = 0) const;
         std::array<std::uint32_t, 8> GetDescriptor() const;

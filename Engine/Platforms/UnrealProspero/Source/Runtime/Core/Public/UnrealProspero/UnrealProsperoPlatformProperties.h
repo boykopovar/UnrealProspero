@@ -2,21 +2,19 @@
 #define UNREALPROSPERO_PLATFORM_PROPERTIES_H
 
 #include "GenericPlatform/GenericPlatformProperties.h"
-#include "UnrealProspero/Kernel/DirectAllocation.h"
+#include "UnrealProspero/Kernel/MemoryConstants.h"
 #include <array>
 #include <string_view>
 
 enum class EUnrealProsperoTarget
 {
-    Windows,
-    Linux,
     Ps5
 };
 
 template<EUnrealProsperoTarget TTarget, bool TServer = false, bool TClient = false>
 struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 {
-    static_assert(TTarget == EUnrealProsperoTarget::Windows || TTarget == EUnrealProsperoTarget::Linux || TTarget == EUnrealProsperoTarget::Ps5);
+    static_assert(TTarget == EUnrealProsperoTarget::Ps5);
     static_assert(!(TServer && TClient));
 
     static constexpr EUnrealProsperoTarget GetTarget()
@@ -26,14 +24,17 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 
     static constexpr const char* IniPlatformName()
     {
-        if constexpr (TTarget == EUnrealProsperoTarget::Windows) return "AnyWin64";
-        if constexpr (TTarget == EUnrealProsperoTarget::Linux) return "AnyLinux";
         return "AnyPS5";
     }
 
     static constexpr const char* PlatformName()
     {
         return platformName.data();
+    }
+
+    static constexpr const TCHAR* GetRuntimeSettingsClassName()
+    {
+        return TEXT("UnrealProsperoRuntimeSettings");
     }
 
     static constexpr bool HasEditorOnlyData()
@@ -63,17 +64,17 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 
     static constexpr bool SupportsMultipleGameInstances()
     {
-        return TTarget != EUnrealProsperoTarget::Ps5;
+        return false;
     }
 
     static constexpr bool SupportsWindowedMode()
     {
-        return TTarget != EUnrealProsperoTarget::Ps5 && !TServer;
+        return false;
     }
 
     static constexpr bool HasFixedResolution()
     {
-        return TTarget == EUnrealProsperoTarget::Ps5;
+        return false;
     }
 
     static constexpr bool SupportsQuit()
@@ -83,7 +84,7 @@ struct TUnrealProsperoPlatformProperties : FGenericPlatformProperties
 
     static constexpr int GetMaxSupportedVirtualMemoryAlignment()
     {
-        return UnrealProspero::Kernel::DirectAllocation::PageSize;
+        return UnrealProspero::Kernel::MemoryPageSize;
     }
 
 private:
@@ -103,11 +104,7 @@ private:
 #if defined(PROPERTY_HEADER_SHOULD_DEFINE_TYPE) && !defined(UNREALPROSPERO_PLATFORM_PROPERTIES_TYPE_DEFINED)
 #define UNREALPROSPERO_PLATFORM_PROPERTIES_TYPE_DEFINED
 
-#if UNREALPROSPERO_TARGET_WINDOWS
-using FPlatformProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Windows, UE_SERVER, !WITH_SERVER_CODE && !WITH_EDITOR>;
-#elif UNREALPROSPERO_TARGET_LINUX
-using FPlatformProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Linux, UE_SERVER, !WITH_SERVER_CODE && !WITH_EDITOR>;
-#elif UNREALPROSPERO_TARGET_PS5
+#if UNREALPROSPERO_TARGET_PS5
 using FPlatformProperties = TUnrealProsperoPlatformProperties<EUnrealProsperoTarget::Ps5, UE_SERVER, !WITH_SERVER_CODE && !WITH_EDITOR>;
 #else
 #error An UnrealProspero target must be selected for runtime platform properties

@@ -14,9 +14,14 @@ namespace UnrealProspero::RHI
         {
         case BufferFormat::Untyped:
         case BufferFormat::Uint1:
+        case BufferFormat::Sint1:
         case BufferFormat::Float1: result[0] = values[0]; break;
+        case BufferFormat::Uint2:
         case BufferFormat::Float2: std::copy_n(values.begin(), 2, result.begin()); break;
+        case BufferFormat::Uint3:
+        case BufferFormat::Sint3:
         case BufferFormat::Float3: std::copy_n(values.begin(), 3, result.begin()); break;
+        case BufferFormat::Uint4:
         case BufferFormat::Float4: result = values; break;
         case BufferFormat::Byte4Snorm:
         case BufferFormat::Byte4Uint:
@@ -32,6 +37,9 @@ namespace UnrealProspero::RHI
         case BufferFormat::Short4Sint:
         case BufferFormat::Short2Snorm:
         case BufferFormat::Short4Snorm:
+        case BufferFormat::Half1:
+        case BufferFormat::Short1Uint:
+        case BufferFormat::Short1Sint:
         case BufferFormat::Half2:
         case BufferFormat::Half4:
         case BufferFormat::Short2Uint:
@@ -54,7 +62,7 @@ namespace UnrealProspero::RHI
             for (std::size_t channel = 0; channel < 4; ++channel) encoded[channel] = std::bit_cast<std::uint32_t>(values[channel]);
             return EncodeBufferClear(format, encoded);
         }
-        if (format == BufferFormat::Half2 || format == BufferFormat::Half4)
+        if (format == BufferFormat::Half1 || format == BufferFormat::Half2 || format == BufferFormat::Half4)
         {
             for (std::size_t channel = 0; channel < GetBufferElementSize(format) / 2; ++channel) encoded[channel] = EncodeHalfFloat(values[channel]);
             return EncodeBufferClear(format, encoded);

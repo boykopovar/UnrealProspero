@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "unreal": {
+    "version": "5.8.0",
+    "repository": "https://github.com/unicorn2022/UE5.8.0.git",
+    "revision": "bbba9c6afb546b9053ce9eafa2d4973a71aefaa0"
+  },
+  "anydevkit": {
+    "repository": "https://github.com/boykopovar/AnyDevKit.git",
+    "revision": "93efb282f31f3fe9273505280b2d39c191763fc8"
+  },
+  "anycxx": {
+    "repository": "https://github.com/boykopovar/llvm-cxx-ps.git",
+    "revision": "896f759654e13a00967cfd3f9827019d3e91cfba",
+    "version": "v0.1.9"
+  },
+  "anyps5": {
+    "version": "v0.1.4"
+  },
+  "nghttp2": {
+    "repository": "https://github.com/nghttp2/nghttp2.git",
+    "revision": "85e300c79fb6dbcfa9c1013215c8710c1c2cd3d2"
+  },
+  "openssl": {
+    "repository": "https://github.com/openssl/openssl.git",
+    "revision": "45e844fa2a14ec92d146bd8f5778ac130b6625fb"
+  }
+}

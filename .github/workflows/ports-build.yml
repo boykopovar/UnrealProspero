@@ -1,0 +1,121 @@
+name: ps5 libraries
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPILERCHECK: content
+  CCACHE_MAXSIZE: 3G
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: sdk-cache
+        with:
+          path: build/sdk
+          key: ps5-sdk-linux-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py') }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: ports-cache
+        with:
+          path: build/ports
+          key: ps5-ports-v1-${{ hashFiles('tools/Versions.json', 'tools/BuildSdk.py', 'tools/BuildPorts.py', 'tools/unreal_prospero/process.py', 'tools/unreal_prospero/sources.py', 'Engine/Platforms/UnrealProspero/Build/**') }}
+      - name: Install build tools
+        run: |
+          set -euo pipefail
+          sudo rm -rf -- /usr/local/lib/android
+          df -h "$GITHUB_WORKSPACE"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends clang-18 llvm-18 lld-18 ninja-build python3-venv perl make ccache
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: compiler-cache
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-v1-linux-ports-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-v1-linux-ports-
+      - name: Initialize compiler cache
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --zero-stats
+          cache=$(command -v ccache)
+          echo "UNREALPROSPERO_CCACHE=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_C_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=$cache" >> "$GITHUB_ENV"
+      - name: Prepare pinned public sources
+        run: python tools/PrepareSources.py --directory build/sources --work build/work ${{ steps.sdk-cache.outputs.cache-hit == 'true' && '--engine-only' || '' }}
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: engine-inputs
+        with:
+          path: build/downloads
+          key: unreal-packs-v1-Linux-ports-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-${{ hashFiles('tools/PrepareEngine.py') }}
+          restore-keys: unreal-packs-v1-Linux-ports-${{ hashFiles('build/sources/unreal/Engine/Build/Commit.gitdeps.xml') }}-
+      - name: Restore verified vendor inputs
+        run: python tools/PrepareEngine.py --engine build/sources/unreal --cache build/downloads --group sources
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.engine-inputs.outputs.cache-hit != 'true'
+        with:
+          path: build/downloads
+          key: ${{ steps.engine-inputs.outputs.cache-primary-key }}
+      - name: Build PS5 SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: python tools/BuildSdk.py --sources build/sources --output build/sdk --work build/sdk-work --cc clang --cxx clang++
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/sdk
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+      - name: Build PS5 libraries
+        if: steps.ports-cache.outputs.cache-hit != 'true'
+        run: python tools/BuildPorts.py --engine build/sources/unreal --sdk build/sdk/sdk --deps build/sdk/dependencies --output build/ports --work build/ports-work
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.ports-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/ports
+          key: ${{ steps.ports-cache.outputs.cache-primary-key }}
+      - name: Archive Linux SDK
+        run: tar -czf build/linux-sdk.tar.gz -C build/sdk sdk dependencies
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-sdk
+          path: build/linux-sdk.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ps5-libraries
+          path: build/ports
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ps5-library-logs
+          path: |
+            build/work/logs
+            build/sdk-work/logs
+            build/ports-work/logs
+          if-no-files-found: error
+      - name: Compiler cache statistics
+        if: always() && env.UNREALPROSPERO_CCACHE != ''
+        run: '"$UNREALPROSPERO_CCACHE" --show-stats --verbose'
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: always() && !cancelled() && steps.compiler-cache.outcome == 'success'
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}

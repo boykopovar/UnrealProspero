@@ -1,31 +1,42 @@
 #include "UnrealProspero/RHI/Presentation/ViewportResource.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/IConsoleManager.h"
 #include "UnrealProspero/Windowing/Window.h"
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 namespace UnrealProspero::RHI
 {
     namespace
     {
+        TAutoConsoleVariable<int32> highRefreshRate(TEXT("r.UnrealProspero.HighRefreshRate"), 0, TEXT("Request 120 Hz output on PS5."), ECVF_RenderThreadSafe);
+
         TextureFormat storageFormat(EPixelFormat format)
         {
             if (format == PF_B8G8R8A8) return TextureFormat::Bgra8Unorm;
             if (format == PF_R8G8B8A8) return TextureFormat::Rgba8Unorm;
-            throw std::invalid_argument("Viewport requires a supported display pixel format");
+            if (format == PF_A2B10G10R10) return TextureFormat::Rgb10A2Unorm;
+            throw std::invalid_argument("Viewport display pixel format is not implemented: " + std::to_string(static_cast<int>(format)));
         }
     }
 
-    ViewportResource::ViewportResource(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh) : windowHandle(windowHandle), target(target), format(format == PF_Unknown ? PF_B8G8R8A8 : format)
+    FViewportRHIRef ViewportResource::Create(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format, Shader::AgcTarget target, uint32 addressHigh)
     {
-        validateMode(fullscreen);
+        validateMode(fullscreen, target);
         if (!windowHandle) throw std::invalid_argument("Viewport requires an initialized game window");
         auto& window = *static_cast<Windowing::Window*>(windowHandle);
         auto output = window.GetOutput();
-        visible = window.CaptureVisibility();
-        chain = std::make_unique<SwapChain>(std::move(output), width, height, storageFormat(this->format), addressHigh);
+        auto visible = window.CaptureVisibility();
+        const auto chosenFormat = format == PF_Unknown ? PF_B8G8R8A8 : format;
+        auto mutex = std::make_unique<FCriticalSection>();
+        auto chain = std::make_shared<SwapChain>(std::move(output), width, height, storageFormat(chosenFormat), addressHigh);
+        return new ViewportResource(windowHandle, target, chosenFormat, std::move(visible), std::move(chain), std::move(mutex));
     }
 
-    void ViewportResource::validateMode(bool fullscreen) const
+    ViewportResource::ViewportResource(void* windowHandle, Shader::AgcTarget target, EPixelFormat format, std::shared_ptr<const std::atomic<bool>> visible, std::shared_ptr<SwapChain> chain, std::unique_ptr<FCriticalSection> mutex) : windowHandle(windowHandle), visible(std::move(visible)), target(target), format(format), chain(std::move(chain)), mutex(std::move(mutex)), highRefreshPending(target == Shader::AgcTarget::Ps5 && highRefreshRate.GetValueOnAnyThread() != 0) {}
+
+    void ViewportResource::validateMode(bool fullscreen, Shader::AgcTarget target)
     {
         switch (target)
         {
@@ -46,22 +57,24 @@ namespace UnrealProspero::RHI
         auto& buffer = backBuffers[chain->GetBufferIndex()];
         if (!buffer)
         {
-            const auto description = FRHITextureCreateDesc::Create2D(TEXT("UnrealProsperoBackBuffer"), static_cast<int32>(storage->GetWidth()), static_cast<int32>(storage->GetHeight()), format).SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::Presentable | ETextureCreateFlags::NoTiling).SetInitialState(ERHIAccess::Present);
+            const auto description = FRHITextureCreateDesc::Create2D(TEXT("UnrealProsperoBackBuffer"), static_cast<int32>(storage->GetWidth()), static_cast<int32>(storage->GetHeight()), format).SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::Presentable).SetInitialState(ERHIAccess::Present);
             buffer = new TextureResource(description, storage);
         }
         return buffer.GetReference();
     }
 
+    std::shared_ptr<SwapChain> ViewportResource::CaptureSwapChain() const { return chain; }
+
     FTextureRHIRef ViewportResource::GetBackBuffer()
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
         return acquireBackBuffer();
     }
 
     void ViewportResource::Resize(uint32 width, uint32 height, bool fullscreen, EPixelFormat nextFormat)
     {
-        FScopeLock lock(&mutex);
-        validateMode(fullscreen);
+        FScopeLock lock(mutex.get());
+        validateMode(fullscreen, target);
         const auto chosenFormat = nextFormat == PF_Unknown ? format : nextFormat;
         const auto nativeFormat = storageFormat(chosenFormat);
         chain->Discard();
@@ -70,18 +83,36 @@ namespace UnrealProspero::RHI
         format = chosenFormat;
     }
 
-    void ViewportResource::EndFrame(const FRHIPresentArgs& arguments)
+    bool ViewportResource::RequiresOutputTransition(const FRHIPresentArgs& arguments) const
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
+        return highRefreshPending && arguments.bPresent && visible->load(std::memory_order_acquire);
+    }
+
+    void ViewportResource::PresentOutputTransition(const FRHIPresentArgs& arguments)
+    {
+        FScopeLock lock(mutex.get());
+        if (!highRefreshPending || !arguments.bPresent || !visible->load(std::memory_order_acquire)) throw std::logic_error("Viewport output transition is not pending");
+        static_cast<void>(acquireBackBuffer());
+        if (PresentBeginLatencyCallback) PresentBeginLatencyCallback();
+        chain->Present(arguments.bLockToVsync ? 1 : 2);
+        chain->ConfigureHighRefresh();
+        highRefreshPending = false;
+        if (PresentEndLatencyCallback) PresentEndLatencyCallback();
+        UE_LOG(LogRHI, Display, TEXT("UnrealProspero video output configured for 120 Hz"));
+    }
+
+    void ViewportResource::EndFrame(CommandBuffer& commands, const FRHIPresentArgs& arguments)
+    {
+        FScopeLock lock(mutex.get());
         if (!arguments.bPresent || !visible->load(std::memory_order_acquire))
         {
             chain->Discard();
             return;
         }
-        if (!arguments.bLockToVsync) throw std::runtime_error("Unsynchronized viewport presentation is not implemented");
         static_cast<void>(acquireBackBuffer());
         if (PresentBeginLatencyCallback) PresentBeginLatencyCallback();
-        chain->Present(1);
+        chain->Present(commands, arguments.bLockToVsync ? 1 : 2);
         if (PresentEndLatencyCallback) PresentEndLatencyCallback();
     }
 
@@ -89,7 +120,7 @@ namespace UnrealProspero::RHI
 
     void* ViewportResource::GetNativeBackBufferTexture() const
     {
-        FScopeLock lock(&mutex);
+        FScopeLock lock(mutex.get());
         return chain->Acquire().get();
     }
 

@@ -14,7 +14,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     private readonly UnrealProsperoPlatformSdk sdk;
     private readonly Target target;
 
-    public UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, ILogger logger) : this(platform, settings, new UnrealProsperoPlatformSdk(logger, UnrealProsperoPlatformNames.GetTarget(platform), settings.IsConfigured ? settings.CreateInstallation() : null), logger) { }
+    public UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, ILogger logger) : this(platform, settings, new UnrealProsperoPlatformSdk(logger, UnrealProsperoPlatformNames.GetTarget(platform), settings), logger) { }
 
     private UnrealProsperoPlatform(UnrealTargetPlatform platform, UnrealProsperoSettings settings, UnrealProsperoPlatformSdk sdk, ILogger logger) : base(platform, sdk, new UnrealArchitectureConfig(UnrealArch.X64), logger)
     {
@@ -31,9 +31,11 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     public override void ModifyModuleRulesForOtherPlatform(string moduleName, ModuleRules rules, ReadOnlyTargetRules targetRules)
     {
         if (targetRules.Platform == Platform) return;
-        if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (targetRules.Platform != UnrealTargetPlatform.Win64 && targetRules.Platform != UnrealTargetPlatform.Linux) return;
+        if (targetRules.Type != TargetType.Editor && targetRules.Type != TargetType.Program) return;
         if (targetRules.bBuildRequiresCookedData) return;
+        if (targetRules.Type == TargetType.Program && !targetRules.bNeedsExtraShaderFormats && !targetRules.bForceBuildShaderFormats && !targetRules.bForceBuildTargetPlatforms) return;
+        if (settings.IsConfigured) AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if ((moduleName == "Engine" && targetRules.bBuildDeveloperTools) || (moduleName == "TargetPlatform" && targetRules.bForceBuildTargetPlatforms))
         {
             string settingsModule = Platform + "TargetPlatformSettings";
@@ -56,6 +58,7 @@ internal sealed class UnrealProsperoPlatform : UEBuildPlatform
     {
         AddPlatformStaticShaders(targetRules, rules, new[] { settings.GetShaderPlatform(target) });
         if (moduleName == "Engine" && !rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoPlatformFeatures")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoPlatformFeatures");
+        if (target == Target.Ps5 && moduleName == "Engine") rules.DynamicallyLoadedModuleNames.Add("AudioMixerUnrealProspero");
         if (moduleName == "RHI")
         {
             if (!rules.DynamicallyLoadedModuleNames.Contains("UnrealProsperoRHI")) rules.DynamicallyLoadedModuleNames.Add("UnrealProsperoRHI");

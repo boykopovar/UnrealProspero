@@ -3,17 +3,20 @@
 #include "UnrealProspero/RHI/Texture/TextureResource.h"
 #include "UnrealProspero/RHI/Texture/TextureView.h"
 #include <stdexcept>
+#include <string>
 
 namespace UnrealProspero::RHI
 {
     ResourceTransition::ResourceTransition(const FRHITransitionCreateInfo& info, std::uint32_t addressHigh)
     {
         if (info.SrcPipelines != ERHIPipeline::Graphics || info.DstPipelines != ERHIPipeline::Graphics) throw std::runtime_error("Cross-pipeline resource transitions are not implemented");
-        if (EnumHasAnyFlags(info.Flags, ~ERHITransitionCreateFlags::NoSplit) || !info.AliasingInfos.IsEmpty()) throw std::runtime_error("Resource transition flags or aliasing are not implemented");
+        constexpr auto supportedFlags = ERHITransitionCreateFlags::NoSplit | ERHITransitionCreateFlags::NoFence | ERHITransitionCreateFlags::AllowDuringRenderPass | ERHITransitionCreateFlags::AllowDecayPipelines;
+        if (EnumHasAnyFlags(info.Flags, ~supportedFlags)) throw std::runtime_error("Resource transition flags are not implemented: " + std::to_string(static_cast<unsigned>(info.Flags & ~supportedFlags)));
+        if (!info.AliasingInfos.IsEmpty()) throw std::runtime_error("Transient resource aliasing is not implemented: " + std::to_string(info.AliasingInfos.Num()));
         for (const auto& entry : info.TransitionInfos)
         {
             if (!entry.Resource) throw std::invalid_argument("Resource transition requires a resource");
-            if (entry.Flags != EResourceTransitionFlags::None || entry.CommitInfo.IsSet()) throw std::runtime_error("Resource transition flags or reserved memory commits are not implemented");
+            if (EnumHasAnyFlags(entry.Flags, ~EResourceTransitionFlags::Mask) || entry.CommitInfo.IsSet()) throw std::runtime_error("Resource transition flags or reserved memory commits are not implemented");
             auto* retainedResource = entry.Resource;
             if (entry.Type == FRHITransitionInfo::EType::Buffer)
             {
@@ -23,7 +26,10 @@ namespace UnrealProspero::RHI
             else if (entry.Type == FRHITransitionInfo::EType::Texture)
             {
                 auto& texture = ResolveTextureResource(entry.Resource);
-                if ((!entry.IsAllMips() && entry.MipIndex != 0) || (!entry.IsAllArraySlices() && entry.ArraySlice != 0) || (!entry.IsAllPlaneSlices() && entry.PlaneSlice != 0)) throw std::out_of_range("Texture transition selects a nonexistent subresource");
+                const auto& description = texture.GetDesc();
+                const auto layers = description.ArraySize * (description.IsTextureCube() ? 6u : 1u);
+                const auto planes = description.Format == PF_DepthStencil ? 2u : 1u;
+                if ((!entry.IsAllMips() && entry.MipIndex >= description.NumMips) || (!entry.IsAllArraySlices() && entry.ArraySlice >= layers) || (!entry.IsAllPlaneSlices() && entry.PlaneSlice >= planes)) throw std::out_of_range("Texture transition selects a nonexistent subresource");
                 retainedResource = &texture;
             }
             else if (entry.Type == FRHITransitionInfo::EType::UAV)

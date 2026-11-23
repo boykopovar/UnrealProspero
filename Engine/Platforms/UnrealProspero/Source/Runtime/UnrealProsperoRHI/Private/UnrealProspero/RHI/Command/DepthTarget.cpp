@@ -14,12 +14,15 @@ namespace UnrealProspero::RHI
         const auto address = reinterpret_cast<std::uintptr_t>(texture.GetStorage().Data());
         const auto low = static_cast<std::uint32_t>(address >> 8);
         const auto high = static_cast<std::uint32_t>(address >> 40);
+        const auto stencilAddress = texture.HasStencil() ? reinterpret_cast<std::uintptr_t>(texture.GetStencilRange().data()) : 0;
+        const auto stencilLow = static_cast<std::uint32_t>(stencilAddress >> 8);
+        const auto stencilHigh = static_cast<std::uint32_t>(stencilAddress >> 40);
         const std::array registers{
             ShaderRegister{0, 0}, ShaderRegister{1, 0}, ShaderRegister{2, 0},
             ShaderRegister{5, 0}, ShaderRegister{7, (texture.GetWidth() - 1) | ((texture.GetHeight() - 1) << 16)},
-            ShaderRegister{0x10, 3u | (24u << 4) | (1u << 31)}, ShaderRegister{0x11, 0},
-            ShaderRegister{0x12, low}, ShaderRegister{0x13, 0}, ShaderRegister{0x14, low}, ShaderRegister{0x15, 0},
-            ShaderRegister{0x1a, high}, ShaderRegister{0x1b, 0}, ShaderRegister{0x1c, high}, ShaderRegister{0x1d, 0},
+            ShaderRegister{0x10, 3u | (24u << 4) | (1u << 31)}, ShaderRegister{0x11, texture.HasStencil() ? 1u | (24u << 4) : 0u},
+            ShaderRegister{0x12, low}, ShaderRegister{0x13, stencilLow}, ShaderRegister{0x14, low}, ShaderRegister{0x15, stencilLow},
+            ShaderRegister{0x1a, high}, ShaderRegister{0x1b, stencilHigh}, ShaderRegister{0x1c, high}, ShaderRegister{0x1d, stencilHigh},
             ShaderRegister{0x1e, 0}, ShaderRegister{0x2af, 0}
         };
         for (const auto value : registers) sceAgcDcbSetCxRegisterDirect(&commands, value);
@@ -28,11 +31,20 @@ namespace UnrealProspero::RHI
     void WriteDepthClear(CommandBuffer& commands, const DepthTexture2D& texture, float depth)
     {
         if (!std::isfinite(depth) || depth < 0 || depth > 1) throw std::invalid_argument("Depth clear requires a finite normalized value");
-        const auto& storage = texture.GetStorage();
+        const auto storage = texture.GetDepthRange();
         sceAgcDcbSetCxRegisterDirect(&commands, {0xb, std::bit_cast<std::uint32_t>(depth)});
-        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.Data(), storage.Size(), 40);
-        WriteBufferFill(commands, storage.Data(), storage.Size(), std::bit_cast<std::uint32_t>(depth));
-        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.Data(), storage.Size(), 40);
+        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.data(), storage.size(), 40);
+        WriteBufferFill(commands, storage.data(), storage.size(), std::bit_cast<std::uint32_t>(depth));
+        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.data(), storage.size(), 40);
+    }
+
+    void WriteStencilClear(CommandBuffer& commands, const DepthTexture2D& texture, std::uint8_t stencil)
+    {
+        const auto storage = texture.GetStencilRange();
+        sceAgcDcbSetCxRegisterDirect(&commands, {0xa, stencil});
+        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.data(), storage.size(), 40);
+        WriteBufferFill(commands, storage.data(), storage.size(), static_cast<std::uint32_t>(stencil) * 0x01010101u);
+        sceAgcDcbAcquireMem(&commands, 1, 1u << 26, 0x4381, storage.data(), storage.size(), 40);
     }
 
     void DisableDepthTarget(CommandBuffer& commands)

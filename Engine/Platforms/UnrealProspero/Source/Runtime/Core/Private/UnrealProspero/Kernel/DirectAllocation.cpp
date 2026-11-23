@@ -8,8 +8,10 @@
 
 namespace UnrealProspero::Kernel
 {
-    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment, DirectMemoryAccess access, void* addressHint) : address(addressHint), size(size), gpuProtection(access == DirectMemoryAccess::CpuGpu ? 0x30 : 0)
+    DirectAllocation::DirectAllocation(std::size_t size, std::size_t alignment, DirectMemoryAccess access, void* addressHint, DirectMemoryPlacement placement) : address(addressHint), size(size), gpuProtection(access == DirectMemoryAccess::CpuGpu ? 0x30 : 0), placement(placement)
     {
+        if (placement != DirectMemoryPlacement::Hint && placement != DirectMemoryPlacement::Reserved) throw std::invalid_argument("Invalid direct memory placement");
+        if (placement == DirectMemoryPlacement::Reserved && !addressHint) throw std::invalid_argument("Reserved direct memory requires an address");
         if (access != DirectMemoryAccess::Cpu && access != DirectMemoryAccess::CpuGpu) throw std::invalid_argument("Invalid direct memory access mode");
         if (size == 0 || size % PageSize != 0) throw std::invalid_argument("Direct allocation size must be a positive multiple of the page size");
         if (alignment < PageSize || !std::has_single_bit(alignment)) throw std::invalid_argument("Invalid direct allocation alignment");
@@ -20,14 +22,14 @@ namespace UnrealProspero::Kernel
         CheckResult(sceKernelAllocateDirectMemory(0, static_cast<std::int64_t>(capacity), size, alignment, directMemoryType, &physicalAddress), "sceKernelAllocateDirectMemory");
         try
         {
-            CheckResult(sceKernelMapDirectMemory(&address, size, 3 | gpuProtection, 0, physicalAddress, alignment), "sceKernelMapDirectMemory");
+            CheckResult(sceKernelMapDirectMemory(&address, size, 3 | gpuProtection, placement == DirectMemoryPlacement::Reserved ? 0x10 : 0, physicalAddress, alignment), "sceKernelMapDirectMemory");
         }
         catch (...)
         {
             CheckResult(sceKernelReleaseDirectMemory(physicalAddress, size), "sceKernelReleaseDirectMemory");
             throw;
         }
-        if (address == nullptr || reinterpret_cast<std::uintptr_t>(address) % alignment != 0)
+        if (address == nullptr || reinterpret_cast<std::uintptr_t>(address) % alignment != 0 || (placement == DirectMemoryPlacement::Reserved && address != addressHint))
         {
             CheckResult(sceKernelMunmap(reinterpret_cast<std::uintptr_t>(address), size), "sceKernelMunmap");
             CheckResult(sceKernelReleaseDirectMemory(physicalAddress, size), "sceKernelReleaseDirectMemory");
@@ -36,9 +38,20 @@ namespace UnrealProspero::Kernel
         std::memset(address, 0, size);
     }
 
+    void DirectAllocation::releaseMapping()
+    {
+        if (placement == DirectMemoryPlacement::Reserved)
+        {
+            void* restored = address;
+            CheckResult(sceKernelReserveVirtualRange(&restored, size, 0x10, PageSize), "sceKernelReserveVirtualRange");
+            if (restored != address) throw std::runtime_error("Fixed direct memory reservation moved");
+        }
+        else CheckResult(sceKernelMunmap(reinterpret_cast<std::uintptr_t>(address), size), "sceKernelMunmap");
+    }
+
     DirectAllocation::~DirectAllocation() noexcept(false)
     {
-        CheckResult(sceKernelMunmap(reinterpret_cast<std::uintptr_t>(address), size), "sceKernelMunmap");
+        releaseMapping();
         CheckResult(sceKernelReleaseDirectMemory(physicalAddress, size), "sceKernelReleaseDirectMemory");
     }
 

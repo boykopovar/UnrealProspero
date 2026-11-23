@@ -1,4 +1,5 @@
 #include "UnrealProspero/RHI/Device/DynamicRHI.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UnrealProspero/RHI/Device/DeviceLimits.h"
 #include "UnrealProspero/RHI/Device/ShaderPlatform.h"
 #include "UnrealProspero/RHI/Texture/PixelFormat.h"
@@ -29,6 +30,8 @@
 #include "RHICommandList.h"
 #include "RHIResourceReplace.h"
 #include "RHIStats.h"
+#include "RenderResource.h"
+#include "RenderingThread.h"
 #include <stdexcept>
 #include <set>
 #include <limits>
@@ -122,16 +125,22 @@ namespace UnrealProspero::RHI
         ConfigurePixelFormats();
         ConfigureDeviceLimits();
         ConfigureTransitionStorage();
+        frameProfiler = std::make_unique<FrameProfiler>();
         initialized = true;
+        FRenderResource::InitPreRHIResources();
+        GIsRHIInitialized = true;
     }
 
     void DynamicRHI::Shutdown()
     {
         if (!initialized || shutDown) throw std::runtime_error("RHI shutdown requires an initialized device");
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        GIsRHIInitialized = false;
+        FRenderResource::ReleaseRHIForAllResources();
         if (defaultContext)
         {
             auto commands = std::make_unique<CommandList>(std::move(defaultContext));
+            const std::lock_guard lock(submissionMutex);
             pendingCommandLists.push_back(std::move(commands));
             try
             {
@@ -207,7 +216,7 @@ namespace UnrealProspero::RHI
         const auto info = DescribeTextureFormat(destination->GetFormat());
         if (region.SrcX % info.BlockWidth != 0 || region.SrcY % info.BlockHeight != 0 || region.DestX % info.BlockWidth != 0 || region.DestY % info.BlockHeight != 0) throw std::invalid_argument("Volume update origin is not block aligned");
         if ((region.Width % info.BlockWidth != 0 && region.Width != mip.Width - region.DestX) || (region.Height % info.BlockHeight != 0 && region.Height != mip.Height - region.DestY)) throw std::invalid_argument("Volume update splits a compressed block");
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, destination->GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Width, destination->GetFormat());
         const auto blockRows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const auto column = static_cast<std::size_t>(region.SrcX) / info.BlockWidth * info.BlockBytes;
         if (column > sourceRowPitch || rowBytes > sourceRowPitch - column) throw std::invalid_argument("Volume update source row pitch is too small");
@@ -233,7 +242,7 @@ namespace UnrealProspero::RHI
         const auto info = DescribeTextureFormat(destination->GetFormat());
         if (region.SrcX % info.BlockWidth != 0 || region.SrcY % info.BlockHeight != 0 || region.DestX % info.BlockWidth != 0 || region.DestY % info.BlockHeight != 0) throw std::invalid_argument("Texture update origin is not block aligned");
         if ((region.Width % info.BlockWidth != 0 && region.Width != mip.Width - region.DestX) || (region.Height % info.BlockHeight != 0 && region.Height != mip.Height - region.DestY)) throw std::invalid_argument("Texture update splits a compressed block");
-        const auto rowBytes = LinearTexture2D::CalculateRowBytes(region.Width, destination->GetFormat());
+        const auto rowBytes = Texture2D::CalculateRowBytes(region.Width, destination->GetFormat());
         const auto rows = (region.Height + info.BlockHeight - 1) / info.BlockHeight;
         const auto columnOffset = static_cast<std::size_t>(region.SrcX) / info.BlockWidth * info.BlockBytes;
         if (columnOffset > sourcePitch || rowBytes > sourcePitch - columnOffset) throw std::invalid_argument("Texture update source pitch is too small");
@@ -264,7 +273,7 @@ namespace UnrealProspero::RHI
     {
         if (commandList.IsExecuting()) throw std::runtime_error("Texture unlock requires a non-executing immediate command list");
         auto& texture = ResolveTextureResource(arguments.Texture);
-        auto locked = texture.Unlock(arguments.LockMode, arguments.MipIndex, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
+        auto locked = texture.Unlock(arguments.MipIndex, texture.GetArrayLayer(arguments.ArrayIndex, arguments.FaceIndex));
         if (locked.Mode == RLM_ReadOnly) return;
         const auto storage = texture.Capture();
         const auto& mip = storage->GetMipLayout(locked.MipLevel);
@@ -358,16 +367,25 @@ namespace UnrealProspero::RHI
 
     FViewportRHIRef DynamicRHI::RHICreateViewport(void* windowHandle, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
     {
-        return new ViewportResource(windowHandle, width, height, fullscreen, format, target, addressHigh);
+        return ViewportResource::Create(windowHandle, width, height, fullscreen, format, target, addressHigh);
     }
 
     void DynamicRHI::RHIResizeViewport(FRHIViewport* viewport, uint32 width, uint32 height, bool fullscreen, EPixelFormat format)
     {
         if (!viewport) throw std::invalid_argument("Viewport is null");
-        auto& commandList = FRHICommandListExecutor::GetImmediateCommandList();
-        if (commandList.IsExecuting()) throw std::runtime_error("Viewport resize cannot execute inside a command list");
-        commandList.SubmitAndBlockUntilGPUIdle();
-        static_cast<ViewportResource*>(viewport)->Resize(width, height, fullscreen, format);
+        if (!IsInRenderingThread() && !IsInGameThread()) throw std::runtime_error("Viewport resize requires the game or rendering thread");
+        auto resize = [viewport = FViewportRHIRef(viewport), width, height, fullscreen, format](FRHICommandListImmediate& commandList)
+        {
+            if (commandList.IsExecuting()) throw std::runtime_error("Viewport resize cannot execute inside a command list");
+            commandList.SubmitAndBlockUntilGPUIdle();
+            static_cast<ViewportResource*>(viewport.GetReference())->Resize(width, height, fullscreen, format);
+        };
+        if (IsInRenderingThread()) resize(FRHICommandListExecutor::GetImmediateCommandList());
+        else
+        {
+            ENQUEUE_RENDER_COMMAND(UnrealProsperoResizeViewport)(MoveTemp(resize));
+            FlushRenderingCommands();
+        }
     }
 
     FTextureRHIRef DynamicRHI::RHIGetViewportBackBuffer(FRHIViewport* viewport)
@@ -380,8 +398,18 @@ namespace UnrealProspero::RHI
     {
         if (!viewport) throw std::invalid_argument("Viewport is null");
         if (commandList.IsExecuting()) throw std::runtime_error("Viewport present cannot execute inside a command list");
-        commandList.SubmitAndBlockUntilGPUIdle();
-        static_cast<ViewportResource*>(viewport)->EndFrame(arguments);
+        auto& resource = *static_cast<ViewportResource*>(viewport);
+        if (resource.RequiresOutputTransition(arguments))
+        {
+            commandList.SubmitAndBlockUntilGPUIdle();
+            resource.PresentOutputTransition(arguments);
+            return;
+        }
+        commandList.EnqueueLambda(TEXT("UnrealProsperoPresentViewport"), [viewport = FViewportRHIRef(viewport), arguments](FRHICommandListBase& executingList)
+        {
+            static_cast<GraphicsContext&>(executingList.GetContext()).PresentViewport(viewport.GetReference(), arguments);
+        });
+        commandList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
     }
 
     uint32 DynamicRHI::RHIComputeMemorySize(FRHITexture* texture)
@@ -553,6 +581,7 @@ namespace UnrealProspero::RHI
     void DynamicRHI::RHISubmitCommandLists(FRHISubmitCommandListsArgs&& args)
     {
         if (!initialized || shutDown) throw std::runtime_error("RHI command processing requires an initialized device");
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         std::set<IRHIPlatformCommandList*> uniqueLists;
         for (const auto& list : pendingCommandLists) uniqueLists.insert(list.get());
@@ -578,19 +607,28 @@ namespace UnrealProspero::RHI
     void DynamicRHI::RHIEndFrame(const FRHIEndFrameArgs& arguments)
     {
         if (arguments.bProfileNextFrame) throw std::runtime_error("GPU frame timing capture is not implemented");
-        RHIProcessDeleteQueue();
+        const std::lock_guard lock(submissionMutex);
+        if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        frameProfiler->EndFrame(arguments, pendingCommandLists.empty() ? nullptr : pendingCommandLists.back()->CaptureCompletion());
+        frameProfiler->Poll();
+        std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 
     void DynamicRHI::RHIProcessDeleteQueue()
     {
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
+        frameProfiler->Poll();
         std::erase_if(pendingCommandLists, [](const auto& list) { return list->IsComplete(); });
     }
 
     void DynamicRHI::RHIBlockUntilGPUIdle()
     {
+        CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UnrealProsperoWaitForGpuIdle);
+        const std::lock_guard lock(submissionMutex);
         if (submissionFailed) throw std::runtime_error("GPU submission queue has failed");
         for (const auto& list : pendingCommandLists) list->Wait(10000000);
+        frameProfiler->Poll();
         pendingCommandLists.clear();
     }
 

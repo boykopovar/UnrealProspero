@@ -11,9 +11,7 @@ namespace UnrealProspero::RHI
         const TCHAR* format;
         switch (target)
         {
-        case Shader::AgcTarget::Windows: name = TEXT("AGC_ANYWIN64"); format = TEXT("SF_AGC_ANYWIN64"); break;
-        case Shader::AgcTarget::Linux: name = TEXT("AGC_ANYLINUX"); format = TEXT("SF_AGC_ANYLINUX"); break;
-        case Shader::AgcTarget::Ps5: name = TEXT("AGC_ANYPS5"); format = TEXT("SF_AGC_ANYPS5"); break;
+        case Shader::AgcTarget::Ps5: name = TEXT("SP_AGC_ANYPS5"); format = TEXT("SF_AGC_ANYPS5"); break;
         default: throw std::invalid_argument("Invalid shader platform target");
         }
         const auto platform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(name));

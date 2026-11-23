@@ -9,23 +9,67 @@ namespace UnrealProspero::RHI
 {
     namespace
     {
-        std::uint32_t normalized(float value, bool srgb)
+        std::uint32_t packedFloat(float value, std::uint32_t fractionBits)
+        {
+            const auto bits = std::bit_cast<std::uint32_t>(value);
+            const auto exponent = (bits >> 23) & 255u;
+            const auto fraction = bits & 0x7fffffu;
+            if (exponent == 255 && fraction != 0) return (31u << fractionBits) | (1u << (fractionBits - 1));
+            if ((bits >> 31) != 0) return 0;
+            if (exponent >= 143) return 31u << fractionBits;
+            if (exponent < 112 - fractionBits) return 0;
+            if (exponent < 113)
+            {
+                const auto significand = fraction | 0x800000u;
+                const auto shift = 136 - fractionBits - exponent;
+                const auto result = significand >> shift;
+                const auto remainder = significand & ((1u << shift) - 1);
+                const auto halfway = 1u << (shift - 1);
+                return result + (remainder > halfway || (remainder == halfway && (result & 1)));
+            }
+            const auto shift = 23 - fractionBits;
+            const auto rounded = fraction + (1u << (shift - 1)) - 1 + ((fraction >> shift) & 1);
+            return ((exponent - 112) << fractionBits) + (rounded >> shift);
+        }
+
+        std::uint32_t normalized(float value, bool srgb, std::uint32_t maximum = 255)
         {
             if (std::isnan(value)) throw std::invalid_argument("Normalized color clear cannot encode NaN");
             value = std::clamp(value, 0.0f, 1.0f);
             if (srgb) value = value <= 0.0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
-            return static_cast<std::uint32_t>(std::floor(value * 255.0f + 0.5f));
+            return static_cast<std::uint32_t>(std::floor(value * static_cast<float>(maximum) + 0.5f));
         }
 
     }
 
     std::array<std::uint32_t, 4> EncodeTextureClear(TextureFormat format, const std::array<float, 4>& color)
     {
-        if (format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) throw std::invalid_argument("Integer texture clear requires integer values");
+        if (DescribeTextureFormat(format).Integer) throw std::invalid_argument("Integer texture clear requires integer values");
         std::array<std::uint32_t, 4> result{};
+        if (format == TextureFormat::A8Unorm)
+        {
+            result.fill(normalized(color[3], false) * 0x01010101u);
+            return result;
+        }
+        if (format == TextureFormat::Rgb10A2Unorm)
+        {
+            result.fill(normalized(color[0], false, 1023) | (normalized(color[1], false, 1023) << 10) | (normalized(color[2], false, 1023) << 20) | (normalized(color[3], false, 3) << 30));
+            return result;
+        }
+        if (format == TextureFormat::R11G11B10Float)
+        {
+            result.fill(packedFloat(color[0], 6) | (packedFloat(color[1], 6) << 11) | (packedFloat(color[2], 5) << 22));
+            return result;
+        }
         if (format == TextureFormat::Rgba32Float)
         {
             for (std::size_t index = 0; index < result.size(); ++index) result[index] = std::bit_cast<std::uint32_t>(color[index]);
+            return result;
+        }
+        if (format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm)
+        {
+            const auto channels = DescribeTextureFormat(format).BlockBytes / 2;
+            for (std::size_t index = 0; index < result.size(); ++index) result[index] = normalized(color[(index * 2) % channels], false, 65535) | (normalized(color[(index * 2 + 1) % channels], false, 65535) << 16);
             return result;
         }
         if (format == TextureFormat::Rgba16Float)
@@ -42,13 +86,13 @@ namespace UnrealProspero::RHI
         else if (format == TextureFormat::R32Float) word = std::bit_cast<std::uint32_t>(color[0]);
         else
         {
-            const bool srgb = format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
+            const bool srgb = format == TextureFormat::R8Srgb || format == TextureFormat::Rg8Srgb || format == TextureFormat::Rgba8Srgb || format == TextureFormat::Bgra8Srgb;
             const auto red = normalized(color[0], srgb);
-            if (format == TextureFormat::R8Unorm) word = red * 0x01010101u;
+            if (format == TextureFormat::R8Unorm || format == TextureFormat::R8Srgb) word = red * 0x01010101u;
             else
             {
                 const auto green = normalized(color[1], srgb);
-                if (format == TextureFormat::Rg8Unorm) word = (red | (green << 8)) * 0x00010001u;
+                if (format == TextureFormat::Rg8Unorm || format == TextureFormat::Rg8Srgb) word = (red | (green << 8)) * 0x00010001u;
                 else
                 {
                     const auto blue = normalized(color[2], srgb);
@@ -71,10 +115,25 @@ namespace UnrealProspero::RHI
     std::array<std::uint32_t, 4> EncodeTextureClear(TextureFormat format, const std::array<std::uint32_t, 4>& values)
     {
         std::array<std::uint32_t, 4> result{};
-        const auto pixelBytes = LinearTexture2D::CalculateRowBytes(1, format);
-        if (format == TextureFormat::Rgba32Float) return values;
+        const auto pixelBytes = Texture2D::CalculateRowBytes(1, format);
+        if (format == TextureFormat::A8Unorm)
+        {
+            result.fill((values[3] & 255u) * 0x01010101u);
+            return result;
+        }
+        if (format == TextureFormat::Rgb10A2Unorm)
+        {
+            result.fill((values[0] & 1023u) | ((values[1] & 1023u) << 10) | ((values[2] & 1023u) << 20) | ((values[3] & 3u) << 30));
+            return result;
+        }
+        if (format == TextureFormat::R11G11B10Float)
+        {
+            result.fill((values[0] & 2047u) | ((values[1] & 2047u) << 11) | ((values[2] & 1023u) << 22));
+            return result;
+        }
+        if (format == TextureFormat::Rgba32Float || format == TextureFormat::Rgba32Uint) return values;
         if (format == TextureFormat::R32Float || format == TextureFormat::R32Uint || format == TextureFormat::R32Sint) result.fill(values[0]);
-        else if (format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
+        else if (format == TextureFormat::R16Uint || format == TextureFormat::R16Sint || format == TextureFormat::Rg16Uint || format == TextureFormat::R16Unorm || format == TextureFormat::Rg16Unorm || format == TextureFormat::Rgba16Unorm || format == TextureFormat::Rgba16Float || format == TextureFormat::Rg16Float || format == TextureFormat::R16Float)
         {
             const auto channels = pixelBytes / 2;
             for (std::size_t channel = 0; channel < 8; ++channel) result[channel / 2] |= (values[channel % channels] & 65535u) << ((channel % 2) * 16);

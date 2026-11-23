@@ -1,6 +1,7 @@
 #ifndef UNREALPROSPERO_SHADER_BINARY_H
 #define UNREALPROSPERO_SHADER_BINARY_H
 
+#include "CoreTypes.h"
 #include <array>
 #include <cstdint>
 #include <span>
@@ -48,6 +49,14 @@ namespace UnrealProspero::Shader
 
     using ShaderIdentity = std::array<std::uint8_t, 20>;
 
+    struct ColorExportVariantView
+    {
+        std::uint32_t Format;
+        std::span<const std::uint8_t> Header;
+        std::span<const std::uint8_t> Code;
+        std::span<const std::uint8_t> Metadata;
+    };
+
     struct ShaderBinaryView
     {
         ShaderStage Stage;
@@ -58,9 +67,26 @@ namespace UnrealProspero::Shader
         std::span<const std::uint8_t> ResourceTable;
         std::vector<RuntimeBinding> Bindings;
         ShaderIdentity VertexIdentity{};
+        std::uint32_t ColorExportFormat = 0;
+        std::vector<ColorExportVariantView> ColorExports{};
     };
 
+    struct ShaderOptionalDataView
+    {
+        std::uint8_t Key;
+        std::span<const std::uint8_t> Bytes;
+    };
+
+    struct UnrealShaderCodeView
+    {
+        std::span<const std::uint8_t> Code;
+        std::vector<ShaderOptionalDataView> OptionalData;
+    };
+
+    UNREALPROSPEROSHADERCOMMON_API UnrealShaderCodeView DecodeUnrealShaderEnvelope(std::span<const std::uint8_t> bytes);
+    UNREALPROSPEROSHADERCOMMON_API std::vector<std::uint8_t> EncodeUnrealShaderEnvelope(const UnrealShaderCodeView& shader);
     UNREALPROSPEROSHADERCOMMON_API void ValidateGeometryVertex(const ShaderBinaryView& geometry, const ShaderBinaryView& vertex, const ShaderIdentity& identity);
+    UNREALPROSPEROSHADERCOMMON_API void ValidateLogicalBindings(std::span<const RuntimeBinding> source, std::span<const RuntimeBinding> destination);
     UNREALPROSPEROSHADERCOMMON_API void ValidateRuntimeBindings(std::span<const RuntimeBinding> bindings);
     UNREALPROSPEROSHADERCOMMON_API std::vector<std::uint8_t> EncodeShaderBinary(const ShaderBinaryView& shader);
     UNREALPROSPEROSHADERCOMMON_API ShaderBinaryView DecodeShaderBinary(std::span<const std::uint8_t> bytes);

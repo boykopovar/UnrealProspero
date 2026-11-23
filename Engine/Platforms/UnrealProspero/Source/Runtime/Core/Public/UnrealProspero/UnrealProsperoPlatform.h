@@ -31,6 +31,14 @@ struct FUnrealProsperoPlatformTypes : FGenericPlatformTypes
 
 using FPlatformTypes = FUnrealProsperoPlatformTypes;
 
+struct tagRECT
+{
+    FPlatformTypes::int32 left;
+    FPlatformTypes::int32 top;
+    FPlatformTypes::int32 right;
+    FPlatformTypes::int32 bottom;
+};
+
 static_assert(sizeof(void*) == 8);
 static_assert(sizeof(wchar_t) == 2);
 static_assert(std::endian::native == std::endian::little);
@@ -46,7 +54,10 @@ static_assert(std::endian::native == std::endian::little);
 #define PLATFORM_TCHAR_IS_CHAR16 0
 #define PLATFORM_IS_ANSI_MALLOC_THREADSAFE 1
 #define PLATFORM_USE_PTHREADS 0
+#define PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION 1
 #define PLATFORM_HAS_BSD_TIME 0
+#define PLATFORM_HAS_BSD_SOCKET_FEATURE_IOCTL 1
+#define PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL 1
 #define PLATFORM_ALWAYS_HAS_AESNI UNREALPROSPERO_TARGET_PS5
 #define PLATFORM_CAN_SUPPORT_EDITORONLY_DATA 0
 #define FORCEINLINE inline

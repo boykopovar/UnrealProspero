@@ -76,6 +76,25 @@ namespace UnrealProspero::RHI
         return result;
     }
 
+    std::vector<DescriptorRange> DescriptorTables::GetRanges(std::span<const Shader::RuntimeBinding> source, std::span<const Shader::RuntimeBinding> destination) const
+    {
+        Shader::ValidateLogicalBindings(source, destination);
+        Shader::ValidateRuntimeBindings(destination);
+        auto ranges = GetRanges();
+        if (ranges.size() != source.size()) throw std::invalid_argument("Descriptor ranges disagree with shader bindings");
+        for (std::size_t index = 0; index < ranges.size(); ++index)
+        {
+            auto& range = ranges[index];
+            const auto& original = source[index];
+            const auto& target = destination[index];
+            if (range.Set != original.Set || range.Binding != original.Binding || range.Offset != original.Offset || range.Bytes.size() != static_cast<std::uint64_t>(original.Count) * original.Stride) throw std::invalid_argument("Descriptor range does not match its shader binding");
+            range.Set = target.Set;
+            range.Binding = target.Binding;
+            range.Offset = target.Offset;
+        }
+        return ranges;
+    }
+
     void DescriptorTables::Apply(Shader::UserDataInputs& inputs) const
     {
         validateInitialized();
