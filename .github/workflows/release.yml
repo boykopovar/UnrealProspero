@@ -1,0 +1,35 @@
+name: publish release
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: unrealprospero-*
+          merge-multiple: true
+          path: build/release
+      - name: Verify release archives
+        run: python3 tools/VerifyRelease.py --packages build/release --tag "$RELEASE_TAG"
+      - name: Upload draft release
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" build/release/* --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
+          gh release view "$RELEASE_TAG" --json assets,isDraft,tagName > build/release-assets.json
+          python3 tools/VerifyRelease.py --packages build/release --tag "$RELEASE_TAG" --assets build/release-assets.json
+      - name: Publish release
+        run: gh release edit "$RELEASE_TAG" --draft=false

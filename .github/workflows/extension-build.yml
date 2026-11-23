@@ -158,7 +158,13 @@ jobs:
           name: ps5-libraries
           path: build/ports
       - name: Package extension
-        run: python tools/Package.py --sdk build/sdk --ports build/ports --output build/packages --work build/archive-work --version "${GITHUB_SHA:0:12}"
+        run: |
+          set -euo pipefail
+          version="${GITHUB_SHA:0:12}"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          python tools/Package.py --sdk build/sdk --ports build/ports --output build/packages --work build/archive-work --version "$version"
       - name: Verify archive installation
         run: python tools/VerifyPackage.py --packages build/packages --engine build/sources/unreal --work build/installed-work
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
