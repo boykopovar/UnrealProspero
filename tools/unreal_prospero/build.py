@@ -60,7 +60,7 @@ def host_project(work):
     target = directory / 'Source/UnrealProsperoHostEditor.Target.cs'
     target.parent.mkdir(parents=True, exist_ok=True)
     project_text = json.dumps({'FileVersion': 3, 'EngineAssociation': '', 'Category': '', 'Description': ''}, indent=2) + '\n'
-    target_text = 'using UnrealBuildTool;\n\npublic class UnrealProsperoHostEditorTarget : TargetRules\n{\n    public UnrealProsperoHostEditorTarget(TargetInfo target) : base(target)\n    {\n        Type = TargetType.Editor;\n        DefaultBuildSettings = BuildSettingsVersion.V7;\n        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;\n    }\n}\n'
+    target_text = 'using UnrealBuildTool;\n\npublic class UnrealProsperoHostEditorTarget : TargetRules\n{\n    public UnrealProsperoHostEditorTarget(TargetInfo target) : base(target)\n    {\n        Type = TargetType.Editor;\n        DefaultBuildSettings = BuildSettingsVersion.V7;\n        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;\n        if (System.Environment.GetEnvironmentVariable("UNREALPROSPERO_CCACHE") is not null) WindowsPlatform.bWriteSarif = false;\n    }\n}\n'
     for path, content in ((project, project_text), (target, target_text)):
         if path.exists() and path.read_text(encoding='utf-8') != content:
             raise ValueError(f'Generated host project was modified: {path}')

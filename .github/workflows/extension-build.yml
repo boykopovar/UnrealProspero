@@ -169,7 +169,7 @@ jobs:
           compression-level: 0
       - name: Compiler cache statistics
         if: always() && env.UNREALPROSPERO_CCACHE != ''
-        run: '"$UNREALPROSPERO_CCACHE" --show-stats'
+        run: '"$UNREALPROSPERO_CCACHE" --show-stats --verbose'
       - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
         if: always() && !cancelled() && steps.compiler-cache.outcome == 'success'
         with:
