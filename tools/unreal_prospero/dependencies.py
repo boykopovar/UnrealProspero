@@ -56,7 +56,8 @@ class Dependencies:
                 continue
             blob = self.blobs[entry['Hash']]
             groups[blob['PackHash']].append((name, blob))
-        print(f'Restoring {sum(len(items) for items in groups.values())} Unreal dependencies from {len(groups)} packs', flush=True)
+        cached = sum((self.cache / (digest + '.gz')).is_file() for digest in groups)
+        print(f'Restoring {sum(len(items) for items in groups.values())} Unreal dependencies from {len(groups)} packs; cached={cached}; downloads={len(groups) - cached}', flush=True)
         with ThreadPoolExecutor(max_workers=workers) as executor:
             list(executor.map(self.restore_pack, groups.items()))
 
